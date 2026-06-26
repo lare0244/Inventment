@@ -1,0 +1,166 @@
+{
+  "app_name": "StockMaster Warehouse",
+  "personality": "7 Dark-First Utility",
+  "personality_one_liner": "A high-contrast, industrial command-center built for speed, live stock visibility, and rugged floor operations.",
+  "color": {
+    "surface": "#121212",
+    "onSurface": "#E0E0E0",
+    "surfaceSecondary": "#1E1E1E",
+    "onSurfaceSecondary": "#B0BEC5",
+    "surfaceTertiary": "#2C2C2C",
+    "onSurfaceTertiary": "#90A4AE",
+    "surfaceInverse": "#F5F5F5",
+    "onSurfaceInverse": "#121212",
+    "brand": "#FF5722",
+    "brandPrimary": "#FF5722",
+    "onBrandPrimary": "#121212",
+    "brandSecondary": "#FF8A65",
+    "onBrandSecondary": "#121212",
+    "brandTertiary": "#3E2723",
+    "onBrandTertiary": "#FFAB91",
+    "success": "#00E676",
+    "onSuccess": "#121212",
+    "warning": "#FFEA00",
+    "onWarning": "#121212",
+    "error": "#FF1744",
+    "onError": "#FFFFFF",
+    "info": "#29B6F6",
+    "onInfo": "#121212",
+    "border": "#37474F",
+    "borderStrong": "#FF5722",
+    "divider": "#263238"
+  },
+  "typography": {
+    "displayFontFamily": "Rajdhani",
+    "textFontFamily": "IBM Plex Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Use tight grids and deliberate paddings for high data density. Maintain rigid margins for all cards without floating effects.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "0",
+  "navigation": "bottom_tabs",
+  "icon_set": "MaterialCommunityIcons",
+  "glassmorphism": {
+    "enabled": false,
+    "do's": [
+      "Use solid surfaceSecondary blocks with sharp 1px borders instead of glass. Data screens prioritize extreme readability."
+    ],
+    "dont's": [
+      "No blur on dashboard cards or list rows.",
+      "No frosted navigation bars.",
+      "No glassmorphism on the scanner overlay (use solid semi-transparent black)."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Dashboard",
+      "purpose": "A live metric-heavy view showing total stock value, active alerts, and quick actions.",
+      "states": {
+        "loading": "Skeleton grids with an industrial scan-line sweep effect.",
+        "empty": "Illustration of stacked boxes with 'No Data Yet' and a prompt to sync inventory.",
+        "error": "Red outlined box with error text and a prominent 'Retry Connection' button."
+      },
+      "layout": "Four 2-column KPI metric cards at the top using Rajdhani font. Below, a scrollable list of recent stock updates and low stock alerts. Rigid 1px borders for all cards."
+    },
+    {
+      "name": "Barcode Scanner",
+      "purpose": "Scan incoming orders or lookup items instantly.",
+      "states": {
+        "loading": "Centered loading spinner over the camera feed.",
+        "empty": "N/A for camera, but 'Item Not Found' slide-up panel on failed scan.",
+        "error": "Error panel describing why camera access failed or scan timed out."
+      },
+      "layout": "Full-bleed camera view. Dark #121212 semi-transparent overlay covering non-scan areas. A sharp, white-lined bounding box for the target area. A bottom sheet (surfaceSecondary) for scanned item details that pops up upon successful scan."
+    },
+    {
+      "name": "Product Catalog",
+      "purpose": "List, filter, and edit products, categories, and warehouses.",
+      "states": {
+        "loading": "List of skeleton rows.",
+        "empty": "Empty box illustration. 'No products in this warehouse' with an 'Add Product' primary CTA.",
+        "error": "Error message with a 'Reload Catalog' button."
+      },
+      "layout": "Top sticky search and filter chips. Scrollable list of product rows containing thumbnail, SKU, Title, Stock amount (with green/yellow/red dot indicator), and a chevron to enter details."
+    },
+    {
+      "name": "Product Details & Edit",
+      "purpose": "Deep dive into a single product to edit supplier, price, stock count, and best-before dates.",
+      "states": {
+        "loading": "Skeleton fields.",
+        "empty": "N/A - loaded from a selected item.",
+        "error": "Error toast if save fails."
+      },
+      "layout": "Single column form. Labels above inputs. A sticky primary CTA 'Save Changes' at the bottom over scrolling content. Includes sections for general info, pricing, and suppliers."
+    },
+    {
+      "name": "Purchase Orders",
+      "purpose": "View supplier suggestions and generate order emails.",
+      "states": {
+        "loading": "Skeleton view of drafted orders.",
+        "empty": "Illustration of an empty clipboard. 'No pending orders'.",
+        "error": "Error toast on email failure."
+      },
+      "layout": "List of suggested restock items. A sticky 'Draft Email to Supplier' button pinned to the bottom."
+    }
+  ],
+  "images": {
+    "hero_background": {
+      "url": "https://images.unsplash.com/photo-1670467429065-e06e3e1ab835?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NDh8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBkYXJrJTIwd2FyZWhvdXNlJTIwaW50ZXJpb3J8ZW58MHx8fHwxNzgyNTA1MzI0fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "A modern dark warehouse interior reflecting an industrial theme."
+    },
+    "empty_boxes": {
+      "url": "https://images.unsplash.com/photo-1700165644892-3dd6b67b25bc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwxfHxjYXJkYm9hcmQlMjBib3hlcyUyMGludmVudG9yeXxlbnwwfHx8fDE3ODI1MDUzMjR8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Open cardboard boxes representing empty inventory states."
+    }
+  },
+  "haptics": {
+    "button_press": "light",
+    "scan_success": "success",
+    "scan_error": "error",
+    "tab_switch": "selection",
+    "stock_update": "medium"
+  },
+  "instructions_to_main_agent": [
+    "Strictly adhere to the Dark-First Utility guidelines. Use #121212 background with #1E1E1E cards.",
+    "Do NOT use glassmorphism or blur effects for data screens; rely on 1px #37474F borders to define hierarchy and components.",
+    "For typography, use Rajdhani for all metrics, numbers, KPIs, and main headers. Use IBM Plex Sans for tables, body copy, and UI text.",
+    "When designing the barcode scanner, use a full-bleed camera, a dark semi-transparent overlay outside the scan area, and a bright high-contrast scan frame.",
+    "Implement a status dot indicator (Green/Yellow/Red) for stock levels across all lists.",
+    "Ensure 'Save Changes' or 'Create Order' primary buttons are sticky at the bottom of forms/lists.",
+    "Barcode inputs should never be inverted; if there's a barcode visualization on screen, ensure it's on a white surface to maintain scanner compatibility.",
+    "Do NOT use blues or purples anywhere in the app. Stick to the Safety Orange (#FF5722) accent.",
+    "Ensure the bottom tabs use outlined inactive and filled active icons from MaterialCommunityIcons."
+  ]
+}
