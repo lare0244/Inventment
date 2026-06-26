@@ -25,6 +25,17 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Settings: manage warehouses/categories/suppliers, sign out
 - Verified: 16/16 backend tests passed; multi-tenant isolation solid
 
+## Implemented (2026-06-26 — Update 2)
+- PDF stock report (expo-print + expo-sharing) with date, total value, current inventory table, and 15-month stock-value SVG line chart
+- Monthly stock-value snapshots (stock_snapshots collection); GET /api/reports/stock-history returns 15 months with carry-forward
+- On-screen 15-month line chart on Orders tab (react-native-svg)
+- Currency selection in Settings (SEK/DKK/EUR/GBP); applied app-wide via money() formatter; PUT /api/settings + currency on /auth/me
+- Warehouse address field; shown in Settings and used as delivery address in PO emails
+- Warehouse selection ("Deliver to") when drafting purchase orders
+- New-product form auto-fills purchase/received date with today (editable)
+- AI insight (Claude) now returns live output after key recharge
+- Verified: 29/29 backend tests passed (13 new + 16 regression)
+
 ## Backlog
 - P1: Per-warehouse stock quantities (currently product-level), image upload/capture for products
 - P1: Native date pickers for purchase/best-before (currently text YYYY-MM-DD)
