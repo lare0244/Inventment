@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { api } from "@/src/api";
+import { useAuth } from "@/src/auth";
+import { currencySymbol } from "@/src/currency";
 import { C, F, S, R } from "@/src/theme";
 import { Field, Btn } from "@/src/components/ui";
 
@@ -24,6 +26,8 @@ export function ProductEditor({
 }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { currency } = useAuth();
+  const sym = currencySymbol(currency);
   const [form, setForm] = useState<ProductForm>({
     name: "", barcode: "", sku: "", brand: "", image: "", price: "0", cost: "0",
     quantity: "0", low_stock_threshold: "5", category_id: null, warehouse_id: null,
@@ -102,8 +106,8 @@ export function ProductEditor({
           <View style={styles.half}><Field label="SKU" testID="f-sku" value={form.sku} onChangeText={(v) => set("sku", v)} placeholder="SKU" /></View>
         </View>
         <View style={styles.two}>
-          <View style={styles.half}><Field label="Price ($)" testID="f-price" value={form.price} onChangeText={(v) => set("price", v)} keyboardType="decimal-pad" /></View>
-          <View style={styles.half}><Field label="Cost ($)" testID="f-cost" value={form.cost} onChangeText={(v) => set("cost", v)} keyboardType="decimal-pad" /></View>
+          <View style={styles.half}><Field label={`Price (${sym})`} testID="f-price" value={form.price} onChangeText={(v) => set("price", v)} keyboardType="decimal-pad" /></View>
+          <View style={styles.half}><Field label={`Cost (${sym})`} testID="f-cost" value={form.cost} onChangeText={(v) => set("cost", v)} keyboardType="decimal-pad" /></View>
         </View>
         <View style={styles.two}>
           <View style={styles.half}><Field label="Quantity" testID="f-qty" value={form.quantity} onChangeText={(v) => set("quantity", v)} keyboardType="number-pad" /></View>

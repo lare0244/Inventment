@@ -1,0 +1,39 @@
+{
+  "summary": "Backend-only testing of 4 newly-added StockMaster features. Added /app/backend/tests/test_new_features.py with 13 focused pytest cases and re-ran the full suite (16 prior + 13 new = 29 tests). 29/29 PASSED (100%). Verified: (a) GET /api/reports/stock-history returns exactly 15 contiguous YYYY-MM points ending at current month, with carry-forward and current value matching dashboard stock_value; (b) PUT /api/settings accepts SEK/DKK/EUR/GBP and rejects USD/JPY/'sek'/''/XXX with 400, currency persists and is returned by GET /api/auth/me, and is isolated per-user; (c) POST /api/warehouses accepts/persists 'address' and GET /api/warehouses returns it; (d) POST /api/reports/po-email with warehouse_id includes a 'Deliver to:\\n<name>\\n<address>' block in the body and omits it when warehouse_id is absent; (e) snapshot updates: creating a product and creating a movement both immediately update the current-month stock_snapshots (reflected in /reports/stock-history last point); (f) per-user isolation for new endpoints — A's warehouse_id passed by user B is silently ignored, no name/address leak; user B's stock-history shows 0 for current month and length 15.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/reports/po-email", "issue": "When the caller passes a warehouse_id that belongs to another user (or doesn't exist), the endpoint silently omits the 'Deliver to:' section. Functionally safe (no data leak — verified) but a 404/400 would be clearer feedback to the client."},
+      {"endpoint": "passlib bcrypt warning", "issue": "Pre-existing benign warning 'module bcrypt has no attribute __about__' still present at startup (unchanged from iteration 1). Hash/verify works."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": [], "react_native_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/test_backend.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/pytest/pytest_new_features.xml"
+  ],
+  "action_items": [
+    "(Optional, low priority) In /api/reports/po-email, when warehouse_id is provided but no warehouse matches (other-user / not-found), return a 404 instead of silently omitting the delivery block — improves API ergonomics.",
+    "(Optional) Pin bcrypt<4 in requirements.txt to silence the passlib startup warning (carried over from iteration 1)."
+  ],
+  "critical_code_review_comments": [
+    "stock-history endpoint correctly builds a 15-element contiguous month series with month-rollover arithmetic and carry-forwards the last known snapshot value across gaps — verified.",
+    "record_snapshot() is upsert-keyed on (owner_id, ym), so within-month updates correctly overwrite rather than append. It is called on product create/update/delete, on every movement, on dashboard fetch, and on stock-history fetch — guarantees current month is always fresh.",
+    "PUT /api/settings hard-validates currency against the {SEK,DKK,EUR,GBP} set inline; consider extracting to an Enum/Pydantic Literal for self-documenting OpenAPI.",
+    "Warehouse model now has optional 'address'; clean() drops _id/owner_id so address surfaces correctly on GET/POST. Verified no _id leakage.",
+    "PO email warehouse lookup is scoped by owner_id — confirmed no cross-tenant leak via dedicated test.",
+    "server.py is ~544 lines (single-file). Still acceptable but approaching the 700-line split threshold; consider splitting into routers/models/services if more features land."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py (new — 13 tests for currency, warehouse address, stock-history, snapshots, po-email warehouse, isolation)"
+  ],
+  "success_rate": {"backend": "100% (29/29; 13/13 new + 16/16 regression)", "frontend": "not tested (backend-only request)"},
+  "seed_data_creation": "Tests create TEST_-prefixed warehouses/suppliers/products and delete them in finally/teardown. Reuses session-scoped users from conftest.py: warehouse@test.com (A) and TEST_iso_<uuid>@test.com (B). Note: test_currency_update_all_supported leaves user A with currency=SEK at the end of the run (last value in the cycle), so subsequent runs start clean.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend URL key is EXPO_PUBLIC_BACKEND_URL (NOT EXPO_BACKEND_URL) in /app/frontend/.env. Existing pytest suites at /app/backend/tests/{test_backend.py,test_new_features.py} cover all current endpoints. Test user warehouse@test.com/test123. Allowed currencies are exactly SEK,DKK,EUR,GBP (case-sensitive). stock-history returns exactly 15 points and last one == current YYYY-MM == dashboard.stock_value. PO email 'Deliver to:' line only appears when warehouse_id matches owner_id.",
+  "rca_of_issue": "No defects found in the four new features. All review-listed behaviours match spec including edge cases (unsupported currency rejection, missing warehouse fallback, cross-tenant scoping, contiguous month series with carry-forward)."
+}

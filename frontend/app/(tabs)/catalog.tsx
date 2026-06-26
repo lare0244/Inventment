@@ -5,12 +5,15 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { api } from "@/src/api";
+import { useAuth } from "@/src/auth";
+import { money } from "@/src/currency";
 import { C, F, S, R, stockColor } from "@/src/theme";
 import { StatusDot } from "@/src/components/ui";
 
 export default function Catalog() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { currency } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
   const [activeCat, setActiveCat] = useState<string | null>(null);
@@ -83,7 +86,7 @@ export default function Catalog() {
             )}
             <View style={{ flex: 1 }}>
               <Text style={styles.pName} numberOfLines={1}>{item.name}</Text>
-              <Text style={styles.pSku}>{item.sku || item.barcode || "No SKU"} · ${item.price}</Text>
+              <Text style={styles.pSku}>{item.sku || item.barcode || "No SKU"} · {money(item.price, currency)}</Text>
             </View>
             <View style={styles.qtyWrap}>
               <StatusDot color={stockColor(item.quantity, item.low_stock_threshold)} />

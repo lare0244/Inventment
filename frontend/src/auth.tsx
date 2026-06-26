@@ -1,13 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { api, setToken, clearToken, getToken } from "@/src/api";
 
-type User = { id: string; email: string; name?: string };
+type User = { id: string; email: string; name?: string; currency?: string };
 type AuthCtx = {
   user: User | null;
   loading: boolean;
+  currency: string;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
+  setCurrency: (currency: string) => Promise<void>;
 };
 
 const Ctx = createContext<AuthCtx | undefined>(undefined);
@@ -59,7 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
-  return <Ctx.Provider value={{ user, loading, signIn, signUp, signOut }}>{children}</Ctx.Provider>;
+  async function setCurrency(currency: string) {
+    const updated = await api<User>("/settings", { method: "PUT", body: { currency } });
+    setUser((u) => (u ? { ...u, currency: updated.currency } : u));
+  }
+
+  return <Ctx.Provider value={{ user, loading, currency: user?.currency || "SEK", signIn, signUp, signOut, setCurrency }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {

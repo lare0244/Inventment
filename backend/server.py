@@ -61,12 +61,18 @@ class UserPublic(BaseModel):
     id: str
     email: str
     name: Optional[str] = None
+    currency: str = "SEK"
+
+
+class SettingsUpdate(BaseModel):
+    currency: str
 
 
 class Warehouse(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     location: Optional[str] = None
+    address: Optional[str] = None
 
 
 class Category(BaseModel):
@@ -142,6 +148,7 @@ async def register(body: UserCreate):
         "email": body.email.lower(),
         "name": body.name or body.email.split("@")[0],
         "hashed_password": pwd_context.hash(body.password),
+        "currency": "SEK",
         "created_at": now_iso(),
     }
     await db.users.insert_one(doc)
@@ -160,7 +167,26 @@ async def login(body: LoginRequest):
 
 @api_router.get("/auth/me", response_model=UserPublic)
 async def me(user: dict = Depends(get_current_user)):
-    return UserPublic(id=user["id"], email=user["email"], name=user.get("name"))
+    return UserPublic(id=user["id"], email=user["email"], name=user.get("name"), currency=user.get("currency", "SEK"))
+
+
+@api_router.put("/settings", response_model=UserPublic)
+async def update_settings(body: SettingsUpdate, user: dict = Depends(get_current_user)):
+    if body.currency not in ("SEK", "DKK", "EUR", "GBP"):
+        raise HTTPException(status_code=400, detail="Unsupported currency")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"currency": body.currency}})
+    return UserPublic(id=user["id"], email=user["email"], name=user.get("name"), currency=body.currency)
+
+
+async def record_snapshot(user_id: str):
+    products = await db.products.find({"owner_id": user_id}).to_list(5000)
+    value = sum(float(p.get("cost", 0)) * int(p.get("quantity", 0)) for p in products)
+    ym = datetime.now(timezone.utc).strftime("%Y-%m")
+    await db.stock_snapshots.update_one(
+        {"owner_id": user_id, "ym": ym},
+        {"$set": {"owner_id": user_id, "ym": ym, "value": round(value, 2), "updated_at": now_iso()}},
+        upsert=True,
+    )
 
 
 # ---------------- Generic CRUD helpers ----------------
@@ -276,6 +302,7 @@ async def create_product(body: ProductIn, user: dict = Depends(get_current_user)
     doc = {**body.dict(), "id": str(uuid.uuid4()), "owner_id": user["id"],
            "created_at": now_iso(), "updated_at": now_iso()}
     await db.products.insert_one(dict(doc))
+    await record_snapshot(user["id"])
     return clean(dict(doc))
 
 
@@ -287,12 +314,14 @@ async def update_product(pid: str, body: ProductIn, user: dict = Depends(get_cur
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
     item = await db.products.find_one({"id": pid, "owner_id": user["id"]})
+    await record_snapshot(user["id"])
     return clean(item)
 
 
 @api_router.delete("/products/{pid}")
 async def delete_product(pid: str, user: dict = Depends(get_current_user)):
     await db.products.delete_one({"id": pid, "owner_id": user["id"]})
+    await record_snapshot(user["id"])
     return {"ok": True}
 
 
@@ -317,6 +346,7 @@ async def create_movement(body: StockMovementIn, user: dict = Depends(get_curren
           "product_name": product.get("name"), "type": body.type, "quantity": body.quantity,
           "resulting_qty": qty, "note": body.note, "created_at": now_iso()}
     await db.movements.insert_one(dict(mv))
+    await record_snapshot(user["id"])
     return clean(dict(mv))
 
 
@@ -347,6 +377,7 @@ async def barcode_lookup(code: str, user: dict = Depends(get_current_user)):
 @api_router.get("/dashboard")
 async def dashboard(user: dict = Depends(get_current_user)):
     products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
+    await record_snapshot(user["id"])
     total_value = sum(float(p.get("cost", 0)) * int(p.get("quantity", 0)) for p in products)
     retail_value = sum(float(p.get("price", 0)) * int(p.get("quantity", 0)) for p in products)
     total_units = sum(int(p.get("quantity", 0)) for p in products)
@@ -377,6 +408,28 @@ async def dashboard(user: dict = Depends(get_current_user)):
         "expiring_items": expiring[:20],
         "recent_movements": [clean(m) for m in recent],
     }
+
+
+@api_router.get("/reports/stock-history")
+async def stock_history(user: dict = Depends(get_current_user)):
+    await record_snapshot(user["id"])
+    snaps = {s["ym"]: s["value"] for s in await db.stock_snapshots.find({"owner_id": user["id"]}).to_list(1000)}
+    now = datetime.now(timezone.utc)
+    seq = []
+    for i in range(14, -1, -1):
+        mm = now.month - i
+        yy = now.year
+        while mm <= 0:
+            mm += 12
+            yy -= 1
+        seq.append(f"{yy:04d}-{mm:02d}")
+    last = 0.0
+    result = []
+    for ym in seq:
+        if ym in snaps:
+            last = snaps[ym]
+        result.append({"month": ym, "value": last})
+    return {"history": result}
 
 
 @api_router.get("/reports/reorder-suggestions")
@@ -435,6 +488,7 @@ async def ai_insights(user: dict = Depends(get_current_user)):
 
 class POEmailRequest(BaseModel):
     supplier_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
     product_ids: List[str]
 
 
@@ -444,6 +498,9 @@ async def po_email(body: POEmailRequest, user: dict = Depends(get_current_user))
     supplier = None
     if body.supplier_id:
         supplier = await db.suppliers.find_one({"id": body.supplier_id, "owner_id": user["id"]})
+    warehouse = None
+    if body.warehouse_id:
+        warehouse = await db.warehouses.find_one({"id": body.warehouse_id, "owner_id": user["id"]})
     lines = []
     for p in products:
         qty = int(p.get("quantity", 0))
@@ -451,10 +508,15 @@ async def po_email(body: POEmailRequest, user: dict = Depends(get_current_user))
         reorder = max(threshold * 2 - qty, threshold)
         lines.append(f"- {p.get('name')} (SKU: {p.get('sku') or p.get('barcode') or 'N/A'}) — Qty: {reorder}")
     sup_name = supplier.get("name") if supplier else "Supplier"
+    delivery = ""
+    if warehouse:
+        addr = warehouse.get("address") or warehouse.get("location") or ""
+        delivery = f"\n\nDeliver to:\n{warehouse.get('name')}" + (f"\n{addr}" if addr else "")
     body_text = (
         f"Dear {sup_name},\n\n"
         f"We would like to place the following purchase order:\n\n"
         + "\n".join(lines)
+        + delivery
         + f"\n\nPlease confirm availability, pricing, and expected delivery date.\n\n"
         f"Best regards,\n{user.get('name')}"
     )

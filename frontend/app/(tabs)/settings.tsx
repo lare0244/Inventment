@@ -5,6 +5,7 @@ import { useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
+import { CURRENCIES } from "@/src/currency";
 import { C, F, S, R } from "@/src/theme";
 import { Card, Btn } from "@/src/components/ui";
 
@@ -12,7 +13,7 @@ type Kind = "warehouses" | "categories" | "suppliers";
 
 export default function Settings() {
   const insets = useSafeAreaInsets();
-  const { user, signOut } = useAuth();
+  const { user, signOut, currency, setCurrency } = useAuth();
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -27,7 +28,7 @@ export default function Settings() {
 
   async function add() {
     if (!f1.trim()) return;
-    if (modal === "warehouses") await api("/warehouses", { method: "POST", body: { name: f1, location: f2 } });
+    if (modal === "warehouses") await api("/warehouses", { method: "POST", body: { name: f1, address: f2 } });
     if (modal === "categories") await api("/categories", { method: "POST", body: { name: f1 } });
     if (modal === "suppliers") await api("/suppliers", { method: "POST", body: { name: f1, email: f2 } });
     setF1(""); setF2(""); setModal(null); load();
@@ -70,7 +71,22 @@ export default function Settings() {
         <Text style={styles.sub}>{user?.email}</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 40 }}>
-        <Section kind="warehouses" title="Warehouses" icon="warehouse" items={warehouses} sub="location" />
+        <Card style={{ marginBottom: S.lg }}>
+          <View style={styles.secTitleRow}>
+            <MaterialCommunityIcons name="cash-multiple" size={20} color={C.brand} />
+            <Text style={styles.secTitle}>Currency</Text>
+          </View>
+          <View style={styles.currencyRow}>
+            {CURRENCIES.map((c) => (
+              <Pressable key={c.code} testID={`currency-${c.code}`} onPress={() => setCurrency(c.code)}
+                style={[styles.curChip, currency === c.code && styles.curChipActive]}>
+                <Text style={[styles.curCode, currency === c.code && styles.curCodeActive]}>{c.code}</Text>
+                <Text style={[styles.curName, currency === c.code && { color: C.onBrand }]}>{c.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Card>
+        <Section kind="warehouses" title="Warehouses" icon="warehouse" items={warehouses} sub="address" />
         <Section kind="categories" title="Categories" icon="shape-outline" items={categories} />
         <Section kind="suppliers" title="Suppliers" icon="truck-outline" items={suppliers} sub="email" />
         <Btn testID="logout-btn" title="Sign Out" variant="ghost" icon="logout" onPress={signOut} />
@@ -109,4 +125,10 @@ const styles = StyleSheet.create({
   modalCard: { backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.lg, padding: S.lg },
   modalTitle: { color: C.onSurface, fontFamily: F.display, fontSize: 22, marginBottom: S.lg, textTransform: "capitalize" },
   input: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: R.md, paddingHorizontal: S.md, height: 50, color: C.onSurface, fontFamily: F.text, fontSize: 15, marginBottom: S.md },
+  currencyRow: { flexDirection: "row", flexWrap: "wrap", gap: S.sm },
+  curChip: { width: "47.5%", borderWidth: 1, borderColor: C.border, borderRadius: R.md, padding: S.md, backgroundColor: C.surface },
+  curChipActive: { backgroundColor: C.brand, borderColor: C.brand },
+  curCode: { color: C.onSurface, fontFamily: F.display, fontSize: 18 },
+  curCodeActive: { color: C.onBrand },
+  curName: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, marginTop: 2 },
 });

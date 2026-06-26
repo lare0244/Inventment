@@ -5,12 +5,13 @@ import { useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
+import { money } from "@/src/currency";
 import { C, F, S, R, stockColor } from "@/src/theme";
 import { Card, StatusDot } from "@/src/components/ui";
 
 export default function Dashboard() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, currency } = useAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -21,7 +22,7 @@ export default function Dashboard() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const stats = [
-    { label: "Stock Value", value: data ? `$${data.stock_value.toLocaleString()}` : "—", icon: "cash-multiple", color: C.success },
+    { label: "Stock Value", value: data ? money(data.stock_value, currency) : "—", icon: "cash-multiple", color: C.success },
     { label: "Total Units", value: data ? data.total_units : "—", icon: "cube-outline", color: C.info },
     { label: "Products", value: data ? data.total_products : "—", icon: "package-variant", color: C.brand },
     { label: "Low Stock", value: data ? data.low_stock_count : "—", icon: "alert", color: C.warning },
