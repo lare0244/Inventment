@@ -42,6 +42,15 @@ export default function Dashboard() {
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={C.brand} />}
           testID="dashboard-scroll"
         >
+          {data.low_stock_count > 0 && (
+            <View testID="low-stock-warning" style={styles.warnBanner}>
+              <MaterialCommunityIcons name="alert-octagon" size={22} color={C.warning} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.warnTitle}>Low stock warning</Text>
+                <Text style={styles.warnText}>{data.low_stock_count} product(s) at or below threshold. Review the list below and reorder.</Text>
+              </View>
+            </View>
+          )}
           <View style={styles.grid}>
             {stats.map((s) => (
               <Card key={s.label} style={styles.statCard}>
@@ -103,6 +112,9 @@ const styles = StyleSheet.create({
   hi: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13 },
   name: { color: C.onSurface, fontFamily: F.display, fontSize: 26, letterSpacing: 0.5 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: S.md },
+  warnBanner: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: "rgba(255,234,0,0.08)", borderWidth: 1, borderColor: C.warning, borderRadius: R.md, padding: S.md, marginBottom: S.lg },
+  warnTitle: { color: C.warning, fontFamily: F.textBold, fontSize: 14 },
+  warnText: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
   statCard: { width: "47.5%", gap: S.xs },
   statVal: { color: C.onSurface, fontFamily: F.display, fontSize: 28 },
   statLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, textTransform: "uppercase" },

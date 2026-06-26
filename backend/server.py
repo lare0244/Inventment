@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, BackgroundTasks
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
@@ -62,10 +62,12 @@ class UserPublic(BaseModel):
     email: str
     name: Optional[str] = None
     currency: str = "SEK"
+    low_stock_alert_email: Optional[str] = None
 
 
 class SettingsUpdate(BaseModel):
-    currency: str
+    currency: Optional[str] = None
+    low_stock_alert_email: Optional[str] = None
 
 
 class Warehouse(BaseModel):
@@ -165,17 +167,30 @@ async def login(body: LoginRequest):
     return Token(access_token=create_access_token(user["id"]))
 
 
+def _public_user(user: dict) -> UserPublic:
+    return UserPublic(id=user["id"], email=user["email"], name=user.get("name"),
+                      currency=user.get("currency", "SEK"),
+                      low_stock_alert_email=user.get("low_stock_alert_email"))
+
+
 @api_router.get("/auth/me", response_model=UserPublic)
 async def me(user: dict = Depends(get_current_user)):
-    return UserPublic(id=user["id"], email=user["email"], name=user.get("name"), currency=user.get("currency", "SEK"))
+    return _public_user(user)
 
 
 @api_router.put("/settings", response_model=UserPublic)
 async def update_settings(body: SettingsUpdate, user: dict = Depends(get_current_user)):
-    if body.currency not in ("SEK", "DKK", "EUR", "GBP"):
-        raise HTTPException(status_code=400, detail="Unsupported currency")
-    await db.users.update_one({"id": user["id"]}, {"$set": {"currency": body.currency}})
-    return UserPublic(id=user["id"], email=user["email"], name=user.get("name"), currency=body.currency)
+    updates = {}
+    if body.currency is not None:
+        if body.currency not in ("SEK", "DKK", "EUR", "GBP"):
+            raise HTTPException(status_code=400, detail="Unsupported currency")
+        updates["currency"] = body.currency
+    if body.low_stock_alert_email is not None:
+        updates["low_stock_alert_email"] = body.low_stock_alert_email.strip() or None
+    if updates:
+        await db.users.update_one({"id": user["id"]}, {"$set": updates})
+        user = {**user, **updates}
+    return _public_user(user)
 
 
 async def record_snapshot(user_id: str):
@@ -327,11 +342,13 @@ async def delete_product(pid: str, user: dict = Depends(get_current_user)):
 
 # ---------------- Stock movements ----------------
 @api_router.post("/movements")
-async def create_movement(body: StockMovementIn, user: dict = Depends(get_current_user)):
+async def create_movement(body: StockMovementIn, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
     product = await db.products.find_one({"id": body.product_id, "owner_id": user["id"]})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    qty = int(product.get("quantity", 0))
+    prev_qty = int(product.get("quantity", 0))
+    threshold = int(product.get("low_stock_threshold", 5))
+    qty = prev_qty
     if body.type == "receive":
         qty += body.quantity
     elif body.type == "remove":
@@ -347,7 +364,10 @@ async def create_movement(body: StockMovementIn, user: dict = Depends(get_curren
           "resulting_qty": qty, "note": body.note, "created_at": now_iso()}
     await db.movements.insert_one(dict(mv))
     await record_snapshot(user["id"])
-    return clean(dict(mv))
+    result = clean(dict(mv))
+    result["low_stock"] = qty <= threshold
+    result["threshold"] = threshold
+    return result
 
 
 @api_router.get("/movements")
@@ -525,6 +545,68 @@ async def po_email(body: POEmailRequest, user: dict = Depends(get_current_user))
         "subject": f"Purchase Order from {user.get('name')}",
         "body": body_text,
     }
+
+
+# ---------------- Purchase Orders (history) ----------------
+class POCreate(BaseModel):
+    product_ids: List[str]
+    supplier_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
+
+
+@api_router.post("/purchase-orders")
+async def create_purchase_order(body: POCreate, user: dict = Depends(get_current_user)):
+    products = await db.products.find({"id": {"$in": body.product_ids}, "owner_id": user["id"]}).to_list(1000)
+    supplier = await db.suppliers.find_one({"id": body.supplier_id, "owner_id": user["id"]}) if body.supplier_id else None
+    warehouse = await db.warehouses.find_one({"id": body.warehouse_id, "owner_id": user["id"]}) if body.warehouse_id else None
+    items, total, lines = [], 0.0, []
+    for p in products:
+        qty = int(p.get("quantity", 0))
+        threshold = int(p.get("low_stock_threshold", 5))
+        reorder = max(threshold * 2 - qty, threshold)
+        cost = float(p.get("cost", 0))
+        total += cost * reorder
+        items.append({"product_id": p["id"], "name": p.get("name"), "qty": reorder, "cost": cost})
+        lines.append(f"- {p.get('name')} (SKU: {p.get('sku') or p.get('barcode') or 'N/A'}) — Qty: {reorder}")
+    sup_name = supplier.get("name") if supplier else "Supplier"
+    delivery = ""
+    if warehouse:
+        addr = warehouse.get("address") or warehouse.get("location") or ""
+        delivery = f"\n\nDeliver to:\n{warehouse.get('name')}" + (f"\n{addr}" if addr else "")
+    email_body = (f"Dear {sup_name},\n\nWe would like to place the following purchase order:\n\n"
+                  + "\n".join(lines) + delivery
+                  + f"\n\nPlease confirm availability, pricing, and expected delivery date.\n\nBest regards,\n{user.get('name')}")
+    po = {"id": str(uuid.uuid4()), "owner_id": user["id"], "status": "draft",
+          "supplier_id": body.supplier_id, "supplier_name": supplier.get("name") if supplier else None,
+          "supplier_email": supplier.get("email") if supplier else None,
+          "warehouse_id": body.warehouse_id, "warehouse_name": warehouse.get("name") if warehouse else None,
+          "items": items, "total": round(total, 2), "email_subject": f"Purchase Order from {user.get('name')}",
+          "email_body": email_body, "created_at": now_iso(), "sent_at": None}
+    await db.purchase_orders.insert_one(dict(po))
+    return clean(dict(po))
+
+
+@api_router.get("/purchase-orders")
+async def list_purchase_orders(user: dict = Depends(get_current_user)):
+    items = await db.purchase_orders.find({"owner_id": user["id"]}).sort("created_at", -1).to_list(200)
+    return [clean(i) for i in items]
+
+
+@api_router.put("/purchase-orders/{po_id}/sent")
+async def mark_po_sent(po_id: str, user: dict = Depends(get_current_user)):
+    res = await db.purchase_orders.update_one(
+        {"id": po_id, "owner_id": user["id"]},
+        {"$set": {"status": "sent", "sent_at": now_iso()}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": user["id"]})
+    return clean(po)
+
+
+@api_router.delete("/purchase-orders/{po_id}")
+async def delete_po(po_id: str, user: dict = Depends(get_current_user)):
+    await db.purchase_orders.delete_one({"id": po_id, "owner_id": user["id"]})
+    return {"ok": True}
 
 
 app.include_router(api_router)

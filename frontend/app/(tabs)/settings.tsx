@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
@@ -86,6 +86,7 @@ export default function Settings() {
             ))}
           </View>
         </Card>
+
         <Section kind="warehouses" title="Warehouses" icon="warehouse" items={warehouses} sub="address" />
         <Section kind="categories" title="Categories" icon="shape-outline" items={categories} />
         <Section kind="suppliers" title="Suppliers" icon="truck-outline" items={suppliers} sub="email" />
@@ -131,4 +132,7 @@ const styles = StyleSheet.create({
   curCode: { color: C.onSurface, fontFamily: F.display, fontSize: 18 },
   curCodeActive: { color: C.onBrand },
   curName: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, marginTop: 2 },
+  alertHint: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13, lineHeight: 18 },
+  alertBtns: { flexDirection: "row", gap: S.md, marginTop: S.md },
+  alertStatus: { color: C.success, fontFamily: F.textBold, fontSize: 13, marginTop: S.md },
 });

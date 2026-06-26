@@ -20,6 +20,8 @@ export default function Orders() {
   const [data, setData] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [marking, setMarking] = useState(false);
   const [selWarehouse, setSelWarehouse] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [insight, setInsight] = useState("");
@@ -30,14 +32,16 @@ export default function Orders() {
 
   const load = useCallback(async () => {
     try {
-      const [sugg, hist, wh] = await Promise.all([
+      const [sugg, hist, wh, pos] = await Promise.all([
         api("/reports/reorder-suggestions"),
         api("/reports/stock-history"),
         api("/warehouses"),
+        api("/purchase-orders"),
       ]);
       setData(sugg);
       setHistory(hist.history || []);
       setWarehouses(wh);
+      setOrders(pos);
       setSelWarehouse((w) => w || wh[0]?.id || null);
     } catch {} finally { setLoading(false); }
   }, []);
@@ -95,8 +99,19 @@ export default function Orders() {
   async function draftEmail() {
     const ids = data.suggestions.map((s: any) => s.product_id);
     const supplierId = data.suggestions.find((s: any) => s.supplier_id)?.supplier_id;
-    const r = await api("/reports/po-email", { method: "POST", body: { product_ids: ids, supplier_id: supplierId, warehouse_id: selWarehouse } });
-    setEmailModal(r); setCopied(false);
+    const po = await api("/purchase-orders", { method: "POST", body: { product_ids: ids, supplier_id: supplierId, warehouse_id: selWarehouse } });
+    setEmailModal(po); setCopied(false);
+    await load();
+  }
+
+  async function markSent() {
+    if (!emailModal?.id) return;
+    setMarking(true);
+    try {
+      await api(`/purchase-orders/${emailModal.id}/sent`, { method: "PUT" });
+      await load();
+      setEmailModal(null);
+    } finally { setMarking(false); }
   }
 
   return (
@@ -160,6 +175,23 @@ export default function Orders() {
               </Card>
             ))
           )}
+
+          <Text style={styles.section}>ORDER HISTORY</Text>
+          {orders.length === 0 ? (
+            <Card><Text style={styles.empty}>No purchase orders yet</Text></Card>
+          ) : (
+            orders.map((po: any) => (
+              <Card key={po.id} style={styles.poRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rName}>{po.supplier_name || "Supplier"} · {po.items?.length || 0} item(s)</Text>
+                  <Text style={styles.rMeta}>{(po.created_at || "").slice(0, 10)} · {money(po.total, currency)}{po.warehouse_name ? ` · ${po.warehouse_name}` : ""}</Text>
+                </View>
+                <View style={[styles.badge, po.status === "sent" ? styles.badgeSent : styles.badgeDraft]}>
+                  <Text style={[styles.badgeTxt, { color: po.status === "sent" ? C.success : C.warning }]}>{po.status === "sent" ? "SENT" : "DRAFT"}</Text>
+                </View>
+              </Card>
+            ))
+          )}
         </ScrollView>
       )}
 
@@ -187,13 +219,16 @@ export default function Orders() {
           <View style={[styles.modalSheet, { paddingBottom: insets.bottom + S.lg }]}>
             <View style={styles.sheetHandle} />
             <Text style={styles.modalTitle}>Purchase Order Email</Text>
-            <Text style={styles.emailLabel}>To: {emailModal?.to || "(no supplier email)"}</Text>
-            <Text style={styles.emailLabel}>Subject: {emailModal?.subject}</Text>
+            <Text style={styles.emailLabel}>To: {emailModal?.supplier_email || "(no supplier email)"}</Text>
+            <Text style={styles.emailLabel}>Subject: {emailModal?.email_subject}</Text>
             <ScrollView style={styles.emailBody}>
-              <Text style={styles.emailBodyTxt}>{emailModal?.body}</Text>
+              <Text style={styles.emailBodyTxt}>{emailModal?.email_body}</Text>
             </ScrollView>
-            <Btn testID="copy-email-btn" title={copied ? "Copied ✓" : "Copy Email Text"} icon="content-copy"
-              onPress={async () => { await Clipboard.setStringAsync(emailModal?.body || ""); setCopied(true); }} />
+            <Btn testID="copy-email-btn" title={copied ? "Copied ✓" : "Copy Email Text"} variant="secondary" icon="content-copy"
+              onPress={async () => { await Clipboard.setStringAsync(emailModal?.email_body || ""); setCopied(true); }} />
+            {emailModal?.status !== "sent" && (
+              <Btn testID="mark-sent-btn" title="Mark as Sent" icon="check-circle-outline" loading={marking} onPress={markSent} style={{ marginTop: S.sm }} />
+            )}
             <Pressable testID="close-email-modal" onPress={() => setEmailModal(null)} style={styles.closeBtn}>
               <Text style={styles.closeTxt}>Close</Text>
             </Pressable>
@@ -227,6 +262,11 @@ const styles = StyleSheet.create({
   rName: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
   rMeta: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
   rCost: { color: C.brand, fontFamily: F.display, fontSize: 18 },
+  poRow: { flexDirection: "row", alignItems: "center", marginBottom: S.sm },
+  badge: { paddingHorizontal: S.sm, paddingVertical: 4, borderRadius: R.sm, borderWidth: 1 },
+  badgeSent: { borderColor: C.success, backgroundColor: "rgba(0,230,118,0.08)" },
+  badgeDraft: { borderColor: C.warning, backgroundColor: "rgba(255,234,0,0.08)" },
+  badgeTxt: { fontFamily: F.textBold, fontSize: 11, letterSpacing: 0.5 },
   emptyWrap: { alignItems: "center", marginTop: 60, gap: S.sm },
   emptyTxt: { color: C.onSurface, fontFamily: F.textBold, fontSize: 16 },
   emptySub: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13 },

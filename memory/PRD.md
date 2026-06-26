@@ -36,6 +36,11 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - AI insight (Claude) now returns live output after key recharge
 - Verified: 29/29 backend tests passed (13 new + 16 regression)
 
+## Implemented (2026-06-26 — Update 3)
+- Low-stock handling changed from automated email to an in-app WARNING (per user request): prominent warning banner on Dashboard when items are at/below threshold; movement API returns a `low_stock` flag
+- Removed Resend email integration, the alert-email setting, and the send-alert endpoint (no automated emails)
+- Purchase Order history: POs are persisted (`/api/purchase-orders`) as draft on creation, with "Mark as Sent" (`/sent`) and a status-badged ORDER HISTORY list on the Orders tab
+
 ## Backlog
 - P1: Per-warehouse stock quantities (currently product-level), image upload/capture for products
 - P1: Native date pickers for purchase/best-before (currently text YYYY-MM-DD)

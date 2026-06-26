@@ -1,15 +1,18 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { api, setToken, clearToken, getToken } from "@/src/api";
 
-type User = { id: string; email: string; name?: string; currency?: string };
+type User = { id: string; email: string; name?: string; currency?: string; low_stock_alert_email?: string | null };
+type SettingsPatch = { currency?: string; low_stock_alert_email?: string };
 type AuthCtx = {
   user: User | null;
   loading: boolean;
   currency: string;
+  alertEmail: string;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
   setCurrency: (currency: string) => Promise<void>;
+  saveSettings: (patch: SettingsPatch) => Promise<void>;
 };
 
 const Ctx = createContext<AuthCtx | undefined>(undefined);
@@ -61,12 +64,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
-  async function setCurrency(currency: string) {
-    const updated = await api<User>("/settings", { method: "PUT", body: { currency } });
-    setUser((u) => (u ? { ...u, currency: updated.currency } : u));
+  async function saveSettings(patch: SettingsPatch) {
+    const updated = await api<User>("/settings", { method: "PUT", body: patch });
+    setUser((u) => (u ? { ...u, ...updated } : u));
   }
 
-  return <Ctx.Provider value={{ user, loading, currency: user?.currency || "SEK", signIn, signUp, signOut, setCurrency }}>{children}</Ctx.Provider>;
+  async function setCurrency(currency: string) {
+    await saveSettings({ currency });
+  }
+
+  return <Ctx.Provider value={{ user, loading, currency: user?.currency || "SEK", alertEmail: user?.low_stock_alert_email || "", signIn, signUp, signOut, setCurrency, saveSettings }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {
