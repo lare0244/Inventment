@@ -62,6 +62,12 @@ const en: Dict = {
   inStockGroup: "IN STOCK", selectToOrder: "Select products to add to a purchase order",
   createOrder: "Create Purchase Order", selected: "selected", edit: "Edit", save2: "Save",
   allWarehouses: "All warehouses", exportFilters: "Export filters",
+  adjustBtn: "Adjust", transferBtn: "Transfer", adjustStock: "Adjust stock",
+  perWarehouseHint: "Set or remove units in a specific warehouse.",
+  setQty: "Set to", removeQty: "Remove", transferStock: "Transfer stock",
+  from: "From", enterQty: "Enter a quantity", pickTwoWarehouses: "Pick two different warehouses",
+  notEnoughStock: "Not enough stock in source warehouse", transferFailed: "Transfer failed",
+  needsReordering: "Needs Reordering", suggestedOrder: "Suggested order", threshold: "Threshold",
 };
 
 const sv: Dict = {
@@ -114,6 +120,12 @@ const sv: Dict = {
   inStockGroup: "I LAGER", selectToOrder: "Välj produkter att lägga till i en inköpsorder",
   createOrder: "Skapa inköpsorder", selected: "valda", edit: "Redigera", save2: "Spara",
   allWarehouses: "Alla lager", exportFilters: "Exportfilter",
+  adjustBtn: "Justera", transferBtn: "Överför", adjustStock: "Justera lager",
+  perWarehouseHint: "Ange eller ta bort enheter i ett specifikt lager.",
+  setQty: "Sätt till", removeQty: "Ta bort", transferStock: "Överför lager",
+  from: "Från", enterQty: "Ange ett antal", pickTwoWarehouses: "Välj två olika lager",
+  notEnoughStock: "Inte tillräckligt lager i källagret", transferFailed: "Överföring misslyckades",
+  needsReordering: "Behöver beställas", suggestedOrder: "Föreslagen order", threshold: "Tröskel",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv };

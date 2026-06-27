@@ -25,8 +25,15 @@ export default function ProductDetail() {
   const [activeWh, setActiveWh] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [receive, setReceive] = useState(false);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [qty, setQty] = useState("");
   const [bb, setBb] = useState("");
+  const [adjQty, setAdjQty] = useState("");
+  const [fromWh, setFromWh] = useState<string | null>(null);
+  const [toWh, setToWh] = useState<string | null>(null);
+  const [tQty, setTQty] = useState("");
+  const [err, setErr] = useState("");
 
   async function load() {
     try {
@@ -49,6 +56,33 @@ export default function ProductDetail() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await api("/movements", { method: "POST", body: { product_id: id, type: "receive", quantity: n, warehouse_id: activeWh, best_before_date: bb || null } });
     setReceive(false); setQty(""); setBb(""); load();
+  }
+
+  async function doAdjust(type: "adjust" | "remove") {
+    const n = parseInt(adjQty); if (isNaN(n) || !activeWh) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await api("/movements", { method: "POST", body: { product_id: id, type, quantity: n, warehouse_id: activeWh } });
+    setAdjustOpen(false); setAdjQty(""); load();
+  }
+
+  function openTransfer() {
+    const keys = Object.keys(product?.stock || {});
+    const f = keys.find((k) => (product.stock[k] || 0) > 0) || warehouses[0]?.id || null;
+    setFromWh(f);
+    setToWh(warehouses.find((w) => w.id !== f)?.id || null);
+    setTQty(""); setErr(""); setTransferOpen(true);
+  }
+
+  async function doTransfer() {
+    const n = parseInt(tQty);
+    if (isNaN(n) || n <= 0) { setErr(t("enterQty")); return; }
+    if (!fromWh || !toWh || fromWh === toWh) { setErr(t("pickTwoWarehouses")); return; }
+    if (n > (product.stock?.[fromWh] || 0)) { setErr(t("notEnoughStock")); return; }
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await api("/transfers", { method: "POST", body: { product_id: id, from_warehouse_id: fromWh, to_warehouse_id: toWh, quantity: n } });
+      setTransferOpen(false); setTQty(""); setErr(""); load();
+    } catch (e: any) { setErr(e?.message || t("transferFailed")); }
   }
 
   async function del() {
@@ -78,6 +112,16 @@ export default function ProductDetail() {
         <MaterialCommunityIcons name="arrow-down-bold-circle" size={22} color={C.onBrand} />
         <Text style={styles.fabTxt}>{t("receiveBtn")}</Text>
       </Pressable>
+      <Pressable testID="adjust-btn" onPress={() => { setErr(""); setAdjQty(""); setAdjustOpen(true); }} style={[styles.fabSec, { bottom: insets.bottom + 140 }]}>
+        <MaterialCommunityIcons name="tune-variant" size={20} color={C.brand} />
+        <Text style={styles.fabSecTxt}>{t("adjustBtn")}</Text>
+      </Pressable>
+      {warehouses.length > 1 && (
+        <Pressable testID="transfer-btn" onPress={openTransfer} style={[styles.fabSec, { bottom: insets.bottom + 196 }]}>
+          <MaterialCommunityIcons name="swap-horizontal" size={20} color={C.brand} />
+          <Text style={styles.fabSecTxt}>{t("transferBtn")}</Text>
+        </Pressable>
+      )}
 
       <Modal visible={receive} transparent animationType="fade" onRequestClose={() => setReceive(false)}>
         <View style={styles.modalBg}>
@@ -107,6 +151,71 @@ export default function ProductDetail() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={adjustOpen} transparent animationType="fade" onRequestClose={() => setAdjustOpen(false)}>
+        <View style={styles.modalBg}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t("adjustStock")}</Text>
+            <Text style={styles.modalSub}>{t("perWarehouseHint")}</Text>
+            {warehouses.length > 0 && (
+              <>
+                <Text style={styles.whLabel}>{t("warehouse")}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: S.sm, paddingBottom: S.md }}>
+                  {warehouses.map((w) => (
+                    <Pressable key={w.id} testID={`adjust-wh-${w.id}`} onPress={() => pickWarehouse(w.id)}
+                      style={[styles.whChip, activeWh === w.id && styles.whChipActive]}>
+                      <Text style={[styles.whTxt, activeWh === w.id && { color: C.onBrand }]}>{w.name}</Text>
+                      <Text style={[styles.whQty, activeWh === w.id && { color: C.onBrand }]}>{(product.stock?.[w.id] ?? 0)}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+            <TextInput testID="adjust-qty" placeholder={t("quantity")} placeholderTextColor={C.onSurfaceTertiary} value={adjQty} onChangeText={setAdjQty} keyboardType="number-pad" style={styles.input} />
+            <View style={{ flexDirection: "row", gap: S.sm }}>
+              <View style={{ flex: 1 }}><Btn testID="confirm-adjust" title={t("setQty")} icon="equal" onPress={() => doAdjust("adjust")} /></View>
+              <View style={{ flex: 1 }}><Btn testID="confirm-remove" title={t("removeQty")} icon="minus" variant="ghost" onPress={() => doAdjust("remove")} /></View>
+            </View>
+            <Pressable onPress={() => setAdjustOpen(false)} style={{ alignItems: "center", paddingVertical: S.md }}>
+              <Text style={{ color: C.onSurfaceTertiary, fontFamily: F.textBold }}>{t("cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={transferOpen} transparent animationType="fade" onRequestClose={() => setTransferOpen(false)}>
+        <View style={styles.modalBg}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t("transferStock")}</Text>
+            <Text style={styles.whLabel}>{t("from")}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: S.sm, paddingBottom: S.md }}>
+              {warehouses.map((w) => (
+                <Pressable key={w.id} testID={`transfer-from-${w.id}`} onPress={() => setFromWh(w.id)}
+                  style={[styles.whChip, fromWh === w.id && styles.whChipActive]}>
+                  <Text style={[styles.whTxt, fromWh === w.id && { color: C.onBrand }]}>{w.name}</Text>
+                  <Text style={[styles.whQty, fromWh === w.id && { color: C.onBrand }]}>{(product.stock?.[w.id] ?? 0)}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Text style={styles.whLabel}>{t("to")}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: S.sm, paddingBottom: S.md }}>
+              {warehouses.filter((w) => w.id !== fromWh).map((w) => (
+                <Pressable key={w.id} testID={`transfer-to-${w.id}`} onPress={() => setToWh(w.id)}
+                  style={[styles.whChip, toWh === w.id && styles.whChipActive]}>
+                  <Text style={[styles.whTxt, toWh === w.id && { color: C.onBrand }]}>{w.name}</Text>
+                  <Text style={[styles.whQty, toWh === w.id && { color: C.onBrand }]}>{(product.stock?.[w.id] ?? 0)}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <TextInput testID="transfer-qty" placeholder={t("quantity")} placeholderTextColor={C.onSurfaceTertiary} value={tQty} onChangeText={setTQty} keyboardType="number-pad" style={styles.input} />
+            {!!err && <Text style={styles.err}>{err}</Text>}
+            <Btn testID="confirm-transfer" title={t("transferBtn")} icon="swap-horizontal" onPress={doTransfer} />
+            <Pressable onPress={() => setTransferOpen(false)} style={{ alignItems: "center", paddingVertical: S.md }}>
+              <Text style={{ color: C.onSurfaceTertiary, fontFamily: F.textBold }}>{t("cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -115,6 +224,9 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   c: { flex: 1, backgroundColor: C.surface, alignItems: "center", justifyContent: "center" },
   fab: { position: "absolute", right: S.lg, flexDirection: "row", alignItems: "center", gap: S.xs, backgroundColor: C.brand, paddingHorizontal: S.lg, height: 48, borderRadius: R.pill },
   fabTxt: { color: C.onBrand, fontFamily: F.textBold, fontSize: 14 },
+  fabSec: { position: "absolute", right: S.lg, flexDirection: "row", alignItems: "center", gap: S.xs, backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.brand, paddingHorizontal: S.md, height: 44, borderRadius: R.pill },
+  fabSecTxt: { color: C.brand, fontFamily: F.textBold, fontSize: 13 },
+  err: { color: C.error, fontFamily: F.text, fontSize: 13, marginBottom: S.sm },
   modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", padding: S.xl },
   modalCard: { backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.lg, padding: S.lg },
   modalTitle: { color: C.onSurface, fontFamily: F.display, fontSize: 22 },

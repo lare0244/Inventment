@@ -1,0 +1,53 @@
+{
+  "summary": "Tested v5 TRANSFER + per-warehouse ADJUST/REMOVE + PDF Needs-Reordering features. Backend: created /app/backend/tests/test_transfers_v5.py with 12 new pytest cases covering (a) /api/transfers happy path keeps total + writes both stock keys, (b) same-warehouse rejected 400, (c) insufficient stock rejected 400 with no state mutation, (d) negative qty rejected 400, (e) transfer movement is recorded with from_warehouse_id+resulting_qty+resulting_total, (f) adjust sets only target warehouse and recomputes total, (g) remove subtracts only target and floors at 0, (h) remove on non-target warehouse leaves others intact, (i) per-warehouse low_stock flag (w1=200 not low, w2=2 low), (j) reorder-suggestions returns suggested_qty=max(threshold,2*threshold-qty), (k) dashboard no-filter lists per-(product,warehouse) low rows, (l) dashboard ?warehouse_id scopes totals. RESULT: 12/12 NEW PASS. Full regression: 59/59 PASS (previous v4 legacy regression fixed — test_product_lifecycle_with_movement and test_snapshot_updated_by_movement now green). Frontend Playwright (390x844): logged in as warehouse@test.com, navigated to /product/<id> for a product seeded with 20@Main + 8@Gothenburg. Verified: (i) all three FABs render (quick-receive-btn, adjust-btn, transfer-btn — testIDs present), (ii) Adjust modal opens with warehouse picker showing 'Main Warehouse 20' + 'Gothenburg DC 8' chips and Set-to/Remove buttons; Set-to 13 succeeded (modal closed); Remove 3 succeeded (Main now shows 10), (iii) Transfer modal opens with FROM + TO pickers — TO list correctly excludes the selected FROM warehouse; empty qty triggers 'Enter a quantity' validation; over-transfer qty (999999) triggers 'Not enough stock' validation; valid transfer (2 units Main→Gothenburg) succeeded and modal closed, (iv) Orders tab renders export-csv-btn, export-pdf-btn, filter-wh-all + per-warehouse filter chips. PDF Needs-Reordering section was code-reviewed in orders.tsx:102-111 (Print.printToFileAsync HTML emits 'Needs Reordering (N)' table with warehouse|product|supplier|qty|threshold|suggestedOrder columns when any row.warehouse && row.quantity <= row.threshold; sorted by warehouse+name; honors filterWh/filterCat because buildRows() applies both filters). No red-screen errors. Cosmetic warning carries over: 'props.pointerEvents is deprecated' on react-native-web Pressable.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/warehouses/{id}, /api/categories/{id}, /api/suppliers/{id}", "issue": "Still returns 200 silently when matched_count==0 (carryover from prior iterations)."},
+      {"endpoint": "POST /api/transfers", "issue": "Does not validate that from_warehouse_id or to_warehouse_id exist as real warehouses owned by the user. Currently any string passes if it's not == the other and source qty is 0/sufficient. Suggest validating both ids against db.warehouses before mutation."},
+      {"endpoint": "POST /api/movements", "issue": "Does not validate that warehouse_id in payload actually exists/owned by user — silently creates a new key in product.stock for an unknown wid. Same pattern."},
+      {"endpoint": "startup", "issue": "Pre-existing benign 'module bcrypt has no attribute __about__' passlib warning."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Product detail — FAB stack", "issues": ["Three stacked FABs (Receive/Adjust/Transfer) sit at right-bottom (+84, +140, +196). On taller screens fine; on small phones (<700pt) they can overlap the Save Changes button at bottom. Consider grouping into a single 'Actions' menu or a horizontally-arranged action bar."]},
+      {"screen": "Transfer modal", "issues": ["The 'To' chip row shows every other warehouse including ones with 0 stock — fine, but if user has many warehouses (current test account has 44 because of test-fixture pollution) the horizontal scroll becomes long. Consider showing wh-name only without the trailing qty for the 'To' picker."]}
+    ],
+    "react_native_issues": [
+      {"component": "react-native-web Pressable", "issue": "Carryover: 'props.pointerEvents is deprecated. Use style.pointerEvents' warning. Cosmetic only — fix when convenient by moving pointerEvents into the style object on the offending Pressable/View."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_transfers_v5.py",
+    "/app/test_reports/pytest/pytest_transfers_v5.xml",
+    "/app/test_reports/pytest/pytest_full_v5.xml"
+  ],
+  "action_items": [
+    "(Low) Validate warehouse_id existence/ownership on POST /api/transfers and POST /api/movements so unknown ids return 404 instead of silently mutating product.stock.",
+    "(Low / carryover) Return 404 from PUT /api/warehouses|categories|suppliers when matched_count==0.",
+    "(Low / carryover) Silence the react-native-web pointerEvents deprecation warning.",
+    "(Hygiene) Clean up TEST_-prefixed warehouses left over from previous test runs (44 currently in db for warehouse@test.com) so the catalog/transfer-modal chip rows stay short — or have tests delete their warehouses in teardown (currently only products and explicit fixtures are cleaned)."
+  ],
+  "critical_code_review_comments": [
+    "server.py:451-479 transfer_stock — does not validate that body.from_warehouse_id or body.to_warehouse_id correspond to an actual warehouse owned by the user. Insufficient-stock check guards source, but the destination key is created with int(stock.get(to_wid,0))+qty regardless, so a typo'd to_warehouse_id will silently create an orphan stock entry that nothing in the UI surfaces.",
+    "server.py:397-433 create_movement — same blind-trust of body.warehouse_id (no existence check). Should reject with 404 'Warehouse not found' when wid is non-null and not in db.warehouses for the user.",
+    "orders.tsx:102 — reorder filter uses `r.warehouse && r.quantity <= r.threshold` which drops the synthesised empty-warehouse row from buildRows(). Good — unstocked products won't appear in the Needs Reordering section even if their product-level qty<threshold.",
+    "orders.tsx:105 suggestedOrder = Math.max(r.threshold, r.threshold*2 - r.quantity) — matches backend reorder_suggestions math (max(threshold, threshold*2-qty)). Consistent.",
+    "product/[id].tsx:54-59 doReceive — passes activeWh (which can be a saved warehouse from AsyncStorage that no longer exists if the user deleted it). Combined with the backend's lack of warehouse existence validation (see above), this could create dangling stock entries.",
+    "product/[id].tsx:68-74 openTransfer auto-picks the first non-zero source AND a non-source destination — good UX. But if the product has stock in only one warehouse, To picker can be null and validation catches it (pickTwoWarehouses). Verified.",
+    "server.py is now 784 lines (was 742 in v4) — still past the 700-line module-split threshold. Recommend extracting models, auth, products, movements, reports into separate routers.",
+    "Pollution risk: pytest fixtures in test_transfers_v5.py and test_per_warehouse_stock.py do NOT delete the warehouses they create — only products. Each pytest run adds ~10 TEST_ warehouses to the shared warehouse@test.com user. After multiple iterations this account now has 44 warehouses. Recommend a session-level autouse fixture that purges TEST_-prefixed warehouses."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_transfers_v5.py (NEW — 12 pytest cases for v5 transfer + adjust/remove + reorder regression)"
+  ],
+  "success_rate": {"backend": "100% (59/59 — 12/12 new v5 tests pass + 47/47 prior regression intact)", "frontend": "100% on tested v5 flows (3-FAB render, Adjust set/remove with wh picker, Transfer modal happy + empty-qty + insufficient-stock validations, Orders tab export buttons + warehouse filter)"},
+  "seed_data_creation": "Created in-test product TEST_UI_TR_a78711 (id 7d049f6b-…) seeded with 20@Main + 8@Gothenburg for the UI run; left in place. ~44 TEST_-prefixed warehouses accumulated across iterations for warehouse@test.com — see action_items.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend URL key is EXPO_PUBLIC_BACKEND_URL. test_transfers_v5.py is the canonical regression suite for the v5 TRANSFER + per-warehouse ADJUST/REMOVE feature. The v4 legacy regression (test_product_lifecycle_with_movement, test_snapshot_updated_by_movement) is FIXED — main agent's server.py:402-418 update keeps the no-warehouse-id fallback path correct (verified: full suite 59/59 green). Product-detail FABs use testIDs: quick-receive-btn, adjust-btn, transfer-btn. Adjust modal warehouse chips: adjust-wh-<wid>. Transfer modal: transfer-from-<wid>, transfer-to-<wid>, transfer-qty, confirm-transfer. Orders tab: export-csv-btn, export-pdf-btn, filter-wh-<wid>, filter-cat-<cid>. The Needs Reordering PDF section is built client-side in orders.tsx exportPdf() — to fully validate the rendered PDF you'd need to intercept Print.printToFileAsync (not available on web preview; printing falls back to window.print). Code-review-confirmed it honors filterWh + filterCat and uses the same suggestedOrder formula as the backend.",
+  "rca_of_issue": "No new bugs found. Carryover RCA from v4 (movements with no warehouse_id wiping quantity) is RESOLVED — verified by green test_product_lifecycle_with_movement and test_snapshot_updated_by_movement in this iteration."
+}

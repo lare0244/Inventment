@@ -439,6 +439,46 @@ async def list_movements(user: dict = Depends(get_current_user), limit: int = 30
     return [clean(i) for i in items]
 
 
+class TransferIn(BaseModel):
+    product_id: str
+    from_warehouse_id: str
+    to_warehouse_id: str
+    quantity: int
+    note: Optional[str] = None
+
+
+@api_router.post("/transfers")
+async def transfer_stock(body: TransferIn, user: dict = Depends(get_current_user)):
+    if body.from_warehouse_id == body.to_warehouse_id:
+        raise HTTPException(status_code=400, detail="Source and destination must differ")
+    if body.quantity <= 0:
+        raise HTTPException(status_code=400, detail="Quantity must be positive")
+    product = await db.products.find_one({"id": body.product_id, "owner_id": user["id"]})
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    stock = dict(product.get("stock") or {})
+    from_qty = int(stock.get(body.from_warehouse_id, 0))
+    if body.quantity > from_qty:
+        raise HTTPException(status_code=400, detail="Not enough stock in source warehouse")
+    stock[body.from_warehouse_id] = from_qty - body.quantity
+    stock[body.to_warehouse_id] = int(stock.get(body.to_warehouse_id, 0)) + body.quantity
+    total = sum(int(v) for v in stock.values())
+    await db.products.update_one({"id": body.product_id, "owner_id": user["id"]},
+                                 {"$set": {"stock": stock, "quantity": total, "updated_at": now_iso()}})
+    whs = {w["id"]: w for w in await db.warehouses.find({"owner_id": user["id"]}).to_list(1000)}
+    fname = whs.get(body.from_warehouse_id, {}).get("name")
+    tname = whs.get(body.to_warehouse_id, {}).get("name")
+    mv = {"id": str(uuid.uuid4()), "owner_id": user["id"], "product_id": body.product_id,
+          "product_name": product.get("name"), "type": "transfer", "quantity": body.quantity,
+          "warehouse_id": body.to_warehouse_id, "warehouse_name": tname,
+          "from_warehouse_id": body.from_warehouse_id, "from_warehouse_name": fname,
+          "resulting_qty": stock[body.to_warehouse_id], "resulting_total": total,
+          "note": body.note, "created_at": now_iso()}
+    await db.movements.insert_one(dict(mv))
+    await record_snapshot(user["id"])
+    return {"ok": True, "stock": stock, "quantity": total}
+
+
 # ---------------- Barcode lookup (Open Food Facts) ----------------
 @api_router.get("/barcode-lookup/{code}")
 async def barcode_lookup(code: str, user: dict = Depends(get_current_user)):

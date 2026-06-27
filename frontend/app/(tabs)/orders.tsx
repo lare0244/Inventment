@@ -77,7 +77,7 @@ export default function Orders() {
           name: p.name, sku: p.sku || "", barcode: p.barcode || "",
           category: catMap[p.category_id] || "", supplier: supMap[p.supplier_id] || "",
           warehouse: wid ? (whMap[wid] || "") : "", quantity: qty,
-          cost: p.cost ?? 0, price: p.price ?? 0, value: (p.cost || 0) * qty,
+          threshold: p.low_stock_threshold ?? 5, cost: p.cost ?? 0, price: p.price ?? 0, value: (p.cost || 0) * qty,
           purchase_date: (p.purchase_date || "").slice(0, 10),
           best_before_date: (p.best_before_date || "").slice(0, 10),
         });
@@ -99,6 +99,16 @@ export default function Orders() {
       const tableRows = rows.map((r) =>
         `<tr><td>${r.name}</td><td>${r.sku || r.barcode || "-"}</td><td>${r.warehouse || "-"}</td><td style="text-align:right">${r.quantity}</td><td style="text-align:right">${money(r.cost, currency)}</td><td style="text-align:right">${money(r.value, currency)}</td></tr>`
       ).join("");
+      const reorder = rows.filter((r) => r.warehouse && r.quantity <= r.threshold)
+        .sort((a, b) => (a.warehouse + a.name).localeCompare(b.warehouse + b.name));
+      const reorderRows = reorder.map((r) => {
+        const suggest = Math.max(r.threshold, r.threshold * 2 - r.quantity);
+        return `<tr><td>${r.warehouse}</td><td>${r.name}</td><td>${r.supplier || "-"}</td><td style="text-align:right">${r.quantity}</td><td style="text-align:right">${r.threshold}</td><td style="text-align:right;font-weight:700;color:#E64A19">${suggest}</td></tr>`;
+      }).join("");
+      const reorderSection = reorder.length
+        ? `<h3 style="color:#E64A19">${t("needsReordering")} (${reorder.length})</h3>
+           <table><tr><th>${t("warehouse")}</th><th>${t("productName")}</th><th>${t("supplier")}</th><th>${t("quantity")}</th><th>${t("threshold")}</th><th>${t("suggestedOrder")}</th></tr>${reorderRows}</table>`
+        : "";
       const html = `<html><head><meta name="viewport" content="width=device-width, initial-scale=1"/>
         <style>body{font-family:-apple-system,Helvetica,Arial;padding:24px;color:#111}h1{color:#E64A19;margin-bottom:0}
         .sub{color:#666;margin-top:4px}.kpi{font-size:28px;font-weight:700;margin:8px 0}
@@ -111,6 +121,7 @@ export default function Orders() {
         <svg width="780" height="280" viewBox="0 0 780 280"><line x1="40" y1="250" x2="740" y2="250" stroke="#ccc"/>
         <polyline points="${pts}" fill="none" stroke="#E64A19" stroke-width="3"/>
         ${history.map((h, i) => { const x = 40 + (i / Math.max(1, history.length - 1)) * 700; return `<text x="${x}" y="270" font-size="9" text-anchor="middle" fill="#888">${h.month.slice(2)}</text>`; }).join("")}</svg>
+        ${reorderSection}
         <h3>${t("products")}</h3><table><tr><th>${t("productName")}</th><th>${t("sku")}</th><th>${t("warehouse")}</th><th>${t("quantity")}</th><th>${t("cost")}</th><th>${t("stockValue")}</th></tr>${tableRows}</table></body></html>`;
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "INVENTMENT Report" });
