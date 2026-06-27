@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
@@ -15,6 +15,7 @@ export default function Dashboard() {
   const { user, currency } = useAuth();
   const C = useColors();
   const t = useT();
+  const router = useRouter();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,10 @@ export default function Dashboard() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.warnTitle}>{t("lowStockWarning")}</Text>
                 <Text style={styles.warnText}>{data.low_stock_count} {t("productsAtThreshold")}</Text>
+                <Pressable testID="place-order-btn" onPress={() => router.push("/place-order")} style={styles.warnBtn}>
+                  <MaterialCommunityIcons name="clipboard-plus-outline" size={16} color={C.onBrand} />
+                  <Text style={styles.warnBtnTxt}>{t("placeOrder")}</Text>
+                </Pressable>
               </View>
             </View>
           )}
@@ -117,6 +122,8 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   warnBanner: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: C.isDark ? "rgba(255,234,0,0.08)" : "rgba(230,149,0,0.12)", borderWidth: 1, borderColor: C.warning, borderRadius: R.md, padding: S.md, marginBottom: S.lg },
   warnTitle: { color: C.warning, fontFamily: F.textBold, fontSize: 14 },
   warnText: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
+  warnBtn: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6, backgroundColor: C.brand, paddingHorizontal: S.md, paddingVertical: 8, borderRadius: R.md, marginTop: S.sm },
+  warnBtnTxt: { color: C.onBrand, fontFamily: F.textBold, fontSize: 13 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: S.md },
   statCard: { width: "47.5%", gap: S.xs },
   statVal: { color: C.onSurface, fontFamily: F.display, fontSize: 28 },

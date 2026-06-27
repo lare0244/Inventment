@@ -22,6 +22,7 @@ export default function Catalog() {
   const [cats, setCats] = useState<any[]>([]);
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState<"name" | "stock">("name");
 
   const load = useCallback(async () => {
     try {
@@ -34,7 +35,9 @@ export default function Catalog() {
   const filtered = products.filter((p) =>
     (!activeCat || p.category_id === activeCat) &&
     (!search || p.name?.toLowerCase().includes(search.toLowerCase()))
-  );
+  ).sort((a, b) => sortMode === "name"
+    ? (a.name || "").localeCompare(b.name || "")
+    : (a.quantity || 0) - (b.quantity || 0));
 
   return (
     <View style={{ flex: 1, backgroundColor: C.surface }}>
@@ -135,6 +138,11 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   chipActive: { backgroundColor: C.brand, borderColor: C.brand },
   chipTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 13 },
   chipTxtActive: { color: C.onBrand },
+  sortRow: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingTop: S.sm },
+  sortLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12 },
+  sortChip: { height: 30, paddingHorizontal: S.md, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", backgroundColor: C.surfaceSecondary },
+  sortChipActive: { backgroundColor: C.brand, borderColor: C.brand },
+  sortTxt: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 12 },
   card: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.md, padding: S.md, marginBottom: S.sm },
   thumb: { width: 48, height: 48, borderRadius: R.sm, backgroundColor: C.surfaceTertiary },
   thumbPh: { alignItems: "center", justifyContent: "center" },

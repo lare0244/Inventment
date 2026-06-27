@@ -225,6 +225,13 @@ async def create_warehouse(body: Warehouse, user: dict = Depends(get_current_use
     return clean(dict(doc))
 
 
+@api_router.put("/warehouses/{wid}")
+async def update_warehouse(wid: str, body: Warehouse, user: dict = Depends(get_current_user)):
+    upd = body.dict(); upd["id"] = wid
+    await db.warehouses.update_one({"id": wid, "owner_id": user["id"]}, {"$set": upd})
+    return clean({**upd})
+
+
 @api_router.delete("/warehouses/{wid}")
 async def delete_warehouse(wid: str, user: dict = Depends(get_current_user)):
     await db.warehouses.delete_one({"id": wid, "owner_id": user["id"]})
@@ -243,6 +250,13 @@ async def create_category(body: Category, user: dict = Depends(get_current_user)
     doc = {**body.dict(), "owner_id": user["id"]}
     await db.categories.insert_one(dict(doc))
     return clean(dict(doc))
+
+
+@api_router.put("/categories/{cid}")
+async def update_category(cid: str, body: Category, user: dict = Depends(get_current_user)):
+    upd = body.dict(); upd["id"] = cid
+    await db.categories.update_one({"id": cid, "owner_id": user["id"]}, {"$set": upd})
+    return clean({**upd})
 
 
 @api_router.delete("/categories/{cid}")

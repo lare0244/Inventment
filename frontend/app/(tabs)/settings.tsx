@@ -23,6 +23,7 @@ export default function Settings() {
   const [categories, setCategories] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [modal, setModal] = useState<Kind | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [f1, setF1] = useState(""); const [f2, setF2] = useState("");
 
   const load = useCallback(async () => {
@@ -31,12 +32,14 @@ export default function Settings() {
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  async function add() {
+  async function save() {
     if (!f1.trim()) return;
-    if (modal === "warehouses") await api("/warehouses", { method: "POST", body: { name: f1, address: f2 } });
-    if (modal === "categories") await api("/categories", { method: "POST", body: { name: f1 } });
-    if (modal === "suppliers") await api("/suppliers", { method: "POST", body: { name: f1, email: f2 } });
-    setF1(""); setF2(""); setModal(null); load();
+    const e = editId ? `/${editId}` : "";
+    const m = editId ? "PUT" : "POST";
+    if (modal === "warehouses") await api(`/warehouses${e}`, { method: m, body: { name: f1, address: f2 } });
+    if (modal === "categories") await api(`/categories${e}`, { method: m, body: { name: f1 } });
+    if (modal === "suppliers") await api(`/suppliers${e}`, { method: m, body: { name: f1, email: f2 } });
+    setF1(""); setF2(""); setEditId(null); setModal(null); load();
   }
   async function del(kind: Kind, id: string) {
     await api(`/${kind}/${id}`, { method: "DELETE" }); load();
@@ -49,7 +52,7 @@ export default function Settings() {
           <MaterialCommunityIcons name={icon} size={20} color={C.brand} />
           <Text style={styles.secTitle}>{title}</Text>
         </View>
-        <Pressable testID={`add-${kind}`} onPress={() => { setModal(kind); setF1(""); setF2(""); }}>
+        <Pressable testID={`add-${kind}`} onPress={() => { setModal(kind); setEditId(null); setF1(""); setF2(""); }}>
           <MaterialCommunityIcons name="plus-circle" size={24} color={C.brand} />
         </Pressable>
       </View>
@@ -59,6 +62,9 @@ export default function Settings() {
         items.map((it: any) => (
           <View key={it.id} style={styles.itemRow}>
             <Text style={styles.itemName}>{it.name}{sub && it[sub] ? `  ·  ${it[sub]}` : ""}</Text>
+            <Pressable testID={`edit-${kind}-${it.id}`} onPress={() => { setModal(kind); setEditId(it.id); setF1(it.name || ""); setF2((sub && it[sub]) || ""); }} style={{ marginRight: S.md }}>
+              <MaterialCommunityIcons name="pencil-outline" size={18} color={C.info} />
+            </Pressable>
             <Pressable testID={`del-${kind}-${it.id}`} onPress={() => del(kind, it.id)}>
               <MaterialCommunityIcons name="trash-can-outline" size={18} color={C.error} />
             </Pressable>
@@ -119,13 +125,13 @@ export default function Settings() {
       <Modal visible={!!modal} transparent animationType="fade" onRequestClose={() => setModal(null)}>
         <View style={styles.modalBg}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{t("add")}</Text>
+            <Text style={styles.modalTitle}>{editId ? t("edit") : t("add")}</Text>
             <TextInput testID="modal-field-1" placeholder={t("name")} placeholderTextColor={C.onSurfaceTertiary} value={f1} onChangeText={setF1} style={styles.input} />
             {modal !== "categories" && (
               <TextInput testID="modal-field-2" placeholder={modal === "suppliers" ? t("email") : t("address")} placeholderTextColor={C.onSurfaceTertiary} value={f2} onChangeText={setF2} keyboardType={modal === "suppliers" ? "email-address" : "default"} autoCapitalize="none" style={styles.input} />
             )}
-            <Btn testID="modal-save" title={t("save")} onPress={add} />
-            <Pressable onPress={() => setModal(null)} style={{ alignItems: "center", paddingVertical: S.md }}>
+            <Btn testID="modal-save" title={t("save")} onPress={save} />
+            <Pressable onPress={() => { setModal(null); setEditId(null); }} style={{ alignItems: "center", paddingVertical: S.md }}>
               <Text style={{ color: C.onSurfaceTertiary, fontFamily: F.textBold }}>{t("cancel")}</Text>
             </Pressable>
           </View>

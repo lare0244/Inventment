@@ -57,6 +57,10 @@ const en: Dict = {
   startManaging: "Start managing your warehouse", haveAccount: "Have an account? ", signInLink: "Sign in",
   createAccountBtn: "Create Account", passwordMin: "Password must be at least 6 characters",
   loginFailed: "Login failed", regFailed: "Registration failed", yourName: "Your name",
+  placeOrder: "Place Order", placeOrderTitle: "PLACE ORDER", sortBy: "Sort",
+  sortStock: "By stock", sortName: "A–Z", outOfStock: "OUT OF STOCK", lowGroup: "LOW STOCK",
+  inStockGroup: "IN STOCK", selectToOrder: "Select products to add to a purchase order",
+  createOrder: "Create Purchase Order", selected: "selected", edit: "Edit", save2: "Save",
 };
 
 const sv: Dict = {
@@ -104,6 +108,10 @@ const sv: Dict = {
   startManaging: "Börja hantera ditt lager", haveAccount: "Har du ett konto? ", signInLink: "Logga in",
   createAccountBtn: "Skapa konto", passwordMin: "Lösenordet måste vara minst 6 tecken",
   loginFailed: "Inloggning misslyckades", regFailed: "Registrering misslyckades", yourName: "Ditt namn",
+  placeOrder: "Lägg beställning", placeOrderTitle: "LÄGG BESTÄLLNING", sortBy: "Sortera",
+  sortStock: "Efter lager", sortName: "A–Ö", outOfStock: "SLUT I LAGER", lowGroup: "LÅGT LAGER",
+  inStockGroup: "I LAGER", selectToOrder: "Välj produkter att lägga till i en inköpsorder",
+  createOrder: "Skapa inköpsorder", selected: "valda", edit: "Redigera", save2: "Spara",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv };
