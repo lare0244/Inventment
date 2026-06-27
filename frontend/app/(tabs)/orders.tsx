@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal, useWindowDimensions, Platform, Linking, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal, useWindowDimensions, Platform, Linking, Alert, TextInput } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
@@ -29,6 +29,7 @@ export default function Orders() {
   const [categories, setCategories] = useState<any[]>([]);
   const [filterWh, setFilterWh] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState<string | null>(null);
+  const [asOfDate, setAsOfDate] = useState("");
   const [orders, setOrders] = useState<any[]>([]);
   const [marking, setMarking] = useState(false);
   const [selWarehouse, setSelWarehouse] = useState<string | null>(null);
@@ -64,7 +65,10 @@ export default function Orders() {
   // Build flattened per-warehouse rows honoring warehouse + category filters
   async function buildRows() {
     const [products, cats, sups] = await Promise.all([
-      api<any[]>("/products"), api<any[]>("/categories"), api<any[]>("/suppliers"),
+      asOfDate
+        ? api<any>(`/reports/stock-at-date?date=${asOfDate}`).then((r) => r.products || [])
+        : api<any[]>("/products"),
+      api<any[]>("/categories"), api<any[]>("/suppliers"),
     ]);
     const catMap: Record<string, string> = Object.fromEntries(cats.map((c) => [c.id, c.name]));
     const supMap: Record<string, string> = Object.fromEntries(sups.map((s) => [s.id, s.name]));
@@ -92,11 +96,24 @@ export default function Orders() {
     return rows;
   }
 
+  const validDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
+  function guardDate(): boolean {
+    if (asOfDate && !validDate(asOfDate)) {
+      const m = t("invalidDate");
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(m);
+      else Alert.alert(t("invalidDate"), "");
+      return false;
+    }
+    return true;
+  }
+
   async function exportPdf() {
+    if (!guardDate()) return;
     setExporting(true);
     try {
       const rows = await buildRows();
-      const today = new Date().toLocaleDateString();
+      const reportDate = asOfDate || new Date().toISOString().slice(0, 10);
+      const dateLabel = asOfDate ? `${t("asOf")} ${reportDate}` : reportDate;
       const max = Math.max(1, ...history.map((h) => h.value));
       const pts = history.map((h, i) => `${40 + (i / Math.max(1, history.length - 1)) * 700},${250 - (h.value / max) * 200}`).join(" ");
       const totalVal = rows.reduce((s, r) => s + r.value, 0);
@@ -120,8 +137,9 @@ export default function Orders() {
         .sub{color:#666;margin-top:4px}.kpi{font-size:28px;font-weight:700;margin:8px 0}
         table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th,td{border-bottom:1px solid #ddd;padding:6px;text-align:left}
         th{background:#f4f4f4}svg{background:#fafafa;border:1px solid #eee;border-radius:8px}</style></head><body>
-        <h1>INVENTMENT — ${t("stockValue")}</h1><div class="sub">${today} · ${user?.name || ""}</div>
+        <h1>INVENTMENT — ${t("stockValue")}</h1><div class="sub">${dateLabel} · ${user?.name || ""}</div>
         <div class="sub">${t("warehouse")}: ${whLabel} · ${t("category")}: ${catLabel}</div>
+        ${asOfDate ? `<div class="sub" style="font-style:italic">${t("asOfNote")}</div>` : ""}
         <div class="kpi">${t("stockValue")}: ${money(totalVal, currency)}</div>
         <h3>${t("stockValue15")}</h3>
         <svg width="780" height="280" viewBox="0 0 780 280"><line x1="40" y1="250" x2="740" y2="250" stroke="#ccc"/>
@@ -135,6 +153,7 @@ export default function Orders() {
   }
 
   async function exportCsv() {
+    if (!guardDate()) return;
     setExportingCsv(true);
     try {
       const rows = await buildRows();
@@ -145,7 +164,7 @@ export default function Orders() {
         lines.push([r.name, r.sku, r.barcode, r.category, r.supplier, r.warehouse, r.measure, r.quantity, r.cost, r.price, r.value, r.purchase_date, r.best_before_date].map(esc).join(","));
       });
       const csv = "\uFEFF" + lines.join("\n");
-      const filename = `INVENTMENT_stock_${new Date().toISOString().slice(0, 10)}.csv`;
+      const filename = `INVENTMENT_stock_${asOfDate || new Date().toISOString().slice(0, 10)}.csv`;
       if (Platform.OS === "web") {
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
@@ -270,6 +289,28 @@ export default function Orders() {
             </View>
             {history.length > 0 && <StockLineChart data={history} width={width - 2 * S.lg - 2 * S.lg} />}
             <Text style={styles.chartLatest}>{t("latest")}: {money(history[history.length - 1]?.value || 0, currency)}</Text>
+            <View style={styles.dateWrap}>
+              <Text style={styles.filterLabel}>{t("stockValueDate")}</Text>
+              <View style={styles.dateRow}>
+                <TextInput
+                  testID="export-date-input"
+                  style={styles.dateInput}
+                  value={asOfDate}
+                  onChangeText={setAsOfDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={C.onSurfaceTertiary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Pressable
+                  testID="export-date-today"
+                  onPress={() => setAsOfDate("")}
+                  style={[styles.todayChip, !asOfDate && styles.filterChipActive]}>
+                  <Text style={[styles.filterTxt, !asOfDate && { color: C.onBrand }]}>{t("today")}</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.dateHint}>{asOfDate ? t("asOfNote") : t("dateHint")}</Text>
+            </View>
             {(warehouses.length > 1 || categories.length > 0) && (
               <View style={styles.filterWrap}>
                 <Text style={styles.filterLabel}>{t("exportFilters")}</Text>
@@ -447,6 +488,11 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   pdfBtn: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: C.border, borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: 6 },
   pdfTxt: { color: C.brand, fontFamily: F.textBold, fontSize: 12 },
   chartLatest: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: S.xs },
+  dateWrap: { marginTop: S.md },
+  dateRow: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.xs },
+  dateInput: { flex: 1, height: 40, borderWidth: 1, borderColor: C.border, borderRadius: R.sm, paddingHorizontal: S.md, color: C.onSurface, fontFamily: F.text, fontSize: 14, backgroundColor: C.surface },
+  todayChip: { height: 40, paddingHorizontal: S.md, borderRadius: R.sm, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", backgroundColor: C.surface },
+  dateHint: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, marginTop: S.xs, lineHeight: 16 },
   filterWrap: { marginTop: S.md, borderTopWidth: 1, borderTopColor: C.divider, paddingTop: S.md },
   filterLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, letterSpacing: 0.5, marginBottom: S.sm },
   filterRow: { gap: S.sm, paddingBottom: S.sm },

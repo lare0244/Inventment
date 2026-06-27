@@ -493,6 +493,7 @@ async def create_movement(body: StockMovementIn, background_tasks: BackgroundTas
     mv = {"id": str(uuid.uuid4()), "owner_id": user["id"], "product_id": body.product_id,
           "product_name": product.get("name"), "type": body.type, "quantity": body.quantity,
           "warehouse_id": wid, "warehouse_name": wh.get("name") if wh else None,
+          "prev_qty": prev_wh_qty,
           "resulting_qty": new_wh_qty, "resulting_total": total, "note": body.note, "created_at": now_iso()}
     await db.movements.insert_one(dict(mv))
     await record_snapshot(user["id"])
@@ -550,7 +551,8 @@ async def transfer_stock(body: TransferIn, user: dict = Depends(get_current_user
           "product_name": product.get("name"), "type": "transfer", "quantity": body.quantity,
           "warehouse_id": body.to_warehouse_id, "warehouse_name": tname,
           "from_warehouse_id": body.from_warehouse_id, "from_warehouse_name": fname,
-          "resulting_qty": stock[body.to_warehouse_id], "resulting_total": total,
+          "resulting_qty": stock[body.to_warehouse_id], "from_resulting_qty": stock[body.from_warehouse_id],
+          "resulting_total": total,
           "note": body.note, "created_at": now_iso()}
     await db.movements.insert_one(dict(mv))
     await record_snapshot(user["id"])
@@ -669,6 +671,64 @@ async def stock_history(user: dict = Depends(get_current_user)):
             last = snaps[ym]
         result.append({"month": ym, "value": last})
     return {"history": result}
+
+
+@api_router.get("/reports/stock-at-date")
+async def stock_at_date(date: str, user: dict = Depends(get_current_user)):
+    """Reconstruct per-product / per-warehouse stock quantities as of the end of `date`
+    (YYYY-MM-DD). Anchors on the current (true) stock and reverses every movement that
+    happened AFTER the target date. Quantities are valued at current product cost
+    (cost history is not tracked)."""
+    try:
+        d = datetime.fromisoformat(date[:10])
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid date, expected YYYY-MM-DD")
+    end = d.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc).isoformat()
+
+    products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
+    # movements AFTER the target date are the ones we need to undo
+    future_mvs = await (db.movements.find({"owner_id": user["id"], "created_at": {"$gt": end}})
+                        .sort("created_at", -1).to_list(50000))
+    by_prod: dict = {}
+    for m in future_mvs:
+        by_prod.setdefault(m["product_id"], []).append(m)
+
+    out = []
+    total_value = 0.0
+    for p in products:
+        created = p.get("created_at") or ""
+        if created and created > end:
+            continue  # product did not exist yet
+        hist = {k: int(v) for k, v in (p.get("stock") or {}).items()}
+        for m in by_prod.get(p["id"], []):
+            qty = int(m.get("quantity", 0))
+            if m.get("type") == "transfer":
+                fw, tw = m.get("from_warehouse_id"), m.get("warehouse_id")
+                if fw is not None:
+                    hist[fw] = hist.get(fw, 0) + qty
+                if tw is not None:
+                    hist[tw] = hist.get(tw, 0) - qty
+            else:
+                wid = m.get("warehouse_id")
+                if wid is None:
+                    continue
+                if m.get("prev_qty") is not None and m.get("resulting_qty") is not None:
+                    delta = int(m["resulting_qty"]) - int(m["prev_qty"])
+                elif m.get("type") == "receive":
+                    delta = qty
+                elif m.get("type") == "remove":
+                    delta = -qty
+                else:  # legacy adjust without prev_qty -> cannot reverse precisely
+                    delta = 0
+                hist[wid] = hist.get(wid, 0) - delta
+        hist = {k: max(0, v) for k, v in hist.items() if (max(0, v) > 0 or k in (p.get("stock") or {}))}
+        c = clean(dict(p))
+        c["stock"] = hist
+        c["quantity"] = sum(hist.values())
+        total_value += float(p.get("cost", 0)) * c["quantity"]
+        out.append(c)
+
+    return {"date": date[:10], "products": out, "stock_value": round(total_value, 2)}
 
 
 @api_router.get("/reports/reorder-suggestions")

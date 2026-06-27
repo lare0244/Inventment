@@ -119,6 +119,10 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - P2: Surface `degraded` flag when AI falls back to rule-based
 - P2: Return 404 on DELETE when no doc matches; pin bcrypt<4 to silence startup warning
 
+## Completed (latest)
+- iOS store config in app.json (bundleIdentifier com.inventment.app, buildNumber, encryption flag); removed deprecated billing-return.tsx.
+- Historical stock-value export: Orders tab "Stock value date" input (YYYY-MM-DD, blank=today) drives PDF/CSV via GET /api/reports/stock-at-date. Reconstruction anchors on current stock and reverses movements after the chosen date (movements now store prev_qty + transfer from_resulting_qty for exact reversal). Valued at current cost. i18n EN/SV added.
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker
 - Per-warehouse inventory tracking
