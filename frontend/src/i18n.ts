@@ -74,6 +74,10 @@ const en: Dict = {
   editItems: "Edit quantities", movements: "Movements", viewAll: "View all",
   movementsTitle: "Stock Movements", allTypes: "All", receiveType: "Receive", adjustType: "Adjust",
   removeType: "Remove", transferType: "Transfer", noMovements: "No movements yet", units2: "units",
+  sendToSupplier: "Send to supplier", emailGreeting: "Dear", emailIntro: "We would like to place the following purchase order:",
+  emailQty: "Qty", emailDeliverTo: "Deliver to:", emailClosing: "Please confirm availability, pricing, and expected delivery date.",
+  emailRegards: "Best regards,", poEmailSubjectPrefix: "Purchase Order from",
+  addSupplierEmailHint: "Add an email for this supplier in Settings to pre-fill the recipient.", emailAppError: "Could not open email app",
 };
 
 const sv: Dict = {
@@ -138,6 +142,10 @@ const sv: Dict = {
   editItems: "Redigera antal", movements: "Rörelser", viewAll: "Visa alla",
   movementsTitle: "Lagerrörelser", allTypes: "Alla", receiveType: "Mottag", adjustType: "Justera",
   removeType: "Ta bort", transferType: "Överför", noMovements: "Inga rörelser än", units2: "enheter",
+  sendToSupplier: "Skicka till leverantör", emailGreeting: "Hej", emailIntro: "Vi vill lägga följande inköpsorder:",
+  emailQty: "Antal", emailDeliverTo: "Leverans till:", emailClosing: "Vänligen bekräfta tillgänglighet, pris och förväntat leveransdatum.",
+  emailRegards: "Med vänliga hälsningar,", poEmailSubjectPrefix: "Inköpsorder från",
+  addSupplierEmailHint: "Lägg till en e-postadress för leverantören i Inställningar för att fylla i mottagaren.", emailAppError: "Kunde inte öppna e-postappen",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv };

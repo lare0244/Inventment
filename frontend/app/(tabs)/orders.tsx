@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal, useWindowDimensions, Platform } from "react-native";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal, useWindowDimensions, Platform, Linking, Alert } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
@@ -172,6 +172,40 @@ export default function Orders() {
     finally { setMarking(false); }
   }
 
+  function fmtAddr(w: any) {
+    if (!w) return "";
+    const l1 = [w.street1, w.number].filter(Boolean).join(" ");
+    const cityPc = [w.postcode, w.city].filter(Boolean).join(" ");
+    const region = [w.state, w.county].filter(Boolean).join(", ");
+    return [l1, w.street2, cityPc, region].filter(Boolean).join("\n");
+  }
+  function composePO(po: any) {
+    const sup = po?.supplier_name || t("supplier");
+    const lines = (po?.items || []).map((i: any) => `- ${i.name} (${t("sku")}: ${i.sku || "N/A"}) — ${t("emailQty")}: ${i.qty}`);
+    let delivery = "";
+    if (po?.warehouse_name) {
+      const wh = warehouses.find((w) => w.id === po.warehouse_id);
+      const a = fmtAddr(wh);
+      delivery = `\n\n${t("emailDeliverTo")}\n${po.warehouse_name}` + (a ? `\n${a}` : "");
+    }
+    const subject = `${t("poEmailSubjectPrefix")} ${user?.name || ""}`.trim();
+    const body = `${t("emailGreeting")} ${sup},\n\n${t("emailIntro")}\n\n${lines.join("\n")}${delivery}\n\n${t("emailClosing")}\n\n${t("emailRegards")}\n${user?.name || ""}`;
+    return { subject, body };
+  }
+  async function sendToSupplier(po: any) {
+    const { subject, body } = composePO(po);
+    const to = po?.supplier_email || "";
+    if (!to) {
+      Alert.alert(t("noSupplierEmail"), t("addSupplierEmailHint"));
+    }
+    const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    try {
+      await Linking.openURL(url);
+      if (po?.status !== "sent" && po?.id) { await api(`/purchase-orders/${po.id}/sent`, { method: "PUT" }); await load(); }
+      setEmailModal(null); setEditPo(null);
+    } catch { Alert.alert(t("emailAppError"), ""); }
+  }
+
   async function autoCreatePOs() {
     setAutoLoading(true);
     try { await api("/purchase-orders/auto", { method: "POST" }); await load(); }
@@ -333,14 +367,15 @@ export default function Orders() {
             <View style={styles.sheetHandle} />
             <Text style={styles.modalTitle}>{t("poEmail")}</Text>
             <Text style={styles.emailLabel}>{t("to")}: {emailModal?.supplier_email || t("noSupplierEmail")}</Text>
-            <Text style={styles.emailLabel}>{t("subject")}: {emailModal?.email_subject}</Text>
+            <Text style={styles.emailLabel}>{t("subject")}: {emailModal ? composePO(emailModal).subject : ""}</Text>
             <ScrollView style={styles.emailBody}>
-              <Text style={styles.emailBodyTxt}>{emailModal?.email_body}</Text>
+              <Text style={styles.emailBodyTxt}>{emailModal ? composePO(emailModal).body : ""}</Text>
             </ScrollView>
-            <Btn testID="copy-email-btn" title={copied ? t("copied") : t("copyEmail")} variant="secondary" icon="content-copy"
-              onPress={async () => { await Clipboard.setStringAsync(emailModal?.email_body || ""); setCopied(true); }} />
+            <Btn testID="send-supplier-btn" title={t("sendToSupplier")} icon="email-fast-outline" onPress={() => sendToSupplier(emailModal)} />
+            <Btn testID="copy-email-btn" title={copied ? t("copied") : t("copyEmail")} variant="secondary" icon="content-copy" style={{ marginTop: S.sm }}
+              onPress={async () => { await Clipboard.setStringAsync(composePO(emailModal).body); setCopied(true); }} />
             {emailModal?.status !== "sent" && (
-              <Btn testID="mark-sent-btn" title={t("markAsSent")} icon="check-circle-outline" loading={marking} onPress={markSent} style={{ marginTop: S.sm }} />
+              <Btn testID="mark-sent-btn" title={t("markAsSent")} variant="ghost" icon="check-circle-outline" loading={marking} onPress={markSent} style={{ marginTop: S.sm }} />
             )}
             <Pressable testID="close-email-modal" onPress={() => setEmailModal(null)} style={styles.closeBtn}>
               <Text style={styles.closeTxt}>{t("close")}</Text>
@@ -372,6 +407,7 @@ export default function Orders() {
               ))}
             </ScrollView>
             <Btn testID="save-po-items-btn" title={t("save")} icon="check" loading={savingPo} onPress={savePoItems} />
+            <Btn testID="send-supplier-edit-btn" title={t("sendToSupplier")} variant="secondary" icon="email-fast-outline" style={{ marginTop: S.sm }} onPress={() => sendToSupplier(editPo)} />
             <Pressable testID="close-edit-po" onPress={() => setEditPo(null)} style={styles.closeBtn}>
               <Text style={styles.closeTxt}>{t("close")}</Text>
             </Pressable>

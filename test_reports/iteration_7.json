@@ -1,0 +1,51 @@
+{
+  "summary": "Tested v7 features: one-tap 'Send to supplier' via mailto: (Linking.openURL) in both PO email modal (suggestions flow) and draft-PO edit modal, plus frontend-composed translated email subject/body (English/Swedish). Backend: created /app/backend/tests/test_v7_send_supplier.py with 6 new pytest cases — 6/6 PASS. Verified PO responses carry all fields the FE needs (supplier_email, supplier_name, warehouse_id, warehouse_name, items[{product_id,name,sku,qty}], status, total); PUT /purchase-orders/{id}/sent flips draft→sent and is idempotent; PUT /purchase-orders/{id} recomputes total from qty * cost. Full regression /app/backend/tests/ — 81/82 PASS in 126s; the 1 failure (test_create_warehouse_with_address_persists) was a transient public-URL ConnectTimeout, not a code regression (subsequent same-suite runs of equivalent tests pass). The v6 dashboard-slice flake is no longer failing. Frontend Playwright (390x844, public preview URL): logged in as warehouse@test.com / test123, navigated to Orders, tapped auto-po-btn → 38 po-card-* drafts. Tapping the first opens the edit modal with save-po-items-btn AND send-supplier-edit-btn visible (both new). Tapping draft-email-btn (suggestions flow) opens the email modal with send-supplier-btn + copy-email-btn + mark-sent-btn. ENGLISH preview body verified: ALL 5 keywords found ['Dear', 'Purchase Order from', 'Qty', 'Deliver to', 'Best regards']. Switched language to Swedish via Settings → lang-dropdown-opt-sv, re-opened the email modal: ALL 7 Swedish keywords found ['Hej', 'Vi vill lägga följande inköpsorder', 'Antal', 'Leverans till', 'Med vänliga hälsningar', 'Inköpsorder från', 'Skicka till leverantör'] and ZERO English leakage ([] for Dear/Best regards/Deliver to). Tapping send-supplier-btn in web preview did not crash the page (page.body still present); mailto: cannot actually open native mail in web preview as expected — the call is wrapped in try/catch and just no-ops on web. Restored language back to English. Carryover cosmetic warning: 'props.pointerEvents is deprecated' from react-native-web Pressable still emitted.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/settings", "issue": "Backend ignores unknown fields like `language` silently (200 OK). Acceptable since language is intentionally client-side only, but consider documenting (or 422-strict) so callers don't believe it persisted server-side."},
+      {"endpoint": "GET /api/settings", "issue": "No GET endpoint exists — settings are read from /api/auth/me. Minor inconsistency vs PUT /api/settings symmetry."},
+      {"endpoint": "passlib bcrypt", "issue": "Carryover benign warning 'module bcrypt has no attribute __about__' at startup."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "react-native-web Pressable", "issue": "Carryover: 'props.pointerEvents is deprecated. Use style.pointerEvents' warning on web preview. Cosmetic only."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v7_send_supplier.py",
+    "/app/test_reports/pytest/pytest_v7.xml",
+    "/app/test_reports/pytest/pytest_full_v7.xml"
+  ],
+  "action_items": [
+    "(None for v7) — Send-to-supplier and i18n email composition are working as designed. Mailto cannot actually open native mail in web preview; user must validate on a native build/device.",
+    "(Low / carryover) Consider 422-rejecting unknown fields on PUT /api/settings or document that `language` is client-side only.",
+    "(Low / carryover) Silence the react-native-web pointerEvents deprecation warning."
+  ],
+  "critical_code_review_comments": [
+    "orders.tsx:182-194 composePO — composes subject+body entirely from i18n keys (t('emailGreeting'), t('emailIntro'), t('emailQty'), t('emailDeliverTo'), t('emailClosing'), t('emailRegards'), t('poEmailSubjectPrefix')) so language is always live-reactive. Good: no backend email_body dependency.",
+    "orders.tsx:195-207 sendToSupplier — wraps Linking.openURL in try/catch and alerts on failure. Marks draft → sent via PUT /purchase-orders/{id}/sent only on success, then clears both emailModal and editPo state. Safe on web (try/catch handles the no-app case).",
+    "orders.tsx:197-200 — when supplier has no email, alerts the user with t('noSupplierEmail')+t('addSupplierEmailHint') but STILL opens the composer with empty recipient. Matches PRD requirement.",
+    "orders.tsx:370-376 — email modal preview uses composePO(emailModal).subject/.body so it re-renders on language change. Verified empirically.",
+    "i18n.ts:77-80,145-148 — adds all required keys for both en and sv: emailGreeting/emailIntro/emailQty/emailDeliverTo/emailClosing/emailRegards/poEmailSubjectPrefix/sendToSupplier/noSupplierEmail/addSupplierEmailHint/emailAppError. Swedish translations are correct and grammatical (Hej, Vi vill lägga..., Antal, Leverans till:, Med vänliga hälsningar, Inköpsorder från, Skicka till leverantör).",
+    "orders.tsx:374,410 — both modals have testID send-supplier-btn (suggestions) and send-supplier-edit-btn (edit), matching the PRD/test request exactly.",
+    "server.py PUT /purchase-orders/{id}/sent — verified to be idempotent (second call also returns 200, no 500).",
+    "server.py still 893 lines — carryover module-split recommendation."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v7_send_supplier.py (NEW — 6 pytest cases for send-to-supplier + PO response contract used by FE i18n compose)"
+  ],
+  "success_rate": {
+    "backend": "98.8% (81/82 full regression — 6/6 NEW v7 tests pass; 1 transient ConnectTimeout, NOT a code regression)",
+    "frontend": "100% on tested v7 flows (English email body has all 5 expected keywords; Swedish has all 7 expected keywords with zero English leakage; send-supplier-btn and send-supplier-edit-btn both render and tap without crash; mark-sent + copy-email + close still present; edit modal also exposes send-supplier-edit-btn alongside Save)"
+  },
+  "seed_data_creation": "v7 tests create TEST_v7_-prefixed suppliers/warehouses/products and the auto-flow creates POs that are not explicitly cleaned up (matches prior iterations' approach — PRD says ignore TEST_ data hygiene). No new persistent system-level pollution introduced beyond what already existed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend URL key: EXPO_PUBLIC_BACKEND_URL. test_v7_send_supplier.py is the canonical regression for: (1) PO response fields used by frontend-composed mailto, (2) PUT /purchase-orders/{id}/sent (used by 'Send to supplier' on success), idempotent, (3) PUT /purchase-orders/{id} recomputes total, (4) PUT /api/settings ignores unknown fields gracefully (language is client-side). Frontend testIDs verified: orders auto-po-btn, po-card-<id>, draft-email-btn, send-supplier-btn (suggestions email modal), send-supplier-edit-btn (draft PO edit modal), mark-sent-btn, copy-email-btn, close-email-modal, save-po-items-btn, close-edit-po, po-item-minus-<idx>/po-item-plus-<idx>; settings lang-dropdown, lang-dropdown-opt-en, lang-dropdown-opt-sv. NOTE: mailto: cannot actually open a native mail client in web preview — the implementation wraps Linking.openURL in try/catch and only alerts on failure; functional validation requires a native build or device.",
+  "rca_of_issue": "N/A — no v7 bugs found. The 1 failing backend test in the full regression run was a transient ConnectTimeout against the public preview URL (test_create_warehouse_with_address_persists, infrastructure flake) and not a code-level regression."
+}
