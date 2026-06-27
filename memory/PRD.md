@@ -48,6 +48,14 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Full i18n (English/Swedish) via src/i18n.ts + useT(); language selector in Settings; every screen, tab label, button, placeholder and status translated; choice persisted
 - StatusBar adapts to theme; both theme & language persist across restarts
 
+## Implemented (2026-06-27 — Update 5)
+- Place Order screen (/place-order): opened from Dashboard low-stock banner; products grouped Out of stock → Low stock → In stock; sort toggle (By stock / A–Z); multi-select → POST /api/purchase-orders → navigates to Orders
+- Catalog: visible sort toggle (A–Z / By stock) added alongside category filter + search
+- Settings: edit (pencil → prefilled modal → PUT) + delete for warehouses/categories/suppliers (in addition to add)
+- Backend: PUT /api/warehouses/{id}, /api/categories/{id}, /api/suppliers/{id}
+- i18n: device language auto-detected on first launch (expo-localization), user-overridable in Settings
+- Verified: 36/36 backend tests pass; full frontend flows verified via Playwright
+
 ## Backlog
 - P1: Per-warehouse stock quantities (currently product-level), image upload/capture for products
 - P1: Native date pickers for purchase/best-before (currently text YYYY-MM-DD)
