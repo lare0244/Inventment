@@ -78,6 +78,8 @@ const en: Dict = {
   emailQty: "Qty", emailDeliverTo: "Deliver to:", emailClosing: "Please confirm availability, pricing, and expected delivery date.",
   emailRegards: "Best regards,", poEmailSubjectPrefix: "Purchase Order from",
   addSupplierEmailHint: "Add an email for this supplier in Settings to pre-fill the recipient.", emailAppError: "Could not open email app",
+  allCategories: "All categories", byCount: "By count", byName: "By name",
+  saveDraft: "Save order draft", deleteDraft: "Delete draft", confirmDeleteDraft: "Delete this draft order?", limitReached: "Limit reached",
 };
 
 const sv: Dict = {
@@ -146,6 +148,8 @@ const sv: Dict = {
   emailQty: "Antal", emailDeliverTo: "Leverans till:", emailClosing: "Vänligen bekräfta tillgänglighet, pris och förväntat leveransdatum.",
   emailRegards: "Med vänliga hälsningar,", poEmailSubjectPrefix: "Inköpsorder från",
   addSupplierEmailHint: "Lägg till en e-postadress för leverantören i Inställningar för att fylla i mottagaren.", emailAppError: "Kunde inte öppna e-postappen",
+  allCategories: "Alla kategorier", byCount: "Efter antal", byName: "Efter namn",
+  saveDraft: "Spara orderutkast", deleteDraft: "Ta bort utkast", confirmDeleteDraft: "Ta bort detta orderutkast?", limitReached: "Gräns nådd",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv };

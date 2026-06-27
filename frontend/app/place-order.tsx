@@ -152,7 +152,7 @@ export default function PlaceOrder() {
               </ScrollView>
             </>
           )}
-          <Btn testID="po-create-btn" title={`${t("createOrder")} (${selectedIds.length} ${t("selected")})`} icon="clipboard-check" loading={creating} onPress={createOrder} />
+          <Btn testID="po-create-btn" title={`${t("saveDraft")} (${selectedIds.length})`} icon="content-save-outline" loading={creating} onPress={createOrder} />
         </View>
       )}
     </View>

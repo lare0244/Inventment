@@ -9,7 +9,7 @@ import { useAuth } from "@/src/auth";
 import { useColors, useT } from "@/src/appsettings";
 import { money } from "@/src/currency";
 import { F, S, R, stockColor, Palette } from "@/src/theme";
-import { StatusDot } from "@/src/components/ui";
+import { StatusDot, Dropdown } from "@/src/components/ui";
 
 export default function Catalog() {
   const insets = useSafeAreaInsets();
@@ -24,7 +24,8 @@ export default function Catalog() {
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [activeWh, setActiveWh] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [sortMode, setSortMode] = useState<"name" | "stock">("name");
+  const [sortMode, setSortMode] = useState<"name" | "stock" | "category" | "price">("name");
+  const [catSort, setCatSort] = useState<"count" | "name">("count");
 
   const load = useCallback(async () => {
     try {
@@ -35,12 +36,33 @@ export default function Catalog() {
   }, [activeWh]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  const catName = (id: string) => cats.find((c) => c.id === id)?.name || "";
+  const catCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    products.forEach((p) => { if (p.category_id) m[p.category_id] = (m[p.category_id] || 0) + 1; });
+    return m;
+  }, [products]);
+  const sortedCats = useMemo(() => {
+    const arr = [...cats];
+    arr.sort((a, b) => catSort === "name"
+      ? (a.name || "").localeCompare(b.name || "")
+      : (catCounts[b.id] || 0) - (catCounts[a.id] || 0) || (a.name || "").localeCompare(b.name || ""));
+    return arr;
+  }, [cats, catSort, catCounts]);
+  const topCats = useMemo(() =>
+    [...cats].sort((a, b) => (catCounts[b.id] || 0) - (catCounts[a.id] || 0)).slice(0, 5),
+  [cats, catCounts]);
+
+  const q = search.trim().toLowerCase();
   const filtered = products.filter((p) =>
     (!activeCat || p.category_id === activeCat) &&
-    (!search || p.name?.toLowerCase().includes(search.toLowerCase()))
-  ).sort((a, b) => sortMode === "name"
-    ? (a.name || "").localeCompare(b.name || "")
-    : (a.quantity || 0) - (b.quantity || 0));
+    (!q || p.name?.toLowerCase().includes(q) || catName(p.category_id).toLowerCase().includes(q))
+  ).sort((a, b) => {
+    if (sortMode === "name") return (a.name || "").localeCompare(b.name || "");
+    if (sortMode === "stock") return (a.quantity || 0) - (b.quantity || 0);
+    if (sortMode === "price") return (a.price || 0) - (b.price || 0);
+    return catName(a.category_id).localeCompare(catName(b.category_id)) || (a.name || "").localeCompare(b.name || "");
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: C.surface }}>
@@ -64,10 +86,23 @@ export default function Catalog() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
           <Chip label={t("all")} active={!activeCat} onPress={() => setActiveCat(null)} styles={styles} />
-          {cats.map((c) => (
-            <Chip key={c.id} label={c.name} active={activeCat === c.id} onPress={() => setActiveCat(c.id)} styles={styles} />
+          {topCats.map((c) => (
+            <Chip key={c.id} label={`${c.name} (${catCounts[c.id] || 0})`} active={activeCat === c.id} onPress={() => setActiveCat(c.id)} styles={styles} />
           ))}
         </ScrollView>
+        {cats.length > 5 && (
+          <View style={styles.catPickerRow}>
+            <View style={{ flex: 1 }}>
+              <Dropdown testID="cat-dropdown" value={activeCat} placeholder={t("allCategories")}
+                onChange={(v) => setActiveCat(v || null)}
+                options={[{ value: "", label: t("allCategories") }, ...sortedCats.map((c) => ({ value: c.id, label: c.name, sub: `${catCounts[c.id] || 0} ${t("items")}` }))]} />
+            </View>
+            <Pressable testID="cat-sort-toggle" onPress={() => setCatSort((s) => (s === "count" ? "name" : "count"))} style={styles.catSortBtn}>
+              <MaterialCommunityIcons name={catSort === "count" ? "sort-numeric-variant" : "sort-alphabetical-variant"} size={18} color={C.brand} />
+              <Text style={styles.catSortTxt}>{catSort === "count" ? t("byCount") : t("byName")}</Text>
+            </Pressable>
+          </View>
+        )}
         {warehouses.length > 1 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.whChipRow}>
             <Chip label={t("allWarehouses")} active={!activeWh} onPress={() => setActiveWh(null)} styles={styles} />
@@ -76,7 +111,7 @@ export default function Catalog() {
             ))}
           </ScrollView>
         )}
-        <View style={styles.sortRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortRow}>
           <Text style={styles.sortLabel}>{t("sortBy")}:</Text>
           <Pressable testID="catalog-sort-name" onPress={() => setSortMode("name")} style={[styles.sortChip, sortMode === "name" && styles.sortChipActive]}>
             <Text style={[styles.sortTxt, sortMode === "name" && { color: C.onBrand }]}>{t("sortName")}</Text>
@@ -84,7 +119,13 @@ export default function Catalog() {
           <Pressable testID="catalog-sort-stock" onPress={() => setSortMode("stock")} style={[styles.sortChip, sortMode === "stock" && styles.sortChipActive]}>
             <Text style={[styles.sortTxt, sortMode === "stock" && { color: C.onBrand }]}>{t("sortStock")}</Text>
           </Pressable>
-        </View>
+          <Pressable testID="catalog-sort-category" onPress={() => setSortMode("category")} style={[styles.sortChip, sortMode === "category" && styles.sortChipActive]}>
+            <Text style={[styles.sortTxt, sortMode === "category" && { color: C.onBrand }]}>{t("category")}</Text>
+          </Pressable>
+          <Pressable testID="catalog-sort-price" onPress={() => setSortMode("price")} style={[styles.sortChip, sortMode === "price" && styles.sortChipActive]}>
+            <Text style={[styles.sortTxt, sortMode === "price" && { color: C.onBrand }]}>{t("price")}</Text>
+          </Pressable>
+        </ScrollView>
       </View>
 
       <FlatList
@@ -155,6 +196,9 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   searchInput: { flex: 1, color: C.onSurface, fontFamily: F.text, fontSize: 15 },
   chipRow: { gap: S.sm, paddingVertical: S.md, paddingRight: S.lg },
   whChipRow: { gap: S.sm, paddingBottom: S.md, paddingRight: S.lg },
+  catPickerRow: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingBottom: S.md },
+  catSortBtn: { flexDirection: "row", alignItems: "center", gap: S.xs, height: 50, paddingHorizontal: S.md, borderRadius: R.md, borderWidth: 1, borderColor: C.brand, backgroundColor: C.surfaceSecondary },
+  catSortTxt: { color: C.brand, fontFamily: F.textBold, fontSize: 12 },
   chip: { height: 36, paddingHorizontal: S.lg, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: C.surfaceSecondary },
   chipActive: { backgroundColor: C.brand, borderColor: C.brand },
   chipTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 13 },

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -44,14 +44,18 @@ export default function Settings() {
     if (!form.name.trim()) return;
     const e = editId ? `/${editId}` : "";
     const m = editId ? "PUT" : "POST";
-    if (modal === "categories") {
-      await api(`/categories${e}`, { method: m, body: { name: form.name } });
-    } else {
-      const addr = { street1: form.street1, street2: form.street2, number: form.number, postcode: form.postcode, city: form.city, state: form.state, county: form.county, contact_person: form.contact_person, phone: form.phone };
-      if (modal === "warehouses") await api(`/warehouses${e}`, { method: m, body: { name: form.name, ...addr } });
-      if (modal === "suppliers") await api(`/suppliers${e}`, { method: m, body: { name: form.name, email: form.email, ...addr } });
+    try {
+      if (modal === "categories") {
+        await api(`/categories${e}`, { method: m, body: { name: form.name } });
+      } else {
+        const addr = { street1: form.street1, street2: form.street2, number: form.number, postcode: form.postcode, city: form.city, state: form.state, county: form.county, contact_person: form.contact_person, phone: form.phone };
+        if (modal === "warehouses") await api(`/warehouses${e}`, { method: m, body: { name: form.name, ...addr } });
+        if (modal === "suppliers") await api(`/suppliers${e}`, { method: m, body: { name: form.name, email: form.email, ...addr } });
+      }
+      setForm(emptyForm); setEditId(null); setModal(null); load();
+    } catch (err: any) {
+      Alert.alert(t("limitReached"), err?.message || t("saveFailed"));
     }
-    setForm(emptyForm); setEditId(null); setModal(null); load();
   }
   async function del(kind: Kind, id: string) {
     await api(`/${kind}/${id}`, { method: "DELETE" }); load();

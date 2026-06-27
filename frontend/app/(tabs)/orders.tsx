@@ -9,7 +9,7 @@ import { useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
-import { useColors, useT } from "@/src/appsettings";
+import { useColors, useT, useApp } from "@/src/appsettings";
 import { money } from "@/src/currency";
 import { F, S, R, Palette } from "@/src/theme";
 import { Card, Btn } from "@/src/components/ui";
@@ -19,6 +19,7 @@ export default function Orders() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { currency, user } = useAuth();
+  const { lang } = useApp();
   const C = useColors();
   const t = useT();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -57,7 +58,7 @@ export default function Orders() {
 
   async function getAi() {
     setAiLoading(true);
-    try { const r = await api("/reports/ai-insights"); setInsight(r.insight); } catch {} finally { setAiLoading(false); }
+    try { const r = await api(`/reports/ai-insights?lang=${lang}&currency=${currency}`); setInsight(r.insight); } catch {} finally { setAiLoading(false); }
   }
 
   // Build flattened per-warehouse rows honoring warehouse + category filters
@@ -212,6 +213,13 @@ export default function Orders() {
     catch {} finally { setAutoLoading(false); }
   }
 
+  function deletePo(po: any) {
+    Alert.alert(t("deleteDraft"), t("confirmDeleteDraft"), [
+      { text: t("cancel"), style: "cancel" },
+      { text: t("deleteDraft"), style: "destructive", onPress: async () => { try { await api(`/purchase-orders/${po.id}`, { method: "DELETE" }); await load(); } catch {} } },
+    ]);
+  }
+
   function openEditPo(po: any) {
     setEditPo(po);
     setPoItems((po.items || []).map((i: any) => ({ ...i })));
@@ -332,6 +340,11 @@ export default function Orders() {
                     <Text style={styles.rMeta}>{(po.created_at || "").slice(0, 10)} · {money(po.total, currency)}{po.warehouse_name ? ` · ${po.warehouse_name}` : ""}</Text>
                   </View>
                   {po.status !== "sent" && <MaterialCommunityIcons name="pencil-outline" size={18} color={C.info} style={{ marginRight: S.sm }} />}
+                  {po.status !== "sent" && (
+                    <Pressable testID={`po-delete-${po.id}`} hitSlop={8} onPress={() => deletePo(po)} style={{ marginRight: S.sm }}>
+                      <MaterialCommunityIcons name="trash-can-outline" size={18} color={C.error} />
+                    </Pressable>
+                  )}
                   <View style={[styles.badge, { borderColor: po.status === "sent" ? C.success : C.warning }]}>
                     <Text style={[styles.badgeTxt, { color: po.status === "sent" ? C.success : C.warning }]}>{po.status === "sent" ? t("statusSent") : t("statusDraft")}</Text>
                   </View>

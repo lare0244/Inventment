@@ -249,6 +249,12 @@ async def record_snapshot(user_id: str):
 
 
 # ---------------- Generic CRUD helpers ----------------
+MAX_PRODUCTS = 9999
+MAX_CATEGORIES = 99
+MAX_WAREHOUSES = 19
+MAX_SUPPLIERS = 9999
+
+
 def clean(doc: dict) -> dict:
     doc.pop("_id", None)
     doc.pop("owner_id", None)
@@ -264,6 +270,8 @@ async def list_warehouses(user: dict = Depends(get_current_user)):
 
 @api_router.post("/warehouses")
 async def create_warehouse(body: Warehouse, user: dict = Depends(get_current_user)):
+    if await db.warehouses.count_documents({"owner_id": user["id"]}) >= MAX_WAREHOUSES:
+        raise HTTPException(status_code=400, detail=f"Warehouse limit reached (max {MAX_WAREHOUSES})")
     doc = {**body.dict(), "owner_id": user["id"]}
     await db.warehouses.insert_one(dict(doc))
     return clean(dict(doc))
@@ -291,6 +299,8 @@ async def list_categories(user: dict = Depends(get_current_user)):
 
 @api_router.post("/categories")
 async def create_category(body: Category, user: dict = Depends(get_current_user)):
+    if await db.categories.count_documents({"owner_id": user["id"]}) >= MAX_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Category limit reached (max {MAX_CATEGORIES})")
     doc = {**body.dict(), "owner_id": user["id"]}
     await db.categories.insert_one(dict(doc))
     return clean(dict(doc))
@@ -318,6 +328,8 @@ async def list_suppliers(user: dict = Depends(get_current_user)):
 
 @api_router.post("/suppliers")
 async def create_supplier(body: Supplier, user: dict = Depends(get_current_user)):
+    if await db.suppliers.count_documents({"owner_id": user["id"]}) >= MAX_SUPPLIERS:
+        raise HTTPException(status_code=400, detail=f"Supplier limit reached (max {MAX_SUPPLIERS})")
     doc = {**body.dict(), "owner_id": user["id"]}
     await db.suppliers.insert_one(dict(doc))
     return clean(dict(doc))
@@ -387,6 +399,8 @@ async def get_product(pid: str, user: dict = Depends(get_current_user)):
 
 @api_router.post("/products")
 async def create_product(body: ProductIn, user: dict = Depends(get_current_user)):
+    if await db.products.count_documents({"owner_id": user["id"]}) >= MAX_PRODUCTS:
+        raise HTTPException(status_code=400, detail=f"Product limit reached (max {MAX_PRODUCTS})")
     data = body.dict()
     qty = int(data.get("quantity", 0))
     wid = data.get("warehouse_id")
@@ -665,10 +679,14 @@ async def reorder_suggestions(user: dict = Depends(get_current_user)):
 
 
 @api_router.get("/reports/ai-insights")
-async def ai_insights(user: dict = Depends(get_current_user)):
+async def ai_insights(user: dict = Depends(get_current_user), lang: Optional[str] = None, currency: Optional[str] = None):
+    cur = currency or user.get("currency", "SEK")
+    lang_name = {"sv": "Swedish", "en": "English"}.get((lang or "en").lower(), "English")
     products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
     if not products:
-        return {"insight": "No products yet. Add and scan products to get AI-powered restocking insights."}
+        msg = {"sv": "Inga produkter än. Lägg till och skanna produkter för att få AI-drivna påfyllningsförslag.",
+               "en": "No products yet. Add and scan products to get AI-powered restocking insights."}
+        return {"insight": msg.get((lang or "en").lower(), msg["en"])}
     low = [p for p in products if int(p.get("quantity", 0)) <= int(p.get("low_stock_threshold", 5))]
     lines = []
     for p in products[:60]:
@@ -677,19 +695,23 @@ async def ai_insights(user: dict = Depends(get_current_user)):
     prompt = (
         "You are a warehouse inventory analyst. Based on this stock data, give a concise, "
         "actionable purchase-order recommendation. Prioritise items below threshold and items expiring soon. "
-        "Keep it under 150 words, use short bullet points, no markdown headers.\n\n"
+        "Keep it under 150 words, use short bullet points, no markdown headers.\n"
+        f"IMPORTANT: Write your entire response in {lang_name}. "
+        f"Express all monetary amounts in {cur} (use the currency code {cur}).\n\n"
         f"Stock value items below threshold: {len(low)}\n\nInventory:\n" + "\n".join(lines)
     )
     try:
         from emergentintegrations.llm.chat import LlmChat, UserMessage
         chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"insights-{user['id']}",
-                       system_message="You are a precise warehouse inventory analyst.").with_model("anthropic", "claude-sonnet-4-6")
+                       system_message=f"You are a precise warehouse inventory analyst. Always respond in {lang_name} and use {cur} for currency.").with_model("anthropic", "claude-sonnet-4-6")
         resp = await chat.send_message(UserMessage(text=prompt))
         text = resp if isinstance(resp, str) else str(resp)
         return {"insight": text.strip()}
     except Exception as e:
         logger.warning(f"AI insight failed: {e}")
-        return {"insight": "AI insights are temporarily unavailable. Rule-based suggestions are available in the reorder list."}
+        unavailable = {"sv": "AI-insikter är tillfälligt otillgängliga. Regelbaserade förslag finns i påfyllningslistan.",
+                       "en": "AI insights are temporarily unavailable. Rule-based suggestions are available in the reorder list."}
+        return {"insight": unavailable.get((lang or "en").lower(), unavailable["en"])}
 
 
 class POEmailRequest(BaseModel):
