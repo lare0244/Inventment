@@ -82,6 +82,7 @@ export default function Orders() {
           name: p.name, sku: p.sku || "", barcode: p.barcode || "",
           category: catMap[p.category_id] || "", supplier: supMap[p.supplier_id] || "",
           warehouse: wid ? (whMap[wid] || "") : "", quantity: qty,
+          measure: (p.measure_value != null && p.measure_unit) ? `${p.measure_value} ${p.measure_unit}` : "",
           threshold: p.low_stock_threshold ?? 5, cost: p.cost ?? 0, price: p.price ?? 0, value: (p.cost || 0) * qty,
           purchase_date: (p.purchase_date || "").slice(0, 10),
           best_before_date: (p.best_before_date || "").slice(0, 10),
@@ -102,7 +103,7 @@ export default function Orders() {
       const whLabel = filterWh ? (warehouses.find((w) => w.id === filterWh)?.name || "") : t("allWarehouses");
       const catLabel = filterCat ? (categories.find((c) => c.id === filterCat)?.name || "") : t("all");
       const tableRows = rows.map((r) =>
-        `<tr><td>${r.name}</td><td>${r.sku || r.barcode || "-"}</td><td>${r.warehouse || "-"}</td><td style="text-align:right">${r.quantity}</td><td style="text-align:right">${money(r.cost, currency)}</td><td style="text-align:right">${money(r.value, currency)}</td></tr>`
+        `<tr><td>${r.name}</td><td>${r.sku || r.barcode || "-"}</td><td>${r.warehouse || "-"}</td><td>${r.measure || "-"}</td><td style="text-align:right">${r.quantity}</td><td style="text-align:right">${money(r.cost, currency)}</td><td style="text-align:right">${money(r.value, currency)}</td></tr>`
       ).join("");
       const reorder = rows.filter((r) => r.warehouse && r.quantity <= r.threshold)
         .sort((a, b) => (a.warehouse + a.name).localeCompare(b.warehouse + b.name));
@@ -127,7 +128,7 @@ export default function Orders() {
         <polyline points="${pts}" fill="none" stroke="#E64A19" stroke-width="3"/>
         ${history.map((h, i) => { const x = 40 + (i / Math.max(1, history.length - 1)) * 700; return `<text x="${x}" y="270" font-size="9" text-anchor="middle" fill="#888">${h.month.slice(2)}</text>`; }).join("")}</svg>
         ${reorderSection}
-        <h3>${t("products")}</h3><table><tr><th>${t("productName")}</th><th>${t("sku")}</th><th>${t("warehouse")}</th><th>${t("quantity")}</th><th>${t("cost")}</th><th>${t("stockValue")}</th></tr>${tableRows}</table></body></html>`;
+        <h3>${t("products")}</h3><table><tr><th>${t("productName")}</th><th>${t("sku")}</th><th>${t("warehouse")}</th><th>${t("measure")}</th><th>${t("quantity")}</th><th>${t("cost")}</th><th>${t("stockValue")}</th></tr>${tableRows}</table></body></html>`;
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "INVENTMENT Report" });
     } catch {} finally { setExporting(false); }
@@ -138,10 +139,10 @@ export default function Orders() {
     try {
       const rows = await buildRows();
       const esc = (v: any) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-      const headers = [t("productName"), t("sku"), t("barcode"), t("category"), t("supplier"), t("warehouse"), t("quantity"), t("cost"), t("price"), t("stockValue"), t("purchaseDate"), t("bestBefore")];
+      const headers = [t("productName"), t("sku"), t("barcode"), t("category"), t("supplier"), t("warehouse"), t("measure"), t("quantity"), t("cost"), t("price"), t("stockValue"), t("purchaseDate"), t("bestBefore")];
       const lines = [headers.join(",")];
       rows.forEach((r) => {
-        lines.push([r.name, r.sku, r.barcode, r.category, r.supplier, r.warehouse, r.quantity, r.cost, r.price, r.value, r.purchase_date, r.best_before_date].map(esc).join(","));
+        lines.push([r.name, r.sku, r.barcode, r.category, r.supplier, r.warehouse, r.measure, r.quantity, r.cost, r.price, r.value, r.purchase_date, r.best_before_date].map(esc).join(","));
       });
       const csv = "\uFEFF" + lines.join("\n");
       const filename = `INVENTMENT_stock_${new Date().toISOString().slice(0, 10)}.csv`;

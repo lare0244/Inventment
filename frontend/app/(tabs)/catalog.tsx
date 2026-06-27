@@ -164,7 +164,7 @@ export default function Catalog() {
                     </View>
                   )}
                 </View>
-                <Text style={styles.pSku}>{item.sku || item.barcode || t("noSku")} · {money(item.price, currency)}</Text>
+                <Text style={styles.pSku}>{item.sku || item.barcode || t("noSku")} · {money(item.price, currency)}{item.measure_value != null && item.measure_unit ? ` · ${item.measure_value} ${item.measure_unit}` : ""}</Text>
               </View>
               <View style={styles.qtyWrap}>
                 <StatusDot color={stockColor(item.quantity, item.low_stock_threshold, C)} />
