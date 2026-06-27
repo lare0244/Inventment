@@ -82,6 +82,14 @@ const en: Dict = {
   saveDraft: "Save order draft", deleteDraft: "Delete draft", confirmDeleteDraft: "Delete this draft order?", limitReached: "Limit reached",
   headline: "Headline", headlineHint: "Short product headline", description: "Description", descriptionHint: "Detailed product description",
   measure: "Volume/Weight/Length", unit: "Unit", selectUnit: "Select unit",
+  planFree: "Free Plan", planPro: "PRO Plan", upgradeToPro: "Upgrade to PRO", proActive: "PRO is active.",
+  proPitch: "Unlock up to 9999 products, 19 warehouses, 99 categories and 9999 suppliers.",
+  month: "month", renews: "renews", upgradeFailed: "Upgrade failed",
+  welcomePro: "Welcome to PRO!", proUnlocked: "All PRO limits are now unlocked.",
+  checkoutCanceled: "Checkout canceled", noChargeMade: "No charge was made.",
+  paymentPending: "Payment pending", paymentPendingHint: "Your payment is processing. It may take a moment to activate.",
+  verifyingPayment: "Verifying payment…", done: "Done", proRequired: "PRO required",
+  limitFreeHint: "You've reached your Free plan limit. Upgrade to PRO to add more.",
 };
 
 const sv: Dict = {
@@ -154,6 +162,14 @@ const sv: Dict = {
   saveDraft: "Spara orderutkast", deleteDraft: "Ta bort utkast", confirmDeleteDraft: "Ta bort detta orderutkast?", limitReached: "Gräns nådd",
   headline: "Rubrik", headlineHint: "Kort produktrubrik", description: "Beskrivning", descriptionHint: "Detaljerad produktbeskrivning",
   measure: "Volym/Vikt/Längd", unit: "Enhet", selectUnit: "Välj enhet",
+  planFree: "Gratisplan", planPro: "PRO-plan", upgradeToPro: "Uppgradera till PRO", proActive: "PRO är aktivt.",
+  proPitch: "Lås upp upp till 9999 produkter, 19 lager, 99 kategorier och 9999 leverantörer.",
+  month: "månad", renews: "förnyas", upgradeFailed: "Uppgradering misslyckades",
+  welcomePro: "Välkommen till PRO!", proUnlocked: "Alla PRO-gränser är nu upplåsta.",
+  checkoutCanceled: "Betalning avbruten", noChargeMade: "Ingen debitering gjordes.",
+  paymentPending: "Betalning pågår", paymentPendingHint: "Din betalning behandlas. Det kan ta en stund att aktivera.",
+  verifyingPayment: "Verifierar betalning…", done: "Klar", proRequired: "PRO krävs",
+  limitFreeHint: "Du har nått gränsen för Gratisplanen. Uppgradera till PRO för att lägga till fler.",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv };

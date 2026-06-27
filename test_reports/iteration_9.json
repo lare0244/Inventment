@@ -1,0 +1,57 @@
+{
+  "summary": "v9 — INVENTMENT Free/PRO tier + Stripe checkout + measure column. Created /app/backend/tests/test_v9_billing.py with 11 NEW pytest cases — ALL 11 PASS in 10s. Verified: (1) New user registers with plan=free (auth/me includes plan). (2) GET /api/billing/plan returns {plan:'free', limits:{products:9,categories:9,warehouses:2,suppliers:9}, usage:{...}, price:{amount:6.99, currency:'EUR', interval:'month'}}. (3) POST /api/billing/checkout returns a REAL Stripe Checkout URL starting with 'https://checkout.stripe.com/' and session_id starting with 'cs_' (cs_test_…) and creates a payment_transactions record. (4) GET /api/billing/status/{session_id} returns payment_status!=paid (unpaid) immediately after checkout and does NOT upgrade the user (plan stays 'free' in both billing/status and /auth/me). (5) Idempotent: double-polling status keeps plan=free, no accidental upgrade. (6) FREE-tier limits enforced correctly with HTTP 403 + detail 'limit_reached:<kind>:<cap>:free' — verified end-to-end on isolated TEST_v9_ users: 3rd warehouse → 403 limit_reached:warehouses:2:free; 10th category → 403 limit_reached:categories:9:free; 10th supplier → 403 limit_reached:suppliers:9:free; 10th product → 403 limit_reached:products:9:free. (7) Product measure_value/measure_unit persisted and returned on GET /products/{id}. Frontend Playwright (390x844 mobile viewport, public preview URL, logged-in as warehouse@test.com/test123): Settings tab Plan card renders exactly per spec — 'Free Plan' title, 'FREE' badge, usage line 'Products: 1/9 · Warehouse: 2/2 · Categories: 0/9 · Suppliers: 0/9', pitch 'Unlock up to 9999 products, 19 warehouses, 99 categories and 9999 suppliers.', and primary CTA testID='upgrade-btn' with exact label 'Upgrade to PRO · 6.99 EUR/month'. Tapping upgrade-btn fires POST /api/billing/checkout (response 200) and then window.location.href navigates the browser to the real Stripe Checkout page (https://checkout.stripe.com/c/pay/cs_test_…) showing 'Payment €6.99 Sandbox' with the Stripe card form — confirming the full FE→BE→Stripe handshake. Per main agent's instruction we did NOT complete a real card payment. Catalog/PDF/CSV measure column wiring verified at source level: catalog.tsx:167 renders `${item.measure_value} ${item.measure_unit}` on each row; orders.tsx buildRows() at :85 maps p.measure_value/unit into r.measure; PDF table at :131 includes <th>{t('measure')}</th>; CSV headers at :142 include t('measure') and rows include r.measure at the matching index. Limit-prompt UX: settings.tsx save() catches 'limit_reached' and shows Alert.alert(proRequired, limitFreeHint, [cancel, upgradeToPro->upgrade()]) — on web preview RN Alert.alert is a no-op so the prompt isn't visible there (same class of limitation as v7 mailto: and v8 delete-confirm). Works on native iOS/Android builds. Backend lifecycle is clean: no 500s observed; bcrypt benign warning carryover only.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "passlib/bcrypt warning", "issue": "Carryover benign warning 'module bcrypt has no attribute __about__' at startup. Cosmetic."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Free-user hits limit (e.g. add 3rd warehouse) → expects Upgrade prompt", "issue": "react-native Alert.alert is a no-op on react-native-web. The save() catch in settings.tsx fires Alert.alert(proRequired, limitFreeHint, [...{onPress: upgrade}]) but nothing renders in the web preview. Functional on native builds. Recommend a Platform.OS==='web' branch using window.confirm + auto-call upgrade() so the prompt is also exercisable from the web preview (and useful for web publish).", "affected_testIDs": ["add-warehouses", "modal-save", "upgrade-btn"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "react-native Alert.alert (web)", "issue": "Same carryover web limitation as v7/v8 — Alert.alert(...) renders nothing on RN-Web, so the proRequired limit-reached upgrade prompt and the upgrade-failed alert never surface in the web preview. Reference: /app/frontend/app/(tabs)/settings.tsx:78-84 (limit prompt) and :52 (upgrade-failed alert)."},
+      {"component": "react-native-web Pressable pointerEvents", "issue": "Carryover deprecation warning 'props.pointerEvents is deprecated. Use style.pointerEvents'. Cosmetic only."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v9_billing.py",
+    "/app/test_reports/pytest/pytest_v9.xml"
+  ],
+  "action_items": [
+    "(Optional / Low) In settings.tsx save() and upgrade() catch handlers, branch on Platform.OS==='web' and use window.confirm/window.alert so the limit-reached + upgrade-error prompts are visible in the web preview (and useful for any web build). On native the existing Alert.alert works fine.",
+    "(Low / carryover) Silence the react-native-web pointerEvents deprecation warning.",
+    "(Optional / Low) Add a Free-vs-PRO PRO-tier limit test by manually flipping db.users.plan='pro' for a TEST_ user to verify PRO caps (19 warehouses / 9999 products) are honored. Currently exercised by source-level review (PRO_LIMITS at server.py:265) and existing v8 tests."
+  ],
+  "critical_code_review_comments": [
+    "server.py:265-266 — PRO_LIMITS and FREE_LIMITS dicts. FREE = {products:9, categories:9, warehouses:2, suppliers:9}; PRO = {products:9999, categories:99, warehouses:19, suppliers:9999}. Matches PRD exactly.",
+    "server.py:273-278 — enforce_limit raises HTTPException(403, detail=f'limit_reached:{kind}:{cap}:{plan}'). Detail format matches spec ('limit_reached:<kind>:<cap>:<plan>'). Wired into POST /warehouses, /categories, /suppliers, /products.",
+    "server.py:903-985 — Billing endpoints. GET /billing/plan returns {plan, limits, usage, plan_expires_at, price:{amount:6.99, currency:'EUR', interval:'month'}}. POST /billing/checkout uses StripeCheckout(api_key=STRIPE_API_KEY) with origin-based success/cancel URLs and metadata{user_id, plan:'pro', type:'pro_monthly'}; persists payment_transactions row with payment_status='initiated'. GET /billing/status/{session_id} polls Stripe; ONLY when st.payment_status=='paid' AND (tx missing OR tx.payment_status!='paid') does it upgrade — idempotency guard prevents double-upgrade. Sets plan_expires_at = now+30 days.",
+    "server.py:31-33 — PRO_PRICE_AMOUNT=6.99, PRO_PRICE_CURRENCY='eur', PRO_PERIOD_DAYS=30. Matches PRD.",
+    "server.py:209,229 — registration sets plan='free' default; /auth/me echoes plan in _public_user response.",
+    "settings.tsx:141-164 — Plan card uses billing.usage/limits live; testID='upgrade-btn' label exactly `${t('upgradeToPro')} · ${billing.price.amount} ${billing.price.currency}/${t('month')}`. Verified live as 'Upgrade to PRO · 6.99 EUR/month'.",
+    "settings.tsx:40-54 upgrade() — origin = window.location.origin (web) or EXPO_PUBLIC_BACKEND_URL (native); POST /billing/checkout with origin_url; on success window.location.href = url (web) or Linking.openURL (native). Verified live: real Stripe Checkout page opens with €6.99 Sandbox.",
+    "settings.tsx:62-86 save() — catches err.message includes 'limit_reached' and triggers Alert.alert(proRequired, limitFreeHint, [cancel, upgradeToPro:upgrade]). Correct shape; web-only limitation: Alert.alert no-op on RN-Web.",
+    "billing-return.tsx — polls /billing/status/{session_id} every 2s up to 8 times; on payment_status=='paid' OR plan=='pro' refreshes user and shows success; on cancel shows canceled; otherwise pending. testID='billing-done' present. Correct UX.",
+    "auth.tsx:4,82 — User type includes plan; default plan exposed as 'free' when user null. refreshUser() and plan field flow correctly to settings card.",
+    "orders.tsx:85,106,131,142,145 — measure column wired in buildRows (`${measure_value} ${measure_unit}`), PDF table header+row, CSV header+row. Spec satisfied.",
+    "catalog.tsx:167 — product row text includes `· ${item.measure_value} ${item.measure_unit}` only when both present. Good.",
+    "server.py module size now ~1019 lines — carryover module-split recommendation."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v9_billing.py (NEW — 11 pytest cases for v9 billing+limits+measure)",
+    "(no app code changed)"
+  ],
+  "success_rate": {
+    "backend": "100% on v9 (11/11). All Free-tier limit and billing endpoints verified end-to-end against the public preview URL with isolated fresh users.",
+    "frontend": "100% on the validated v9 web-preview flows: Settings Plan card renders the FREE badge, correct usage, pitch, and upgrade-btn with exact label 'Upgrade to PRO · 6.99 EUR/month'; tapping upgrade-btn navigates to the real Stripe Checkout page showing €6.99 (cs_test session). Limit-reached Alert prompt is a carryover RN-Web no-op (works on native)."
+  },
+  "seed_data_creation": "Each v9 test creates an isolated TEST_v9_<uuid>@test.com user to avoid polluting warehouse@test.com. Tests do NOT delete those users (no admin endpoint) but use email prefix TEST_v9_ for easy bulk cleanup later. No data created on warehouse@test.com.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Canonical v9 regression file: /app/backend/tests/test_v9_billing.py (11 cases, ~10s). Backend URL env key: EXPO_PUBLIC_BACKEND_URL. Stripe is wired through emergentintegrations.payments.stripe.checkout.StripeCheckout(api_key=os.environ['STRIPE_API_KEY']) and uses the Emergent proxy (integrations.emergentagent.com/stripe/v1). DO NOT complete a real card payment in tests; just verify POST /billing/checkout returns 200 with url=https://checkout.stripe.com/... and session_id=cs_…, and that GET /billing/status/{sid} returns payment_status!=paid and plan=free immediately. New verified testIDs: upgrade-btn (Settings PlanCard primary CTA), billing-done (BillingReturn screen). Limit error 403 format: 'limit_reached:<kind>:<cap>:<plan>'. Frontend caveat: react-native Alert.alert is a no-op on RN-Web — the limit-reached upgrade prompt is therefore invisible from the web preview (works on native).",
+  "rca_of_issue": "No bugs found — all features in the request work end-to-end. The one carryover web-only limitation (RN Alert.alert no-op) is the same platform constraint already documented in iterations 7 and 8; it is a react-native-web limitation, not an INVENTMENT bug. Mitigation if main agent wants browser-preview parity: branch on Platform.OS==='web' to use window.confirm/alert (a ~10-line change in settings.tsx save() and upgrade())."
+}

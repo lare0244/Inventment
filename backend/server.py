@@ -26,6 +26,12 @@ JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 
+from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
+PRO_PRICE_AMOUNT = 6.99       # EUR per month
+PRO_PRICE_CURRENCY = "eur"
+PRO_PERIOD_DAYS = 30
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -62,6 +68,7 @@ class UserPublic(BaseModel):
     email: str
     name: Optional[str] = None
     currency: str = "SEK"
+    plan: str = "free"
     low_stock_alert_email: Optional[str] = None
 
 
@@ -199,6 +206,7 @@ async def register(body: UserCreate):
         "name": body.name or body.email.split("@")[0],
         "hashed_password": pwd_context.hash(body.password),
         "currency": "SEK",
+        "plan": "free",
         "created_at": now_iso(),
     }
     await db.users.insert_one(doc)
@@ -218,6 +226,7 @@ async def login(body: LoginRequest):
 def _public_user(user: dict) -> UserPublic:
     return UserPublic(id=user["id"], email=user["email"], name=user.get("name"),
                       currency=user.get("currency", "SEK"),
+                      plan=user.get("plan", "free"),
                       low_stock_alert_email=user.get("low_stock_alert_email"))
 
 
@@ -253,10 +262,20 @@ async def record_snapshot(user_id: str):
 
 
 # ---------------- Generic CRUD helpers ----------------
-MAX_PRODUCTS = 9999
-MAX_CATEGORIES = 99
-MAX_WAREHOUSES = 19
-MAX_SUPPLIERS = 9999
+PRO_LIMITS = {"products": 9999, "categories": 99, "warehouses": 19, "suppliers": 9999}
+FREE_LIMITS = {"products": 9, "categories": 9, "warehouses": 2, "suppliers": 9}
+
+
+def limits_for(user: dict) -> dict:
+    return PRO_LIMITS if user.get("plan") == "pro" else FREE_LIMITS
+
+
+async def enforce_limit(user: dict, kind: str, collection):
+    cap = limits_for(user)[kind]
+    count = await collection.count_documents({"owner_id": user["id"]})
+    if count >= cap:
+        plan = user.get("plan", "free")
+        raise HTTPException(status_code=403, detail=f"limit_reached:{kind}:{cap}:{plan}")
 
 
 def clean(doc: dict) -> dict:
@@ -274,8 +293,7 @@ async def list_warehouses(user: dict = Depends(get_current_user)):
 
 @api_router.post("/warehouses")
 async def create_warehouse(body: Warehouse, user: dict = Depends(get_current_user)):
-    if await db.warehouses.count_documents({"owner_id": user["id"]}) >= MAX_WAREHOUSES:
-        raise HTTPException(status_code=400, detail=f"Warehouse limit reached (max {MAX_WAREHOUSES})")
+    await enforce_limit(user, "warehouses", db.warehouses)
     doc = {**body.dict(), "owner_id": user["id"]}
     await db.warehouses.insert_one(dict(doc))
     return clean(dict(doc))
@@ -303,8 +321,7 @@ async def list_categories(user: dict = Depends(get_current_user)):
 
 @api_router.post("/categories")
 async def create_category(body: Category, user: dict = Depends(get_current_user)):
-    if await db.categories.count_documents({"owner_id": user["id"]}) >= MAX_CATEGORIES:
-        raise HTTPException(status_code=400, detail=f"Category limit reached (max {MAX_CATEGORIES})")
+    await enforce_limit(user, "categories", db.categories)
     doc = {**body.dict(), "owner_id": user["id"]}
     await db.categories.insert_one(dict(doc))
     return clean(dict(doc))
@@ -332,8 +349,7 @@ async def list_suppliers(user: dict = Depends(get_current_user)):
 
 @api_router.post("/suppliers")
 async def create_supplier(body: Supplier, user: dict = Depends(get_current_user)):
-    if await db.suppliers.count_documents({"owner_id": user["id"]}) >= MAX_SUPPLIERS:
-        raise HTTPException(status_code=400, detail=f"Supplier limit reached (max {MAX_SUPPLIERS})")
+    await enforce_limit(user, "suppliers", db.suppliers)
     doc = {**body.dict(), "owner_id": user["id"]}
     await db.suppliers.insert_one(dict(doc))
     return clean(dict(doc))
@@ -403,8 +419,7 @@ async def get_product(pid: str, user: dict = Depends(get_current_user)):
 
 @api_router.post("/products")
 async def create_product(body: ProductIn, user: dict = Depends(get_current_user)):
-    if await db.products.count_documents({"owner_id": user["id"]}) >= MAX_PRODUCTS:
-        raise HTTPException(status_code=400, detail=f"Product limit reached (max {MAX_PRODUCTS})")
+    await enforce_limit(user, "products", db.products)
     data = body.dict()
     qty = int(data.get("quantity", 0))
     wid = data.get("warehouse_id")
@@ -883,6 +898,91 @@ async def mark_po_sent(po_id: str, user: dict = Depends(get_current_user)):
 async def delete_po(po_id: str, user: dict = Depends(get_current_user)):
     await db.purchase_orders.delete_one({"id": po_id, "owner_id": user["id"]})
     return {"ok": True}
+
+
+# ---------------- Billing (Stripe PRO) ----------------
+class CheckoutRequest(BaseModel):
+    origin_url: str
+
+
+def _pro_active(user: dict) -> bool:
+    if user.get("plan") != "pro":
+        return False
+    exp = user.get("plan_expires_at")
+    if not exp:
+        return True
+    try:
+        d = datetime.fromisoformat(exp.replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=timezone.utc)
+        return d > datetime.now(timezone.utc)
+    except Exception:
+        return True
+
+
+@api_router.get("/billing/plan")
+async def billing_plan(user: dict = Depends(get_current_user)):
+    plan = "pro" if _pro_active(user) else "free"
+    lim = PRO_LIMITS if plan == "pro" else FREE_LIMITS
+    usage = {
+        "products": await db.products.count_documents({"owner_id": user["id"]}),
+        "categories": await db.categories.count_documents({"owner_id": user["id"]}),
+        "warehouses": await db.warehouses.count_documents({"owner_id": user["id"]}),
+        "suppliers": await db.suppliers.count_documents({"owner_id": user["id"]}),
+    }
+    return {"plan": plan, "limits": lim, "usage": usage,
+            "plan_expires_at": user.get("plan_expires_at"),
+            "price": {"amount": PRO_PRICE_AMOUNT, "currency": PRO_PRICE_CURRENCY.upper(), "interval": "month"}}
+
+
+@api_router.post("/billing/checkout")
+async def billing_checkout(body: CheckoutRequest, user: dict = Depends(get_current_user)):
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=503, detail="Billing not configured")
+    origin = body.origin_url.rstrip("/")
+    host_url = str(api_router.prefix)  # unused; webhook url not required for polling
+    sc = StripeCheckout(api_key=STRIPE_API_KEY)
+    req = CheckoutSessionRequest(
+        amount=PRO_PRICE_AMOUNT,
+        currency=PRO_PRICE_CURRENCY,
+        success_url=f"{origin}/billing-return?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{origin}/billing-return?canceled=1",
+        metadata={"user_id": user["id"], "plan": "pro", "type": "pro_monthly"},
+    )
+    try:
+        session = await sc.create_checkout_session(req)
+    except Exception as e:
+        logger.warning(f"Stripe checkout failed: {e}")
+        raise HTTPException(status_code=500, detail="Could not create checkout session")
+    await db.payment_transactions.insert_one({
+        "id": str(uuid.uuid4()), "session_id": session.session_id, "user_id": user["id"],
+        "amount": PRO_PRICE_AMOUNT, "currency": PRO_PRICE_CURRENCY,
+        "plan": "pro", "payment_status": "initiated", "status": "open", "created_at": now_iso(),
+    })
+    return {"url": session.url, "session_id": session.session_id}
+
+
+@api_router.get("/billing/status/{session_id}")
+async def billing_status(session_id: str, user: dict = Depends(get_current_user)):
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=503, detail="Billing not configured")
+    sc = StripeCheckout(api_key=STRIPE_API_KEY)
+    try:
+        st = await sc.get_checkout_status(session_id)
+    except Exception as e:
+        logger.warning(f"Stripe status failed: {e}")
+        raise HTTPException(status_code=400, detail="Invalid session")
+    paid = st.payment_status == "paid"
+    tx = await db.payment_transactions.find_one({"session_id": session_id, "user_id": user["id"]})
+    if paid and (not tx or tx.get("payment_status") != "paid"):
+        expires = (datetime.now(timezone.utc) + timedelta(days=PRO_PERIOD_DAYS)).isoformat()
+        await db.users.update_one({"id": user["id"]}, {"$set": {"plan": "pro", "plan_expires_at": expires}})
+        await db.payment_transactions.update_one(
+            {"session_id": session_id, "user_id": user["id"]},
+            {"$set": {"payment_status": "paid", "status": "complete", "updated_at": now_iso()}})
+    fresh = await db.users.find_one({"id": user["id"]})
+    plan = "pro" if _pro_active(fresh) else "free"
+    return {"payment_status": st.payment_status, "status": st.status, "plan": plan}
 
 
 app.include_router(api_router)

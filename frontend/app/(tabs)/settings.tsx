@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Alert, Linking, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -14,7 +14,7 @@ type Kind = "warehouses" | "categories" | "suppliers";
 
 export default function Settings() {
   const insets = useSafeAreaInsets();
-  const { user, signOut, currency, setCurrency } = useAuth();
+  const { user, signOut, currency, setCurrency, plan, refreshUser } = useAuth();
   const { themeName, setThemeName, lang, setLang } = useApp();
   const C = useColors();
   const t = useT();
@@ -22,6 +22,8 @@ export default function Settings() {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [billing, setBilling] = useState<any>(null);
+  const [upgrading, setUpgrading] = useState(false);
   const [modal, setModal] = useState<Kind | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const emptyForm = { name: "", email: "", phone: "", contact_person: "", street1: "", street2: "", number: "", postcode: "", city: "", state: "", county: "" };
@@ -29,10 +31,27 @@ export default function Settings() {
   const setField = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const load = useCallback(async () => {
-    const [w, c, s] = await Promise.all([api("/warehouses"), api("/categories"), api("/suppliers")]);
-    setWarehouses(w); setCategories(c); setSuppliers(s);
+    const [w, c, s, b] = await Promise.all([api("/warehouses"), api("/categories"), api("/suppliers"), api("/billing/plan").catch(() => null)]);
+    setWarehouses(w); setCategories(c); setSuppliers(s); setBilling(b);
+    refreshUser();
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  async function upgrade() {
+    setUpgrading(true);
+    try {
+      const origin = Platform.OS === "web" && typeof window !== "undefined"
+        ? window.location.origin
+        : (process.env.EXPO_PUBLIC_BACKEND_URL || "");
+      const r = await api<{ url: string }>("/billing/checkout", { method: "POST", body: { origin_url: origin } });
+      if (r?.url) {
+        if (Platform.OS === "web" && typeof window !== "undefined") window.location.href = r.url;
+        else await Linking.openURL(r.url);
+      }
+    } catch (e: any) {
+      Alert.alert(t("upgradeFailed"), e?.message || "");
+    } finally { setUpgrading(false); }
+  }
 
   function openModal(kind: Kind, item?: any) {
     setModal(kind);
@@ -54,7 +73,15 @@ export default function Settings() {
       }
       setForm(emptyForm); setEditId(null); setModal(null); load();
     } catch (err: any) {
-      Alert.alert(t("limitReached"), err?.message || t("saveFailed"));
+      const msg = String(err?.message || "");
+      if (msg.includes("limit_reached")) {
+        Alert.alert(t("proRequired"), t("limitFreeHint"), [
+          { text: t("cancel"), style: "cancel" },
+          { text: t("upgradeToPro"), onPress: upgrade },
+        ]);
+      } else {
+        Alert.alert(t("saveFailed"), msg);
+      }
     }
   }
   async function del(kind: Kind, id: string) {
@@ -111,6 +138,31 @@ export default function Settings() {
         <Text style={styles.sub}>{user?.email}</Text>
       </View>
       <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 40 }}>
+        <Card style={{ marginBottom: S.lg, borderColor: plan === "pro" ? C.success : C.brand }}>
+          <View style={styles.planHead}>
+            <View style={styles.secTitleRow}>
+              <MaterialCommunityIcons name={plan === "pro" ? "crown" : "crown-outline"} size={22} color={plan === "pro" ? C.success : C.brand} />
+              <Text style={styles.secTitle}>{plan === "pro" ? t("planPro") : t("planFree")}</Text>
+            </View>
+            <View style={[styles.planBadge, { borderColor: plan === "pro" ? C.success : C.onSurfaceTertiary }]}>
+              <Text style={[styles.planBadgeTxt, { color: plan === "pro" ? C.success : C.onSurfaceTertiary }]}>{plan.toUpperCase()}</Text>
+            </View>
+          </View>
+          {billing && (
+            <Text style={styles.planUsage}>
+              {t("products")}: {billing.usage.products}/{billing.limits.products} · {t("warehouse")}: {billing.usage.warehouses}/{billing.limits.warehouses} · {t("categories")}: {billing.usage.categories}/{billing.limits.categories} · {t("suppliers")}: {billing.usage.suppliers}/{billing.limits.suppliers}
+            </Text>
+          )}
+          {plan !== "pro" ? (
+            <>
+              <Text style={styles.planPitch}>{t("proPitch")}</Text>
+              <Btn testID="upgrade-btn" title={`${t("upgradeToPro")} · ${billing ? `${billing.price.amount} ${billing.price.currency}/${t("month")}` : "6.99 EUR/mo"}`} icon="crown" loading={upgrading} onPress={upgrade} />
+            </>
+          ) : (
+            <Text style={styles.planUsage}>{t("proActive")}{billing?.plan_expires_at ? ` · ${t("renews")} ${String(billing.plan_expires_at).slice(0, 10)}` : ""}</Text>
+          )}
+        </Card>
+
         <Card style={{ marginBottom: S.lg }}>
           <View style={styles.secTitleRow}><MaterialCommunityIcons name="theme-light-dark" size={20} color={C.brand} /><Text style={styles.secTitle}>{t("appearance")}</Text></View>
           <View style={styles.pillRow}>
@@ -170,6 +222,11 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   secHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: S.md },
   secTitleRow: { flexDirection: "row", alignItems: "center", gap: S.sm, marginBottom: S.md },
   secTitle: { color: C.onSurface, fontFamily: F.textBold, fontSize: 16 },
+  planHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  planBadge: { paddingHorizontal: S.sm, paddingVertical: 2, borderRadius: R.pill, borderWidth: 1 },
+  planBadgeTxt: { fontFamily: F.textBold, fontSize: 11, letterSpacing: 1 },
+  planUsage: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: S.sm, marginBottom: S.sm, lineHeight: 18 },
+  planPitch: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 13, marginBottom: S.md, lineHeight: 19 },
   itemRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: S.sm, borderTopWidth: 1, borderTopColor: C.divider },
   itemName: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 14, flex: 1 },
   emptyTxt: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13 },

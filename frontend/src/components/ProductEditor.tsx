@@ -83,7 +83,7 @@ export function ProductEditor({
       });
       router.back();
     } catch (e: any) {
-      setErr(e.message || t("saveFailed"));
+      setErr(e.message?.includes("limit_reached") ? t("limitFreeHint") : (e.message || t("saveFailed")));
     } finally {
       setSaving(false);
     }
