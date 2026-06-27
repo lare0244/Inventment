@@ -69,6 +69,12 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Orders CSV/PDF export: warehouse + category filters; one row per (product, warehouse) with warehouse column.
 - Verified: 47/47 backend tests pass (11 new per-warehouse); frontend flows verified.
 
+## Implemented (2026-06-27 — Update 8)
+- Stock transfer between warehouses: POST /api/transfers (validates both warehouses exist, source has enough; total unchanged; records 'transfer' movement). Product detail Transfer modal (From/To pickers, To excludes From, validation).
+- Per-warehouse Adjust (set) + Remove actions on product detail via warehouse-scoped /movements.
+- PDF report: "Needs Reordering" section — low (product×warehouse) rows with threshold + suggested order qty = max(threshold, 2*threshold-qty); honors warehouse+category filters.
+- Verified: 59/59 backend tests (12 new transfer/adjust); frontend transfer/adjust/remove modals + PDF section verified.
+
 ## Backlog
 - P1: Per-warehouse stock quantities (currently product-level), image upload/capture for products
 - P1: Native date pickers for purchase/best-before (currently text YYYY-MM-DD)

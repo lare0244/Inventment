@@ -456,6 +456,9 @@ async def transfer_stock(body: TransferIn, user: dict = Depends(get_current_user
     product = await db.products.find_one({"id": body.product_id, "owner_id": user["id"]})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    wh_ids = {w["id"] for w in await db.warehouses.find({"owner_id": user["id"]}).to_list(1000)}
+    if body.from_warehouse_id not in wh_ids or body.to_warehouse_id not in wh_ids:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
     stock = dict(product.get("stock") or {})
     from_qty = int(stock.get(body.from_warehouse_id, 0))
     if body.quantity > from_qty:
