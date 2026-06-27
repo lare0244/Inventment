@@ -96,6 +96,9 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Entity limits enforced (HTTP 400 + alert): products 9999, categories 99, warehouses 19, suppliers 9999.
 - Verified: 10/10 new v8 tests; AI Swedish output + warehouse(19)/category(99) limits confirmed. (Regression failures seen are legacy tests spamming warehouses against the new 19 cap — test hygiene, not a code bug.)
 
+## Implemented (2026-06-27 — Update 12)
+- Product editor: added "Volume/Weight/Length" numeric field with a connected unit dropdown (ml, litre, g, kilo, mm, meter), plus Headline and Description fields. Backend ProductIn gained measure_value, measure_unit, headline, description; verified create+read round-trip.
+
 ## Backlog
 - Test hygiene: migrate legacy test suites (v3/v5/v6/v7) to fresh per-test users so the 19-warehouse cap doesn't block reruns.
 - Idempotent PUT on warehouses/categories/suppliers returns 200 even when no doc matches (should be 404) — low priority carryover.

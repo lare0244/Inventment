@@ -122,6 +122,10 @@ class ProductIn(BaseModel):
     supplier_id: Optional[str] = None
     purchase_date: Optional[str] = None
     best_before_date: Optional[str] = None
+    measure_value: Optional[float] = None
+    measure_unit: Optional[str] = None
+    headline: Optional[str] = None
+    description: Optional[str] = None
     notes: Optional[str] = None
 
 

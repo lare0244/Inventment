@@ -104,6 +104,9 @@ export default function ProductDetail() {
           barcode: product.barcode || "", sku: product.sku || "", brand: product.brand || "",
           image: product.image || "", purchase_date: product.purchase_date || "",
           best_before_date: product.best_before_date || "", notes: product.notes || "",
+          measure_value: product.measure_value != null ? String(product.measure_value) : "",
+          measure_unit: product.measure_unit || null,
+          headline: product.headline || "", description: product.description || "",
         }}
         onSave={async (body) => { await api(`/products/${id}`, { method: "PUT", body }); }}
         onDelete={del}

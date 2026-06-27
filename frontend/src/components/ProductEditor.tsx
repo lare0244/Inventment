@@ -8,13 +8,16 @@ import { useColors, useT } from "@/src/appsettings";
 import { currencySymbol } from "@/src/currency";
 import { useAuth } from "@/src/auth";
 import { F, S, R, Palette } from "@/src/theme";
-import { Field, Btn } from "@/src/components/ui";
+import { Field, Btn, Dropdown } from "@/src/components/ui";
+
+const MEASURE_UNITS = ["ml", "litre", "g", "kilo", "mm", "meter"];
 
 export type ProductForm = {
   name: string; barcode: string; sku: string; brand: string; image: string;
   price: string; cost: string; quantity: string; low_stock_threshold: string;
   category_id: string | null; warehouse_id: string | null; supplier_id: string | null;
   purchase_date: string; best_before_date: string; notes: string;
+  measure_value: string; measure_unit: string | null; headline: string; description: string;
 };
 
 export function ProductEditor({
@@ -35,7 +38,8 @@ export function ProductEditor({
   const [form, setForm] = useState<ProductForm>({
     name: "", barcode: "", sku: "", brand: "", image: "", price: "0", cost: "0",
     quantity: "0", low_stock_threshold: "5", category_id: null, warehouse_id: null,
-    supplier_id: null, purchase_date: "", best_before_date: "", notes: "", ...initial,
+    supplier_id: null, purchase_date: "", best_before_date: "", notes: "",
+    measure_value: "", measure_unit: null, headline: "", description: "", ...initial,
   } as ProductForm);
   const stock: Record<string, number> = (initial as any)?.stock || {};
   const [cats, setCats] = useState<any[]>([]);
@@ -72,6 +76,9 @@ export function ProductEditor({
         quantity: parseInt(form.quantity) || 0, low_stock_threshold: parseInt(form.low_stock_threshold) || 5,
         category_id: form.category_id, warehouse_id: form.warehouse_id, supplier_id: form.supplier_id,
         purchase_date: form.purchase_date || null, best_before_date: form.best_before_date || null,
+        measure_value: form.measure_value ? parseFloat(form.measure_value) : null,
+        measure_unit: form.measure_unit || null,
+        headline: form.headline || null, description: form.description || null,
         notes: form.notes || null,
       });
       router.back();
@@ -113,6 +120,8 @@ export function ProductEditor({
 
       <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
         <Field label={t("productName")} testID="f-name" value={form.name} onChangeText={(v) => set("name", v)} placeholder="e.g. Steel Bolts M8" />
+        <Field label={t("headline")} testID="f-headline" value={form.headline} onChangeText={(v) => set("headline", v)} placeholder={t("headlineHint")} />
+        <Field label={t("description")} testID="f-description" value={form.description} onChangeText={(v) => set("description", v)} placeholder={t("descriptionHint")} multiline />
         <View style={styles.two}>
           <View style={styles.half}><Field label={t("barcode")} testID="f-barcode" value={form.barcode} onChangeText={(v) => set("barcode", v)} placeholder="UPC" /></View>
           <View style={styles.half}><Field label={t("sku")} testID="f-sku" value={form.sku} onChangeText={(v) => set("sku", v)} placeholder="SKU" /></View>
@@ -127,6 +136,15 @@ export function ProductEditor({
         </View>
         <Field label={t("purchaseDate")} testID="f-purchase" value={form.purchase_date} onChangeText={(v) => set("purchase_date", v)} placeholder="YYYY-MM-DD" />
         <Field label={t("bestBefore")} testID="f-bestbefore" value={form.best_before_date} onChangeText={(v) => set("best_before_date", v)} placeholder="YYYY-MM-DD" />
+        <View style={styles.two}>
+          <View style={styles.half}><Field label={t("measure")} testID="f-measure-value" value={form.measure_value} onChangeText={(v) => set("measure_value", v)} keyboardType="decimal-pad" placeholder="0" /></View>
+          <View style={styles.half}>
+            <Text style={styles.label}>{t("unit")}</Text>
+            <Dropdown testID="f-measure-unit" value={form.measure_unit} placeholder={t("selectUnit")}
+              onChange={(v) => set("measure_unit", v)}
+              options={MEASURE_UNITS.map((u) => ({ value: u, label: u }))} />
+          </View>
+        </View>
         <Picker label={t("warehouse")} items={warehouses} value={form.warehouse_id} onSelect={(v: any) => selectWarehouse(v || warehouses[0]?.id || null)} />
         <Picker label={t("category")} items={cats} value={form.category_id} onSelect={(v: any) => set("category_id", v)} />
         <Picker label={t("supplier")} items={suppliers} value={form.supplier_id} onSelect={(v: any) => set("supplier_id", v)} />
