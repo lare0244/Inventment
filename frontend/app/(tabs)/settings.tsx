@@ -8,7 +8,7 @@ import { useAuth } from "@/src/auth";
 import { useColors, useT, useApp } from "@/src/appsettings";
 import { CURRENCIES } from "@/src/currency";
 import { F, S, R, Palette } from "@/src/theme";
-import { Card, Btn } from "@/src/components/ui";
+import { Card, Btn, Dropdown } from "@/src/components/ui";
 
 type Kind = "warehouses" | "categories" | "suppliers";
 
@@ -24,7 +24,9 @@ export default function Settings() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [modal, setModal] = useState<Kind | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
-  const [f1, setF1] = useState(""); const [f2, setF2] = useState("");
+  const emptyForm = { name: "", email: "", phone: "", contact_person: "", street1: "", street2: "", number: "", postcode: "", city: "", state: "", county: "" };
+  const [form, setForm] = useState<Record<string, string>>(emptyForm);
+  const setField = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const load = useCallback(async () => {
     const [w, c, s] = await Promise.all([api("/warehouses"), api("/categories"), api("/suppliers")]);
@@ -32,18 +34,36 @@ export default function Settings() {
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  function openModal(kind: Kind, item?: any) {
+    setModal(kind);
+    setEditId(item?.id || null);
+    setForm(item ? { ...emptyForm, ...item } : emptyForm);
+  }
+
   async function save() {
-    if (!f1.trim()) return;
+    if (!form.name.trim()) return;
     const e = editId ? `/${editId}` : "";
     const m = editId ? "PUT" : "POST";
-    if (modal === "warehouses") await api(`/warehouses${e}`, { method: m, body: { name: f1, address: f2 } });
-    if (modal === "categories") await api(`/categories${e}`, { method: m, body: { name: f1 } });
-    if (modal === "suppliers") await api(`/suppliers${e}`, { method: m, body: { name: f1, email: f2 } });
-    setF1(""); setF2(""); setEditId(null); setModal(null); load();
+    if (modal === "categories") {
+      await api(`/categories${e}`, { method: m, body: { name: form.name } });
+    } else {
+      const addr = { street1: form.street1, street2: form.street2, number: form.number, postcode: form.postcode, city: form.city, state: form.state, county: form.county, contact_person: form.contact_person, phone: form.phone };
+      if (modal === "warehouses") await api(`/warehouses${e}`, { method: m, body: { name: form.name, ...addr } });
+      if (modal === "suppliers") await api(`/suppliers${e}`, { method: m, body: { name: form.name, email: form.email, ...addr } });
+    }
+    setForm(emptyForm); setEditId(null); setModal(null); load();
   }
   async function del(kind: Kind, id: string) {
     await api(`/${kind}/${id}`, { method: "DELETE" }); load();
   }
+
+  const ADDRESS_FIELDS = [
+    { k: "street1", label: t("street1") }, { k: "street2", label: t("street2") },
+    { k: "number", label: t("streetNumber") }, { k: "postcode", label: t("postcode") },
+    { k: "city", label: t("city") }, { k: "state", label: t("stateRegion") },
+    { k: "county", label: t("county") }, { k: "contact_person", label: t("contactPerson") },
+    { k: "phone", label: t("phone") },
+  ];
 
   const Section = ({ kind, title, icon, items, sub }: any) => (
     <Card style={{ marginBottom: S.lg }}>
@@ -52,7 +72,7 @@ export default function Settings() {
           <MaterialCommunityIcons name={icon} size={20} color={C.brand} />
           <Text style={styles.secTitle}>{title}</Text>
         </View>
-        <Pressable testID={`add-${kind}`} onPress={() => { setModal(kind); setEditId(null); setF1(""); setF2(""); }}>
+        <Pressable testID={`add-${kind}`} onPress={() => openModal(kind)}>
           <MaterialCommunityIcons name="plus-circle" size={24} color={C.brand} />
         </Pressable>
       </View>
@@ -62,7 +82,7 @@ export default function Settings() {
         items.map((it: any) => (
           <View key={it.id} style={styles.itemRow}>
             <Text style={styles.itemName}>{it.name}{sub && it[sub] ? `  ·  ${it[sub]}` : ""}</Text>
-            <Pressable testID={`edit-${kind}-${it.id}`} onPress={() => { setModal(kind); setEditId(it.id); setF1(it.name || ""); setF2((sub && it[sub]) || ""); }} style={{ marginRight: S.md }}>
+            <Pressable testID={`edit-${kind}-${it.id}`} onPress={() => openModal(kind, it)} style={{ marginRight: S.md }}>
               <MaterialCommunityIcons name="pencil-outline" size={18} color={C.info} />
             </Pressable>
             <Pressable testID={`del-${kind}-${it.id}`} onPress={() => del(kind, it.id)}>
@@ -97,23 +117,14 @@ export default function Settings() {
 
         <Card style={{ marginBottom: S.lg }}>
           <View style={styles.secTitleRow}><MaterialCommunityIcons name="translate" size={20} color={C.brand} /><Text style={styles.secTitle}>{t("language")}</Text></View>
-          <View style={styles.pillRow}>
-            <Pill testID="lang-en" active={lang === "en"} label={t("english")} onPress={() => setLang("en")} />
-            <Pill testID="lang-sv" active={lang === "sv"} label={t("swedish")} onPress={() => setLang("sv")} />
-          </View>
+          <Dropdown testID="lang-dropdown" value={lang} onChange={(v) => setLang(v as any)}
+            options={[{ value: "en", label: t("english") }, { value: "sv", label: t("swedish") }]} />
         </Card>
 
         <Card style={{ marginBottom: S.lg }}>
           <View style={styles.secTitleRow}><MaterialCommunityIcons name="cash-multiple" size={20} color={C.brand} /><Text style={styles.secTitle}>{t("currency")}</Text></View>
-          <View style={styles.currencyRow}>
-            {CURRENCIES.map((c) => (
-              <Pressable key={c.code} testID={`currency-${c.code}`} onPress={() => setCurrency(c.code)}
-                style={[styles.curChip, currency === c.code && styles.curChipActive]}>
-                <Text style={[styles.curCode, currency === c.code && { color: C.onBrand }]}>{c.code}</Text>
-                <Text style={[styles.curName, currency === c.code && { color: C.onBrand }]}>{c.name}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <Dropdown testID="currency-dropdown" value={currency} onChange={(v) => setCurrency(v)}
+            options={CURRENCIES.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}`, sub: c.symbol }))} />
         </Card>
 
         <Section kind="warehouses" title={t("warehouses")} icon="warehouse" items={warehouses} sub="address" />
@@ -126,10 +137,17 @@ export default function Settings() {
         <View style={styles.modalBg}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>{editId ? t("edit") : t("add")}</Text>
-            <TextInput testID="modal-field-1" placeholder={t("name")} placeholderTextColor={C.onSurfaceTertiary} value={f1} onChangeText={setF1} style={styles.input} />
-            {modal !== "categories" && (
-              <TextInput testID="modal-field-2" placeholder={modal === "suppliers" ? t("email") : t("address")} placeholderTextColor={C.onSurfaceTertiary} value={f2} onChangeText={setF2} keyboardType={modal === "suppliers" ? "email-address" : "default"} autoCapitalize="none" style={styles.input} />
-            )}
+            <ScrollView style={{ maxHeight: 420 }} keyboardShouldPersistTaps="handled">
+              <TextInput testID="modal-name" placeholder={t("name")} placeholderTextColor={C.onSurfaceTertiary} value={form.name} onChangeText={(v) => setField("name", v)} style={styles.input} />
+              {modal === "suppliers" && (
+                <TextInput testID="modal-email" placeholder={t("email")} placeholderTextColor={C.onSurfaceTertiary} value={form.email} onChangeText={(v) => setField("email", v)} keyboardType="email-address" autoCapitalize="none" style={styles.input} />
+              )}
+              {modal !== "categories" && ADDRESS_FIELDS.map((af) => (
+                <TextInput key={af.k} testID={`modal-${af.k}`} placeholder={af.label} placeholderTextColor={C.onSurfaceTertiary}
+                  value={form[af.k]} onChangeText={(v) => setField(af.k, v)}
+                  keyboardType={af.k === "phone" ? "phone-pad" : "default"} style={styles.input} />
+              ))}
+            </ScrollView>
             <Btn testID="modal-save" title={t("save")} onPress={save} />
             <Pressable onPress={() => { setModal(null); setEditId(null); }} style={{ alignItems: "center", paddingVertical: S.md }}>
               <Text style={{ color: C.onSurfaceTertiary, fontFamily: F.textBold }}>{t("cancel")}</Text>

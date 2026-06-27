@@ -38,6 +38,10 @@ export default function Orders() {
   const [exportingCsv, setExportingCsv] = useState(false);
   const [emailModal, setEmailModal] = useState<any>(null);
   const [copied, setCopied] = useState(false);
+  const [autoLoading, setAutoLoading] = useState(false);
+  const [editPo, setEditPo] = useState<any>(null);
+  const [poItems, setPoItems] = useState<any[]>([]);
+  const [savingPo, setSavingPo] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -168,6 +172,27 @@ export default function Orders() {
     finally { setMarking(false); }
   }
 
+  async function autoCreatePOs() {
+    setAutoLoading(true);
+    try { await api("/purchase-orders/auto", { method: "POST" }); await load(); }
+    catch {} finally { setAutoLoading(false); }
+  }
+
+  function openEditPo(po: any) {
+    setEditPo(po);
+    setPoItems((po.items || []).map((i: any) => ({ ...i })));
+  }
+  const setItemQty = (idx: number, n: number) =>
+    setPoItems((arr) => arr.map((it, i) => (i === idx ? { ...it, qty: Math.max(0, n) } : it)));
+  async function savePoItems() {
+    if (!editPo?.id) return;
+    setSavingPo(true);
+    try {
+      await api(`/purchase-orders/${editPo.id}`, { method: "PUT", body: { items: poItems.map((i) => ({ product_id: i.product_id, qty: i.qty })) } });
+      setEditPo(null); await load();
+    } catch {} finally { setSavingPo(false); }
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: C.surface }}>
       <View style={[styles.header, { paddingTop: insets.top + S.md }]}>
@@ -259,20 +284,25 @@ export default function Orders() {
             ))
           )}
 
+          <Btn testID="auto-po-btn" title={t("autoCreatePOs")} icon="clipboard-list-outline" variant="secondary" loading={autoLoading} onPress={autoCreatePOs} style={{ marginTop: S.lg }} />
+
           <Text style={styles.section}>{t("orderHistory")}</Text>
           {orders.length === 0 ? (
             <Card><Text style={styles.empty}>{t("noPos")}</Text></Card>
           ) : (
             orders.map((po: any) => (
-              <Card key={po.id} style={styles.poRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rName}>{po.supplier_name || t("supplier")} · {po.items?.length || 0} {t("items")}</Text>
-                  <Text style={styles.rMeta}>{(po.created_at || "").slice(0, 10)} · {money(po.total, currency)}{po.warehouse_name ? ` · ${po.warehouse_name}` : ""}</Text>
-                </View>
-                <View style={[styles.badge, { borderColor: po.status === "sent" ? C.success : C.warning }]}>
-                  <Text style={[styles.badgeTxt, { color: po.status === "sent" ? C.success : C.warning }]}>{po.status === "sent" ? t("statusSent") : t("statusDraft")}</Text>
-                </View>
-              </Card>
+              <Pressable key={po.id} testID={`po-card-${po.id}`} onPress={() => po.status !== "sent" && openEditPo(po)}>
+                <Card style={styles.poRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rName}>{po.supplier_name || t("supplier")} · {po.items?.length || 0} {t("items")}</Text>
+                    <Text style={styles.rMeta}>{(po.created_at || "").slice(0, 10)} · {money(po.total, currency)}{po.warehouse_name ? ` · ${po.warehouse_name}` : ""}</Text>
+                  </View>
+                  {po.status !== "sent" && <MaterialCommunityIcons name="pencil-outline" size={18} color={C.info} style={{ marginRight: S.sm }} />}
+                  <View style={[styles.badge, { borderColor: po.status === "sent" ? C.success : C.warning }]}>
+                    <Text style={[styles.badgeTxt, { color: po.status === "sent" ? C.success : C.warning }]}>{po.status === "sent" ? t("statusSent") : t("statusDraft")}</Text>
+                  </View>
+                </Card>
+              </Pressable>
             ))
           )}
         </ScrollView>
@@ -318,6 +348,36 @@ export default function Orders() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={!!editPo} transparent animationType="slide" onRequestClose={() => setEditPo(null)}>
+        <View style={styles.modalBg}>
+          <View style={[styles.modalSheet, { paddingBottom: insets.bottom + S.lg }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.modalTitle}>{t("editItems")}</Text>
+            <Text style={styles.emailLabel}>{editPo?.supplier_name || t("supplier")}</Text>
+            <ScrollView style={{ maxHeight: 340, marginVertical: S.sm }}>
+              {poItems.map((it, idx) => (
+                <View key={it.product_id} style={styles.editRow}>
+                  <Text style={styles.editName} numberOfLines={1}>{it.name}</Text>
+                  <View style={styles.stepper}>
+                    <Pressable testID={`po-item-minus-${idx}`} hitSlop={8} onPress={() => setItemQty(idx, it.qty - 1)} style={styles.stepBtn}>
+                      <MaterialCommunityIcons name="minus" size={18} color={C.onSurface} />
+                    </Pressable>
+                    <Text style={styles.stepVal}>{it.qty}</Text>
+                    <Pressable testID={`po-item-plus-${idx}`} hitSlop={8} onPress={() => setItemQty(idx, it.qty + 1)} style={styles.stepBtn}>
+                      <MaterialCommunityIcons name="plus" size={18} color={C.onSurface} />
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            <Btn testID="save-po-items-btn" title={t("save")} icon="check" loading={savingPo} onPress={savePoItems} />
+            <Pressable testID="close-edit-po" onPress={() => setEditPo(null)} style={styles.closeBtn}>
+              <Text style={styles.closeTxt}>{t("close")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -348,6 +408,11 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   rMeta: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
   rCost: { color: C.brand, fontFamily: F.display, fontSize: 18 },
   poRow: { flexDirection: "row", alignItems: "center", marginBottom: S.sm },
+  editRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: S.sm, borderBottomWidth: 1, borderBottomColor: C.divider },
+  editName: { flex: 1, color: C.onSurface, fontFamily: F.text, fontSize: 14, marginRight: S.md },
+  stepper: { flexDirection: "row", alignItems: "center", gap: S.sm },
+  stepBtn: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", backgroundColor: C.surface },
+  stepVal: { color: C.onSurface, fontFamily: F.display, fontSize: 17, minWidth: 28, textAlign: "center" },
   badge: { paddingHorizontal: S.sm, paddingVertical: 4, borderRadius: R.sm, borderWidth: 1 },
   badgeTxt: { fontFamily: F.textBold, fontSize: 11, letterSpacing: 0.5 },
   empty: { color: C.onSurfaceTertiary, fontFamily: F.text },

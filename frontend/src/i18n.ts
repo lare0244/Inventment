@@ -68,6 +68,12 @@ const en: Dict = {
   from: "From", enterQty: "Enter a quantity", pickTwoWarehouses: "Pick two different warehouses",
   notEnoughStock: "Not enough stock in source warehouse", transferFailed: "Transfer failed",
   needsReordering: "Needs Reordering", suggestedOrder: "Suggested order", threshold: "Threshold",
+  street1: "Street address 1", street2: "Street address 2", streetNumber: "Number", postcode: "Postcode",
+  city: "City", stateRegion: "State", county: "County", contactPerson: "Contact person", phone: "Telephone",
+  autoCreatePOs: "Auto-create POs from low stock", posCreated: "purchase order(s) created",
+  editItems: "Edit quantities", movements: "Movements", viewAll: "View all",
+  movementsTitle: "Stock Movements", allTypes: "All", receiveType: "Receive", adjustType: "Adjust",
+  removeType: "Remove", transferType: "Transfer", noMovements: "No movements yet", units2: "units",
 };
 
 const sv: Dict = {
@@ -126,6 +132,12 @@ const sv: Dict = {
   from: "Från", enterQty: "Ange ett antal", pickTwoWarehouses: "Välj två olika lager",
   notEnoughStock: "Inte tillräckligt lager i källagret", transferFailed: "Överföring misslyckades",
   needsReordering: "Behöver beställas", suggestedOrder: "Föreslagen order", threshold: "Tröskel",
+  street1: "Gatuadress 1", street2: "Gatuadress 2", streetNumber: "Nummer", postcode: "Postnummer",
+  city: "Stad", stateRegion: "Län", county: "Kommun", contactPerson: "Kontaktperson", phone: "Telefon",
+  autoCreatePOs: "Skapa order automatiskt", posCreated: "inköpsorder skapade",
+  editItems: "Redigera antal", movements: "Rörelser", viewAll: "Visa alla",
+  movementsTitle: "Lagerrörelser", allTypes: "Alla", receiveType: "Mottag", adjustType: "Justera",
+  removeType: "Ta bort", transferType: "Överför", noMovements: "Inga rörelser än", units2: "enheter",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv };

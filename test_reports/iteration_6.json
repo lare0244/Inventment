@@ -1,0 +1,59 @@
+{
+  "summary": "Tested v6 features (movements filters, auto-PO grouped by supplier, editable PO qty in Place Order + draft edit modal, Settings language/currency dropdowns, full address fields on warehouses+suppliers). Backend: created /app/backend/tests/test_v6_features.py with 17 new pytest cases — 17/17 PASS. Full regression /app/backend/tests/ — 75/76 PASS. The 1 failure (test_transfers_v5.py::test_dashboard_no_filter_lists_per_warehouse_low) is a PRE-EXISTING test-data pollution artifact (dashboard low_stock_items[:30] slice; warehouse@test.com has >30 low-stock TEST_-prefixed products accumulated across previous iterations, so the freshly seeded product is not in the first 30). Not a v6 regression — backend code is unchanged in that path. Frontend Playwright (390x844, public preview URL): logged in, verified Dashboard 'View all' link (testID view-all-movements) navigates to /movements; Movements screen renders all 5 type chips (mv-type-all/receive/adjust/remove/transfer) and warehouse chips (mv-wh-*) and mv-back. Orders tab: auto-po-btn tap created/refreshed 6 po-card-* items. Tapping a draft po-card-* opened edit modal with po-item-minus-0/plus-0/save-po-items-btn/close-edit-po; save committed (PUT /api/purchase-orders/{id} returned 200). Settings screen has lang-dropdown + currency-dropdown with correct options (lang-dropdown-opt-en/sv, currency-dropdown-opt-SEK/DKK/EUR/GBP) — opened and selected EUR successfully (header label updated to 'EUR — Euro'). Place Order screen renders 51 po-product-* rows, tapping selects with checkbox, stepper po-minus-<id>/po-plus-<id> appears with default suggested qty (10), +/+ → 12, po-create-btn footer shows '(1 selected)'. Address fields persist end-to-end on POST+PUT for both warehouses and suppliers including street1/street2/number/postcode/city/state/county/contact_person/phone (and email for suppliers). Cosmetic carryover: 'props.pointerEvents is deprecated' warning still emitted by react-native-web Pressable.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/dashboard low_stock_items", "issue": "Response is sliced to [:30] — when many low-stock products exist, recently added rows can fall off the response. Cosmetic for UI (already shows 'See all'), but breaks any test that relies on finding a specific recent product."},
+      {"endpoint": "POST /api/purchase-orders/auto", "issue": "Endpoint declared without a body; FastAPI accepts empty POST, but client must still send Content-Type. Consider documenting / accepting an optional filter (e.g. only_supplier_id) for partial auto-creation."},
+      {"endpoint": "PUT /api/warehouses/{id}, /api/categories/{id}, /api/suppliers/{id}", "issue": "Still returns 200 silently when matched_count==0 (carryover from prior iterations)."},
+      {"endpoint": "passlib bcrypt", "issue": "Carryover benign warning 'module bcrypt has no attribute __about__' at startup."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Movements", "issues": ["When a transfer row is shown, the chevron icon is the same 'swap-horizontal' for both legs of the same transfer — fine, but transfer rows currently render the qty with a '+' sign which can read as a receive (e.g. '+1') without context. Consider showing 'from → to' more prominently or using a distinct color/sign for transfers."]},
+      {"screen": "Settings — Warehouses list", "issues": ["List shows ~40+ TEST_-prefixed warehouses accumulated across prior test iterations (pollution). Not a v6 bug, but the list becomes unwieldy. Recommend a one-off cleanup script or adding teardown that purges TEST_-prefixed warehouses."]}
+    ],
+    "react_native_issues": [
+      {"component": "react-native-web Pressable", "issue": "Carryover: 'props.pointerEvents is deprecated. Use style.pointerEvents' warning on web preview. Cosmetic only."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v6_features.py",
+    "/app/test_reports/pytest/pytest_v6.xml",
+    "/app/test_reports/pytest/pytest_full_v6.xml"
+  ],
+  "action_items": [
+    "(Low) Clean up TEST_-prefixed warehouses and TEST_-prefixed low-stock products from the warehouse@test.com seed user — this is what's causing the test_transfers_v5 dashboard slice test to fail intermittently. Either purge or add a session-scoped autouse fixture in conftest.py that removes them. The underlying backend code is unchanged & correct.",
+    "(Low) Consider increasing /api/dashboard low_stock_items slice from [:30] or removing it (UI already paginates).",
+    "(Low / carryover) Return 404 from PUT /api/warehouses|categories|suppliers when matched_count==0.",
+    "(Low / carryover) Silence the react-native-web pointerEvents deprecation warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py:759-785 _build_po_doc — clean implementation; uses format_address() to compose delivery block from the new structured fields, falling back to the legacy 'address'/'location' field. Good back-compat.",
+    "server.py:804-821 auto_purchase_orders — groups low-stock products by supplier_id, with '__none__' bucket for products with no supplier. Suggested qty uses _suggest_qty which matches the reorder_suggestions math. Could short-circuit if low list is empty per supplier, but current code is correct.",
+    "server.py:830-842 update_purchase_order — re-runs _build_po_doc with the new qty_map and overwrites items/total/email_body. NOTE: this filter drops items with qty<=0 (`if it.qty > 0`), which is the intended behavior (stepper allows 0 to remove). Verified PUT response total is recomputed correctly.",
+    "server.py:225-237 update_settings — currency whitelist is correctly enforced (SEK/DKK/EUR/GBP). Reject 400 returned for unsupported. Good.",
+    "server.py:472-481 list_movements — when warehouse_id filter is set, uses $or on warehouse_id+from_warehouse_id so transfers are visible from either end. Confirmed via test_filter_by_warehouse.",
+    "movements.tsx:71 — warehouse chip row only renders when warehouses.length > 1. Type chip row always renders. Consistent.",
+    "place-order.tsx:65 — items[] body uses { product_id, qty }. Matches POItemIn schema. Default qty = suggestQty(p) = max(threshold*2-qty, threshold) — matches backend _suggest_qty.",
+    "orders.tsx:294 — only opens edit modal when po.status !== 'sent'. SENT POs are NOT editable. Verified.",
+    "orders.tsx:191 — savePoItems sends only product_id+qty (not name/cost). Backend re-resolves these from db.products, so item names/costs always stay fresh. Good.",
+    "server.py is now 893 lines (up from 784). Still past the 700-line module-split threshold — recommend splitting into routers/models when time permits.",
+    "ui.tsx:69-113 Dropdown — uses Modal with transparent background + ScrollView for options. Each option testID is `${testID}-opt-${value}`. Renders correctly on web; on small Modal heights options scroll. No issue."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v6_features.py (NEW — 17 pytest cases covering all v6 features)"
+  ],
+  "success_rate": {
+    "backend": "98.7% (75/76 — 17/17 NEW v6 tests pass; 1 pre-existing v5 dashboard-slice test fails due to TEST_ data pollution, NOT a v6 bug)",
+    "frontend": "100% on tested v6 flows (Dashboard view-all → Movements with type+wh chips, Orders auto-po + edit-draft-PO modal with steppers, Settings lang+currency dropdowns selectable & persisted, Place Order qty stepper +/- + create with custom qty)"
+  },
+  "seed_data_creation": "Tests create TEST_v6_-prefixed warehouses/suppliers/products and clean them up in fixtures (yield → delete). Auto-PO test also cleans newly created POs by diffing pre/post snapshots. No new pollution from this iteration's tests.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend URL key is EXPO_PUBLIC_BACKEND_URL. test_v6_features.py is the canonical regression for: movements filtering (type, warehouse_id including transfer's from_warehouse_id), auto-PO grouping by supplier (incl. '__none__' bucket), POST/PUT /api/purchase-orders with items[{product_id,qty}] custom qty, legacy product_ids fallback, Settings currency whitelist, full structured-address fields on warehouses+suppliers. Frontend testIDs verified: dashboard view-all-movements; movements mv-back, mv-type-all/receive/adjust/remove/transfer, mv-wh-all, mv-wh-<wid>; orders auto-po-btn, po-card-<id>, edit modal po-item-minus-<idx>/po-item-plus-<idx>/save-po-items-btn/close-edit-po; place-order po-product-<pid>, po-minus-<pid>, po-plus-<pid>, po-create-btn, po-wh-<wid>; settings lang-dropdown, currency-dropdown, lang-dropdown-opt-<en|sv>, currency-dropdown-opt-<SEK|DKK|EUR|GBP>. The 1 failing backend test (test_dashboard_no_filter_lists_per_warehouse_low) is data-pollution only — clean warehouse@test.com or add fixture teardown to fix.",
+  "rca_of_issue": "Backend dashboard low-stock list is sliced to [:30] (server.py:612). Combined with ~40+ TEST_-prefixed accumulated low-stock products on warehouse@test.com, freshly seeded products in test_transfers_v5 are no longer in the response and the assertion fails. Fix: either increase the slice (e.g. [:200]) OR add a session-scoped autouse fixture that purges TEST_-prefixed products+warehouses before the suite runs. Not a v6 regression."
+}

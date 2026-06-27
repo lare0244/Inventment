@@ -75,6 +75,15 @@ class Warehouse(BaseModel):
     name: str
     location: Optional[str] = None
     address: Optional[str] = None
+    street1: Optional[str] = None
+    street2: Optional[str] = None
+    number: Optional[str] = None
+    postcode: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    county: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
 
 
 class Category(BaseModel):
@@ -88,6 +97,14 @@ class Supplier(BaseModel):
     name: str
     email: Optional[str] = None
     phone: Optional[str] = None
+    street1: Optional[str] = None
+    street2: Optional[str] = None
+    number: Optional[str] = None
+    postcode: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    county: Optional[str] = None
+    contact_person: Optional[str] = None
 
 
 class ProductIn(BaseModel):
@@ -122,6 +139,25 @@ def product_total(p: dict) -> int:
     if stock:
         return sum(int(v) for v in stock.values())
     return int(p.get("quantity", 0))
+
+
+def format_address(o: dict) -> str:
+    if not o:
+        return ""
+    parts = []
+    line1 = " ".join(x for x in [o.get("street1"), o.get("number")] if x)
+    if line1:
+        parts.append(line1)
+    if o.get("street2"):
+        parts.append(o["street2"])
+    citypc = " ".join(x for x in [o.get("postcode"), o.get("city")] if x)
+    if citypc:
+        parts.append(citypc)
+    region = ", ".join(x for x in [o.get("state"), o.get("county")] if x)
+    if region:
+        parts.append(region)
+    addr = "\n".join(parts)
+    return addr or (o.get("address") or o.get("location") or "")
 
 
 # ---------------- Auth helpers ----------------
@@ -434,8 +470,14 @@ async def create_movement(body: StockMovementIn, background_tasks: BackgroundTas
 
 
 @api_router.get("/movements")
-async def list_movements(user: dict = Depends(get_current_user), limit: int = 30):
-    items = await db.movements.find({"owner_id": user["id"]}).sort("created_at", -1).to_list(limit)
+async def list_movements(user: dict = Depends(get_current_user), limit: int = 200,
+                         warehouse_id: Optional[str] = None, type: Optional[str] = None):
+    q = {"owner_id": user["id"]}
+    if warehouse_id:
+        q["$or"] = [{"warehouse_id": warehouse_id}, {"from_warehouse_id": warehouse_id}]
+    if type:
+        q["type"] = type
+    items = await db.movements.find(q).sort("created_at", -1).to_list(limit)
     return [clean(i) for i in items]
 
 
@@ -692,48 +734,112 @@ async def po_email(body: POEmailRequest, user: dict = Depends(get_current_user))
 
 
 # ---------------- Purchase Orders (history) ----------------
+class POItemIn(BaseModel):
+    product_id: str
+    qty: int
+
+
 class POCreate(BaseModel):
-    product_ids: List[str]
+    product_ids: Optional[List[str]] = None
+    items: Optional[List[POItemIn]] = None
     supplier_id: Optional[str] = None
     warehouse_id: Optional[str] = None
 
 
-@api_router.post("/purchase-orders")
-async def create_purchase_order(body: POCreate, user: dict = Depends(get_current_user)):
-    products = await db.products.find({"id": {"$in": body.product_ids}, "owner_id": user["id"]}).to_list(1000)
-    supplier = await db.suppliers.find_one({"id": body.supplier_id, "owner_id": user["id"]}) if body.supplier_id else None
-    warehouse = await db.warehouses.find_one({"id": body.warehouse_id, "owner_id": user["id"]}) if body.warehouse_id else None
+class POUpdate(BaseModel):
+    items: List[POItemIn]
+
+
+def _suggest_qty(p: dict) -> int:
+    qty = product_total(p)
+    threshold = int(p.get("low_stock_threshold", 5))
+    return max(threshold * 2 - qty, threshold)
+
+
+async def _build_po_doc(user: dict, qty_map: dict, supplier: Optional[dict], warehouse: Optional[dict]):
+    products = await db.products.find({"id": {"$in": list(qty_map.keys())}, "owner_id": user["id"]}).to_list(1000)
     items, total, lines = [], 0.0, []
     for p in products:
-        qty = int(p.get("quantity", 0))
-        threshold = int(p.get("low_stock_threshold", 5))
-        reorder = max(threshold * 2 - qty, threshold)
+        q = int(qty_map.get(p["id"], 0))
         cost = float(p.get("cost", 0))
-        total += cost * reorder
-        items.append({"product_id": p["id"], "name": p.get("name"), "qty": reorder, "cost": cost})
-        lines.append(f"- {p.get('name')} (SKU: {p.get('sku') or p.get('barcode') or 'N/A'}) — Qty: {reorder}")
+        total += cost * q
+        items.append({"product_id": p["id"], "name": p.get("name"),
+                      "sku": p.get("sku") or p.get("barcode"), "qty": q, "cost": cost})
+        lines.append(f"- {p.get('name')} (SKU: {p.get('sku') or p.get('barcode') or 'N/A'}) — Qty: {q}")
     sup_name = supplier.get("name") if supplier else "Supplier"
     delivery = ""
     if warehouse:
-        addr = warehouse.get("address") or warehouse.get("location") or ""
+        addr = format_address(warehouse)
         delivery = f"\n\nDeliver to:\n{warehouse.get('name')}" + (f"\n{addr}" if addr else "")
     email_body = (f"Dear {sup_name},\n\nWe would like to place the following purchase order:\n\n"
                   + "\n".join(lines) + delivery
                   + f"\n\nPlease confirm availability, pricing, and expected delivery date.\n\nBest regards,\n{user.get('name')}")
-    po = {"id": str(uuid.uuid4()), "owner_id": user["id"], "status": "draft",
-          "supplier_id": body.supplier_id, "supplier_name": supplier.get("name") if supplier else None,
-          "supplier_email": supplier.get("email") if supplier else None,
-          "warehouse_id": body.warehouse_id, "warehouse_name": warehouse.get("name") if warehouse else None,
-          "items": items, "total": round(total, 2), "email_subject": f"Purchase Order from {user.get('name')}",
-          "email_body": email_body, "created_at": now_iso(), "sent_at": None}
+    return {"id": str(uuid.uuid4()), "owner_id": user["id"], "status": "draft",
+            "supplier_id": supplier.get("id") if supplier else None,
+            "supplier_name": supplier.get("name") if supplier else None,
+            "supplier_email": supplier.get("email") if supplier else None,
+            "warehouse_id": warehouse.get("id") if warehouse else None,
+            "warehouse_name": warehouse.get("name") if warehouse else None,
+            "items": items, "total": round(total, 2),
+            "email_subject": f"Purchase Order from {user.get('name')}",
+            "email_body": email_body, "created_at": now_iso(), "sent_at": None}
+
+
+@api_router.post("/purchase-orders")
+async def create_purchase_order(body: POCreate, user: dict = Depends(get_current_user)):
+    supplier = await db.suppliers.find_one({"id": body.supplier_id, "owner_id": user["id"]}) if body.supplier_id else None
+    warehouse = await db.warehouses.find_one({"id": body.warehouse_id, "owner_id": user["id"]}) if body.warehouse_id else None
+    qty_map = {}
+    if body.items:
+        qty_map = {it.product_id: it.qty for it in body.items}
+    else:
+        ids = body.product_ids or []
+        prods = await db.products.find({"id": {"$in": ids}, "owner_id": user["id"]}).to_list(1000)
+        qty_map = {p["id"]: _suggest_qty(p) for p in prods}
+    po = await _build_po_doc(user, qty_map, supplier, warehouse)
     await db.purchase_orders.insert_one(dict(po))
     return clean(dict(po))
+
+
+@api_router.post("/purchase-orders/auto")
+async def auto_purchase_orders(user: dict = Depends(get_current_user)):
+    products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
+    low = [p for p in products if product_total(p) <= int(p.get("low_stock_threshold", 5))]
+    if not low:
+        return {"created": [], "count": 0}
+    suppliers = {s["id"]: s for s in await db.suppliers.find({"owner_id": user["id"]}).to_list(1000)}
+    groups: dict = {}
+    for p in low:
+        sid = p.get("supplier_id") or "__none__"
+        groups.setdefault(sid, {})[p["id"]] = _suggest_qty(p)
+    created = []
+    for sid, qty_map in groups.items():
+        supplier = suppliers.get(sid) if sid != "__none__" else None
+        po = await _build_po_doc(user, qty_map, supplier, None)
+        await db.purchase_orders.insert_one(dict(po))
+        created.append(clean(dict(po)))
+    return {"created": created, "count": len(created)}
 
 
 @api_router.get("/purchase-orders")
 async def list_purchase_orders(user: dict = Depends(get_current_user)):
     items = await db.purchase_orders.find({"owner_id": user["id"]}).sort("created_at", -1).to_list(200)
     return [clean(i) for i in items]
+
+
+@api_router.put("/purchase-orders/{po_id}")
+async def update_purchase_order(po_id: str, body: POUpdate, user: dict = Depends(get_current_user)):
+    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": user["id"]})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    supplier = await db.suppliers.find_one({"id": po.get("supplier_id"), "owner_id": user["id"]}) if po.get("supplier_id") else None
+    warehouse = await db.warehouses.find_one({"id": po.get("warehouse_id"), "owner_id": user["id"]}) if po.get("warehouse_id") else None
+    qty_map = {it.product_id: it.qty for it in body.items if it.qty > 0}
+    rebuilt = await _build_po_doc(user, qty_map, supplier, warehouse)
+    upd = {"items": rebuilt["items"], "total": rebuilt["total"], "email_body": rebuilt["email_body"]}
+    await db.purchase_orders.update_one({"id": po_id, "owner_id": user["id"]}, {"$set": upd})
+    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": user["id"]})
+    return clean(po)
 
 
 @api_router.put("/purchase-orders/{po_id}/sent")

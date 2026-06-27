@@ -21,9 +21,12 @@ export default function PlaceOrder() {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [sortMode, setSortMode] = useState<"stock" | "name">("stock");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [qtys, setQtys] = useState<Record<string, number>>({});
   const [selWarehouse, setSelWarehouse] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+
+  const suggestQty = (p: any) => Math.max((p.low_stock_threshold || 5) * 2 - (p.quantity || 0), p.low_stock_threshold || 5);
 
   const load = useCallback(async () => {
     try {
@@ -59,23 +62,43 @@ export default function PlaceOrder() {
     if (selectedIds.length === 0) return;
     setCreating(true);
     try {
-      await api("/purchase-orders", { method: "POST", body: { product_ids: selectedIds, warehouse_id: selWarehouse || warehouses[0]?.id || null } });
+      const items = selectedIds.map((id) => ({ product_id: id, qty: qtys[id] ?? suggestQty(products.find((p) => p.id === id) || {}) }));
+      await api("/purchase-orders", { method: "POST", body: { items, warehouse_id: selWarehouse || warehouses[0]?.id || null } });
       router.replace("/(tabs)/orders");
     } catch {} finally { setCreating(false); }
   }
 
+  function toggle(p: any) {
+    setSelected((s) => ({ ...s, [p.id]: !s[p.id] }));
+    setQtys((q) => (q[p.id] != null ? q : { ...q, [p.id]: suggestQty(p) }));
+  }
+  const setQty = (id: string, n: number) => setQtys((q) => ({ ...q, [id]: Math.max(1, n) }));
+
   const Row = ({ p }: { p: any }) => {
     const isSel = !!selected[p.id];
+    const q = qtys[p.id] ?? suggestQty(p);
     return (
-      <Pressable testID={`po-product-${p.id}`} onPress={() => setSelected((s) => ({ ...s, [p.id]: !s[p.id] }))}
+      <Pressable testID={`po-product-${p.id}`} onPress={() => toggle(p)}
         style={[styles.row, isSel && styles.rowSel]}>
         <MaterialCommunityIcons name={isSel ? "checkbox-marked" : "checkbox-blank-outline"} size={22} color={isSel ? C.brand : C.onSurfaceTertiary} />
         <View style={[styles.dot, { backgroundColor: stockColor(p.quantity, p.low_stock_threshold, C) }]} />
         <View style={{ flex: 1 }}>
           <Text style={styles.name} numberOfLines={1}>{p.name}</Text>
-          <Text style={styles.meta}>{p.sku || p.barcode || ""} · {money(p.price, currency)}</Text>
+          <Text style={styles.meta}>{p.sku || p.barcode || ""} · {money(p.price, currency)} · {t("inStock")}: {p.quantity}</Text>
         </View>
-        <Text style={styles.qty}>{p.quantity}</Text>
+        {isSel ? (
+          <View style={styles.stepper}>
+            <Pressable testID={`po-minus-${p.id}`} hitSlop={8} onPress={() => setQty(p.id, q - 1)} style={styles.stepBtn}>
+              <MaterialCommunityIcons name="minus" size={18} color={C.onSurface} />
+            </Pressable>
+            <Text style={styles.stepVal}>{q}</Text>
+            <Pressable testID={`po-plus-${p.id}`} hitSlop={8} onPress={() => setQty(p.id, q + 1)} style={styles.stepBtn}>
+              <MaterialCommunityIcons name="plus" size={18} color={C.onSurface} />
+            </Pressable>
+          </View>
+        ) : (
+          <Text style={styles.qty}>{p.quantity}</Text>
+        )}
       </Pressable>
     );
   };
@@ -152,6 +175,9 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   name: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
   meta: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
   qty: { color: C.onSurface, fontFamily: F.display, fontSize: 18 },
+  stepper: { flexDirection: "row", alignItems: "center", gap: S.sm },
+  stepBtn: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", backgroundColor: C.surface },
+  stepVal: { color: C.onSurface, fontFamily: F.display, fontSize: 17, minWidth: 28, textAlign: "center" },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, padding: S.lg, paddingTop: S.sm, backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.divider },
   deliverLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, letterSpacing: 0.5, marginBottom: S.xs },
   whRow: { gap: S.sm, paddingBottom: S.sm },

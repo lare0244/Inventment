@@ -113,7 +113,12 @@ export default function Dashboard() {
             </>
           )}
 
-          <Text style={styles.section}>{t("recentActivity")}</Text>
+          <View style={styles.sectionRow}>
+            <Text style={styles.section}>{t("recentActivity")}</Text>
+            <Pressable testID="view-all-movements" onPress={() => router.push("/movements")} hitSlop={8}>
+              <Text style={styles.viewAll}>{t("viewAll")}</Text>
+            </Pressable>
+          </View>
           {data.recent_movements.length === 0 ? (
             <Card><Text style={styles.empty}>{t("noMovements")}</Text></Card>
           ) : (
@@ -151,6 +156,8 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   statVal: { color: C.onSurface, fontFamily: F.display, fontSize: 28 },
   statLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, textTransform: "uppercase" },
   section: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 13, letterSpacing: 1, marginTop: S.xl, marginBottom: S.sm },
+  sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: S.xl, marginBottom: S.sm },
+  viewAll: { color: C.brand, fontFamily: F.textBold, fontSize: 13 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, marginBottom: S.sm, paddingVertical: S.md },
   rowName: { flex: 1, color: C.onSurface, fontFamily: F.text, fontSize: 15 },
   rowQty: { color: C.onSurfaceTertiary, fontFamily: F.textBold, fontSize: 13 },
