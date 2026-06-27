@@ -21,6 +21,7 @@ export default function PlaceOrder() {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [sortMode, setSortMode] = useState<"stock" | "name">("stock");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [selWarehouse, setSelWarehouse] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
@@ -28,6 +29,7 @@ export default function PlaceOrder() {
     try {
       const [p, w] = await Promise.all([api<any[]>("/products"), api<any[]>("/warehouses")]);
       setProducts(p); setWarehouses(w);
+      setSelWarehouse((prev) => prev || w[0]?.id || null);
     } catch {} finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -57,7 +59,7 @@ export default function PlaceOrder() {
     if (selectedIds.length === 0) return;
     setCreating(true);
     try {
-      await api("/purchase-orders", { method: "POST", body: { product_ids: selectedIds, warehouse_id: warehouses[0]?.id || null } });
+      await api("/purchase-orders", { method: "POST", body: { product_ids: selectedIds, warehouse_id: selWarehouse || warehouses[0]?.id || null } });
       router.replace("/(tabs)/orders");
     } catch {} finally { setCreating(false); }
   }
@@ -114,6 +116,19 @@ export default function PlaceOrder() {
 
       {selectedIds.length > 0 && (
         <View style={[styles.footer, { paddingBottom: insets.bottom + S.sm }]}>
+          {warehouses.length > 0 && (
+            <>
+              <Text style={styles.deliverLabel}>{t("deliverTo")}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.whRow}>
+                {warehouses.map((w) => (
+                  <Pressable key={w.id} testID={`po-wh-${w.id}`} onPress={() => setSelWarehouse(w.id)}
+                    style={[styles.whChip, selWarehouse === w.id && styles.whChipActive]}>
+                    <Text style={[styles.whTxt, selWarehouse === w.id && { color: C.onBrand }]}>{w.name}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </>
+          )}
           <Btn testID="po-create-btn" title={`${t("createOrder")} (${selectedIds.length} ${t("selected")})`} icon="clipboard-check" loading={creating} onPress={createOrder} />
         </View>
       )}
@@ -138,4 +153,9 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   meta: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
   qty: { color: C.onSurface, fontFamily: F.display, fontSize: 18 },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, padding: S.lg, paddingTop: S.sm, backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.divider },
+  deliverLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, letterSpacing: 0.5, marginBottom: S.xs },
+  whRow: { gap: S.sm, paddingBottom: S.sm },
+  whChip: { height: 34, paddingHorizontal: S.md, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: C.surfaceSecondary },
+  whChipActive: { backgroundColor: C.brand, borderColor: C.brand },
+  whTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 13 },
 });

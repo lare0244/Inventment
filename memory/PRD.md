@@ -56,6 +56,11 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - i18n: device language auto-detected on first launch (expo-localization), user-overridable in Settings
 - Verified: 36/36 backend tests pass; full frontend flows verified via Playwright
 
+## Implemented (2026-06-27 — Update 6)
+- CSV export of the stock report on the Orders tab (next to PDF): full inventory with category/supplier/warehouse names, qty, cost, price, stock value, dates; UTF-8 BOM, web download + native share via expo-file-system/legacy + expo-sharing
+- Place Order footer now has a "DELIVER TO" warehouse picker (defaults to first warehouse, user-selectable), matching the Orders-tab PO draft
+- i18n: added exportCsv (EN/SV)
+
 ## Backlog
 - P1: Per-warehouse stock quantities (currently product-level), image upload/capture for products
 - P1: Native date pickers for purchase/best-before (currently text YYYY-MM-DD)

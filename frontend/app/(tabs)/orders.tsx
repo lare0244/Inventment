@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal, useWindowDimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal, useWindowDimensions, Platform } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
+import * as FileSystem from "expo-file-system/legacy";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -31,6 +32,7 @@ export default function Orders() {
   const [insight, setInsight] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const [emailModal, setEmailModal] = useState<any>(null);
   const [copied, setCopied] = useState(false);
 
@@ -79,6 +81,41 @@ export default function Orders() {
     } catch {} finally { setExporting(false); }
   }
 
+  async function exportCsv() {
+    setExportingCsv(true);
+    try {
+      const [products, cats, sups] = await Promise.all([
+        api<any[]>("/products"), api<any[]>("/categories"), api<any[]>("/suppliers"),
+      ]);
+      const catMap: Record<string, string> = Object.fromEntries(cats.map((c) => [c.id, c.name]));
+      const supMap: Record<string, string> = Object.fromEntries(sups.map((s) => [s.id, s.name]));
+      const whMap: Record<string, string> = Object.fromEntries(warehouses.map((w) => [w.id, w.name]));
+      const esc = (v: any) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+      const headers = [t("productName"), t("sku"), t("barcode"), t("category"), t("supplier"), t("warehouse"), t("quantity"), t("cost"), t("price"), t("stockValue"), t("purchaseDate"), t("bestBefore")];
+      const lines = [headers.join(",")];
+      products.forEach((p) => {
+        lines.push([
+          p.name, p.sku || "", p.barcode || "", catMap[p.category_id] || "", supMap[p.supplier_id] || "", whMap[p.warehouse_id] || "",
+          p.quantity ?? 0, p.cost ?? 0, p.price ?? 0, (p.cost || 0) * (p.quantity || 0),
+          (p.purchase_date || "").slice(0, 10), (p.best_before_date || "").slice(0, 10),
+        ].map(esc).join(","));
+      });
+      const csv = "\uFEFF" + lines.join("\n");
+      const filename = `INVENTMENT_stock_${new Date().toISOString().slice(0, 10)}.csv`;
+      if (Platform.OS === "web") {
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = filename; a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        const uri = FileSystem.cacheDirectory + filename;
+        await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+        if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "text/csv", dialogTitle: "INVENTMENT Stock CSV" });
+      }
+    } catch {} finally { setExportingCsv(false); }
+  }
+
   async function draftEmail() {
     const ids = data.suggestions.map((s: any) => s.product_id);
     const supplierId = data.suggestions.find((s: any) => s.supplier_id)?.supplier_id;
@@ -107,11 +144,18 @@ export default function Orders() {
           <Card style={{ marginBottom: S.lg }}>
             <View style={styles.chartHead}>
               <Text style={styles.aiTitle}>{t("stockValue15")}</Text>
-              <Pressable testID="export-pdf-btn" onPress={exportPdf} disabled={exporting} style={styles.pdfBtn}>
-                {exporting ? <ActivityIndicator color={C.brand} size="small" /> : (
-                  <><MaterialCommunityIcons name="file-pdf-box" size={16} color={C.brand} /><Text style={styles.pdfTxt}>{t("exportPdf")}</Text></>
-                )}
-              </Pressable>
+              <View style={styles.exportRow}>
+                <Pressable testID="export-csv-btn" onPress={exportCsv} disabled={exportingCsv} style={styles.pdfBtn}>
+                  {exportingCsv ? <ActivityIndicator color={C.brand} size="small" /> : (
+                    <><MaterialCommunityIcons name="file-delimited-outline" size={16} color={C.brand} /><Text style={styles.pdfTxt}>{t("exportCsv")}</Text></>
+                  )}
+                </Pressable>
+                <Pressable testID="export-pdf-btn" onPress={exportPdf} disabled={exporting} style={styles.pdfBtn}>
+                  {exporting ? <ActivityIndicator color={C.brand} size="small" /> : (
+                    <><MaterialCommunityIcons name="file-pdf-box" size={16} color={C.brand} /><Text style={styles.pdfTxt}>{t("exportPdf")}</Text></>
+                  )}
+                </Pressable>
+              </View>
             </View>
             {history.length > 0 && <StockLineChart data={history} width={width - 2 * S.lg - 2 * S.lg} />}
             <Text style={styles.chartLatest}>{t("latest")}: {money(history[history.length - 1]?.value || 0, currency)}</Text>
@@ -219,6 +263,7 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   sub: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13 },
   aiHead: { flexDirection: "row", alignItems: "center", gap: S.sm, marginBottom: S.md },
   chartHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: S.sm },
+  exportRow: { flexDirection: "row", alignItems: "center", gap: S.sm },
   pdfBtn: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: C.border, borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: 6 },
   pdfTxt: { color: C.brand, fontFamily: F.textBold, fontSize: 12 },
   chartLatest: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: S.xs },

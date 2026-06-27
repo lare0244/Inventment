@@ -26,7 +26,7 @@ const en: Dict = {
   notInDb: "Not in database — add manually", addThisProduct: "Add This Product", barcode: "Barcode",
   // orders
   purchaseOrders: "PURCHASE ORDERS", reorderSubtitle: "Reorder suggestions & supplier emails",
-  stockValue15: "Stock Value · 15 Months", exportPdf: "Export PDF", latest: "Latest",
+  stockValue15: "Stock Value · 15 Months", exportPdf: "Export PDF", exportCsv: "Export CSV", latest: "Latest",
   aiInsight: "AI Restock Insight", generateAi: "Generate AI Insight",
   suggestedReorders: "SUGGESTED REORDERS", est: "Est.", noPending: "No pending orders",
   aboveThresholds: "All products are above their thresholds", have: "Have", order: "order",
@@ -81,7 +81,7 @@ const sv: Dict = {
   newProduct: "Ny produkt", foundReview: "Hittad i databasen — granska & spara",
   notInDb: "Inte i databasen — lägg till manuellt", addThisProduct: "Lägg till produkt", barcode: "Streckkod",
   purchaseOrders: "INKÖPSORDER", reorderSubtitle: "Återbeställningsförslag & leverantörsmail",
-  stockValue15: "Lagervärde · 15 månader", exportPdf: "Exportera PDF", latest: "Senaste",
+  stockValue15: "Lagervärde · 15 månader", exportPdf: "Exportera PDF", exportCsv: "Exportera CSV", latest: "Senaste",
   aiInsight: "AI-påfyllningsinsikt", generateAi: "Generera AI-insikt",
   suggestedReorders: "FÖRESLAGNA ÅTERBESTÄLLNINGAR", est: "Ca.", noPending: "Inga väntande beställningar",
   aboveThresholds: "Alla produkter är över sina gränsvärden", have: "Har", order: "beställ",
