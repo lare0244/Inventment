@@ -10,8 +10,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.inventment.app",
+      "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "Scan product barcodes to manage stock"
+        "NSCameraUsageDescription": "Scan product barcodes to manage stock",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

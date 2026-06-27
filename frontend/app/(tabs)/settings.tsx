@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Alert, Linking, Platform } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Alert, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -23,7 +23,6 @@ export default function Settings() {
   const [categories, setCategories] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [billing, setBilling] = useState<any>(null);
-  const [upgrading, setUpgrading] = useState(false);
   const [modal, setModal] = useState<Kind | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const emptyForm = { name: "", email: "", phone: "", contact_person: "", street1: "", street2: "", number: "", postcode: "", city: "", state: "", county: "" };
@@ -37,20 +36,10 @@ export default function Settings() {
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  async function upgrade() {
-    setUpgrading(true);
-    try {
-      const origin = Platform.OS === "web" && typeof window !== "undefined"
-        ? window.location.origin
-        : (process.env.EXPO_PUBLIC_BACKEND_URL || "");
-      const r = await api<{ url: string }>("/billing/checkout", { method: "POST", body: { origin_url: origin } });
-      if (r?.url) {
-        if (Platform.OS === "web" && typeof window !== "undefined") window.location.href = r.url;
-        else await Linking.openURL(r.url);
-      }
-    } catch (e: any) {
-      Alert.alert(t("upgradeFailed"), e?.message || "");
-    } finally { setUpgrading(false); }
+  function upgrade() {
+    const msg = t("storeUpgradeHint");
+    if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
+    else Alert.alert(t("upgradeToPro"), msg);
   }
 
   function openModal(kind: Kind, item?: any) {
@@ -75,14 +64,9 @@ export default function Settings() {
     } catch (err: any) {
       const msg = String(err?.message || "");
       if (msg.includes("limit_reached")) {
-        if (Platform.OS === "web" && typeof window !== "undefined") {
-          if (window.confirm(`${t("limitFreeHint")}\n\n${t("upgradeToPro")}?`)) upgrade();
-        } else {
-          Alert.alert(t("proRequired"), t("limitFreeHint"), [
-            { text: t("cancel"), style: "cancel" },
-            { text: t("upgradeToPro"), onPress: upgrade },
-          ]);
-        }
+        const m = `${t("limitFreeHint")}\n\n${t("storeUpgradeHint")}`;
+        if (Platform.OS === "web" && typeof window !== "undefined") window.alert(m);
+        else Alert.alert(t("proRequired"), m);
       } else if (Platform.OS === "web" && typeof window !== "undefined") {
         window.alert(`${t("saveFailed")}: ${msg}`);
       } else {
@@ -162,7 +146,7 @@ export default function Settings() {
           {plan !== "pro" ? (
             <>
               <Text style={styles.planPitch}>{t("proPitch")}</Text>
-              <Btn testID="upgrade-btn" title={`${t("upgradeToPro")} · ${billing ? `${billing.price.amount} ${billing.price.currency}/${t("month")}` : "6.99 EUR/mo"}`} icon="crown" loading={upgrading} onPress={upgrade} />
+              <Btn testID="upgrade-btn" title={`${t("upgradeViaStore")} · ${billing ? `${billing.price.amount} ${billing.price.currency}/${t("month")}` : "6.99 EUR/mo"}`} icon="crown" onPress={upgrade} />
             </>
           ) : (
             <Text style={styles.planUsage}>{t("proActive")}{billing?.plan_expires_at ? ` · ${t("renews")} ${String(billing.plan_expires_at).slice(0, 10)}` : ""}</Text>

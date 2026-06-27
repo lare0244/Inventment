@@ -90,6 +90,7 @@ const en: Dict = {
   paymentPending: "Payment pending", paymentPendingHint: "Your payment is processing. It may take a moment to activate.",
   verifyingPayment: "Verifying payment…", done: "Done", proRequired: "PRO required",
   limitFreeHint: "You've reached your Free plan limit. Upgrade to PRO to add more.",
+  upgradeViaStore: "Upgrade via App Store", storeUpgradeHint: "PRO will be available as an in-app purchase once the app is published to the App Store / Play Store.",
 };
 
 const sv: Dict = {
@@ -170,6 +171,7 @@ const sv: Dict = {
   paymentPending: "Betalning pågår", paymentPendingHint: "Din betalning behandlas. Det kan ta en stund att aktivera.",
   verifyingPayment: "Verifierar betalning…", done: "Klar", proRequired: "PRO krävs",
   limitFreeHint: "Du har nått gränsen för Gratisplanen. Uppgradera till PRO för att lägga till fler.",
+  upgradeViaStore: "Uppgradera via App Store", storeUpgradeHint: "PRO blir tillgängligt som ett köp i appen när appen publicerats till App Store / Play Store.",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv };
