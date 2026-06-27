@@ -9,16 +9,20 @@ import { useFonts } from "expo-font";
 
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { AuthProvider } from "@/src/auth";
+import { AppSettingsProvider, useColors } from "@/src/appsettings";
 
-// Disable logbox errors etc so that users can see the app
-// and agent works as expected.
 LogBox.ignoreAllLogs(true);
-
-// Keep the native splash visible from cold start until icon fonts register.
-// Required because @expo/vector-icons' componentDidMount fallback fires
-// Font.loadAsync against a broken vendor path if any <Icon> mounts before
-// the family is registered — which throws on Android Expo Go.
 SplashScreen.preventAutoHideAsync();
+
+function ThemedRoot() {
+  const C = useColors();
+  return (
+    <>
+      <StatusBar style={C.isDark ? "light" : "dark"} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.surface } }} />
+    </>
+  );
+}
 
 export default function RootLayout() {
   const [iconsLoaded, iconErr] = useIconFonts();
@@ -40,10 +44,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <StatusBar style="light" />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#121212" } }} />
-        </AuthProvider>
+        <AppSettingsProvider>
+          <AuthProvider>
+            <ThemedRoot />
+          </AuthProvider>
+        </AppSettingsProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -1,38 +1,41 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
+import { useColors, useT } from "@/src/appsettings";
 import { money } from "@/src/currency";
-import { C, F, S, R, stockColor } from "@/src/theme";
+import { F, S, R, stockColor, Palette } from "@/src/theme";
 import { Card, StatusDot } from "@/src/components/ui";
 
 export default function Dashboard() {
   const insets = useSafeAreaInsets();
   const { user, currency } = useAuth();
+  const C = useColors();
+  const t = useT();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try { setData(await api("/dashboard")); } catch {} finally { setLoading(false); }
   }, []);
-
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const stats = [
-    { label: "Stock Value", value: data ? money(data.stock_value, currency) : "—", icon: "cash-multiple", color: C.success },
-    { label: "Total Units", value: data ? data.total_units : "—", icon: "cube-outline", color: C.info },
-    { label: "Products", value: data ? data.total_products : "—", icon: "package-variant", color: C.brand },
-    { label: "Low Stock", value: data ? data.low_stock_count : "—", icon: "alert", color: C.warning },
+    { label: t("stockValue"), value: data ? money(data.stock_value, currency) : "—", icon: "cash-multiple", color: C.success },
+    { label: t("totalUnits"), value: data ? data.total_units : "—", icon: "cube-outline", color: C.info },
+    { label: t("products"), value: data ? data.total_products : "—", icon: "package-variant", color: C.brand },
+    { label: t("lowStock"), value: data ? data.low_stock_count : "—", icon: "alert", color: C.warning },
   ];
 
   return (
     <View style={{ flex: 1, backgroundColor: C.surface }}>
       <View style={[styles.header, { paddingTop: insets.top + S.md }]}>
-        <Text style={styles.hi}>Welcome back</Text>
-        <Text style={styles.name}>{user?.name || "Operator"}</Text>
+        <Text style={styles.hi}>{t("welcomeBack")}</Text>
+        <Text style={styles.name}>{user?.name || t("operator")}</Text>
       </View>
       {loading ? (
         <ActivityIndicator color={C.brand} style={{ marginTop: 40 }} />
@@ -46,8 +49,8 @@ export default function Dashboard() {
             <View testID="low-stock-warning" style={styles.warnBanner}>
               <MaterialCommunityIcons name="alert-octagon" size={22} color={C.warning} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.warnTitle}>Low stock warning</Text>
-                <Text style={styles.warnText}>{data.low_stock_count} product(s) at or below threshold. Review the list below and reorder.</Text>
+                <Text style={styles.warnTitle}>{t("lowStockWarning")}</Text>
+                <Text style={styles.warnText}>{data.low_stock_count} {t("productsAtThreshold")}</Text>
               </View>
             </View>
           )}
@@ -61,22 +64,22 @@ export default function Dashboard() {
             ))}
           </View>
 
-          <Text style={styles.section}>LOW STOCK ALERTS</Text>
+          <Text style={styles.section}>{t("lowStockAlerts")}</Text>
           {data.low_stock_items.length === 0 ? (
-            <Card><Text style={styles.empty}>All stock levels healthy ✓</Text></Card>
+            <Card><Text style={styles.empty}>{t("allHealthy")}</Text></Card>
           ) : (
             data.low_stock_items.map((p: any) => (
-              <Card key={p.id} style={styles.row} >
-                <StatusDot color={stockColor(p.quantity, p.low_stock_threshold)} />
+              <Card key={p.id} style={styles.row}>
+                <StatusDot color={stockColor(p.quantity, p.low_stock_threshold, C)} />
                 <Text style={styles.rowName} numberOfLines={1}>{p.name}</Text>
-                <Text style={styles.rowQty}>{p.quantity} left</Text>
+                <Text style={styles.rowQty}>{p.quantity} {t("left")}</Text>
               </Card>
             ))
           )}
 
           {data.expiring_count > 0 && (
             <>
-              <Text style={styles.section}>EXPIRING SOON</Text>
+              <Text style={styles.section}>{t("expiringSoon")}</Text>
               {data.expiring_items.map((p: any) => (
                 <Card key={p.id} style={styles.row}>
                   <MaterialCommunityIcons name="clock-alert-outline" size={16} color={C.warning} />
@@ -87,9 +90,9 @@ export default function Dashboard() {
             </>
           )}
 
-          <Text style={styles.section}>RECENT ACTIVITY</Text>
+          <Text style={styles.section}>{t("recentActivity")}</Text>
           {data.recent_movements.length === 0 ? (
-            <Card><Text style={styles.empty}>No recent movements</Text></Card>
+            <Card><Text style={styles.empty}>{t("noMovements")}</Text></Card>
           ) : (
             data.recent_movements.map((m: any) => (
               <Card key={m.id} style={styles.row}>
@@ -97,7 +100,7 @@ export default function Dashboard() {
                   name={m.type === "receive" ? "arrow-down-bold-circle" : m.type === "remove" ? "arrow-up-bold-circle" : "sync"}
                   size={16} color={m.type === "receive" ? C.success : C.brand} />
                 <Text style={styles.rowName} numberOfLines={1}>{m.product_name}</Text>
-                <Text style={styles.rowQty}>{m.type} · {m.resulting_qty}</Text>
+                <Text style={styles.rowQty}>{t(m.type)} · {m.resulting_qty}</Text>
               </Card>
             ))
           )}
@@ -107,14 +110,14 @@ export default function Dashboard() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   header: { paddingHorizontal: S.lg, paddingBottom: S.md, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.divider },
   hi: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13 },
   name: { color: C.onSurface, fontFamily: F.display, fontSize: 26, letterSpacing: 0.5 },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: S.md },
-  warnBanner: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: "rgba(255,234,0,0.08)", borderWidth: 1, borderColor: C.warning, borderRadius: R.md, padding: S.md, marginBottom: S.lg },
+  warnBanner: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: C.isDark ? "rgba(255,234,0,0.08)" : "rgba(230,149,0,0.12)", borderWidth: 1, borderColor: C.warning, borderRadius: R.md, padding: S.md, marginBottom: S.lg },
   warnTitle: { color: C.warning, fontFamily: F.textBold, fontSize: 14 },
   warnText: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: S.md },
   statCard: { width: "47.5%", gap: S.xs },
   statVal: { color: C.onSurface, fontFamily: F.display, fontSize: 28 },
   statLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, textTransform: "uppercase" },

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -6,14 +6,18 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
+import { useColors, useT } from "@/src/appsettings";
 import { money } from "@/src/currency";
-import { C, F, S, R, stockColor } from "@/src/theme";
+import { F, S, R, stockColor, Palette } from "@/src/theme";
 import { StatusDot } from "@/src/components/ui";
 
 export default function Catalog() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { currency } = useAuth();
+  const C = useColors();
+  const t = useT();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const [products, setProducts] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
   const [activeCat, setActiveCat] = useState<string | null>(null);
@@ -36,7 +40,7 @@ export default function Catalog() {
     <View style={{ flex: 1, backgroundColor: C.surface }}>
       <View style={[styles.header, { paddingTop: insets.top + S.md }]}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>CATALOG</Text>
+          <Text style={styles.title}>{t("catalog").toUpperCase()}</Text>
           <Pressable testID="add-product-btn" onPress={() => router.push("/product/new")} style={styles.addBtn}>
             <MaterialCommunityIcons name="plus" size={22} color={C.onBrand} />
           </Pressable>
@@ -45,7 +49,7 @@ export default function Catalog() {
           <MaterialCommunityIcons name="magnify" size={18} color={C.onSurfaceTertiary} />
           <TextInput
             testID="catalog-search"
-            placeholder="Search products"
+            placeholder={t("searchProducts")}
             placeholderTextColor={C.onSurfaceTertiary}
             value={search}
             onChangeText={setSearch}
@@ -53,9 +57,9 @@ export default function Catalog() {
           />
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-          <Chip label="All" active={!activeCat} onPress={() => setActiveCat(null)} />
+          <Chip label={t("all")} active={!activeCat} onPress={() => setActiveCat(null)} styles={styles} />
           {cats.map((c) => (
-            <Chip key={c.id} label={c.name} active={activeCat === c.id} onPress={() => setActiveCat(c.id)} />
+            <Chip key={c.id} label={c.name} active={activeCat === c.id} onPress={() => setActiveCat(c.id)} styles={styles} />
           ))}
         </ScrollView>
       </View>
@@ -67,40 +71,51 @@ export default function Catalog() {
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <MaterialCommunityIcons name="package-variant-closed" size={56} color={C.surfaceTertiary} />
-            <Text style={styles.emptyTxt}>No products yet</Text>
-            <Text style={styles.emptySub}>Tap + or scan a barcode to add stock</Text>
+            <Text style={styles.emptyTxt}>{t("noProducts")}</Text>
+            <Text style={styles.emptySub}>{t("addOrScan")}</Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <Pressable
-            testID={`product-row-${item.id}`}
-            onPress={() => router.push(`/product/${item.id}`)}
-            style={styles.card}
-          >
-            {item.image ? (
-              <Image source={{ uri: item.image }} style={styles.thumb} contentFit="cover" />
-            ) : (
-              <View style={[styles.thumb, styles.thumbPh]}>
-                <MaterialCommunityIcons name="cube-outline" size={24} color={C.onSurfaceTertiary} />
+        renderItem={({ item }) => {
+          const low = item.quantity <= item.low_stock_threshold;
+          return (
+            <Pressable
+              testID={`product-row-${item.id}`}
+              onPress={() => router.push(`/product/${item.id}`)}
+              style={styles.card}
+            >
+              {item.image ? (
+                <Image source={{ uri: item.image }} style={styles.thumb} contentFit="cover" />
+              ) : (
+                <View style={[styles.thumb, styles.thumbPh]}>
+                  <MaterialCommunityIcons name="cube-outline" size={24} color={C.onSurfaceTertiary} />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.pName} numberOfLines={1}>{item.name}</Text>
+                  {low && (
+                    <View testID={`low-badge-${item.id}`} style={styles.lowBadge}>
+                      <MaterialCommunityIcons name="alert" size={11} color={item.quantity <= 0 ? C.error : C.warning} />
+                      <Text style={[styles.lowBadgeTxt, { color: item.quantity <= 0 ? C.error : C.warning }]}>{t("lowBadge")}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.pSku}>{item.sku || item.barcode || t("noSku")} · {money(item.price, currency)}</Text>
               </View>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.pName} numberOfLines={1}>{item.name}</Text>
-              <Text style={styles.pSku}>{item.sku || item.barcode || "No SKU"} · {money(item.price, currency)}</Text>
-            </View>
-            <View style={styles.qtyWrap}>
-              <StatusDot color={stockColor(item.quantity, item.low_stock_threshold)} />
-              <Text style={styles.qty}>{item.quantity}</Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={20} color={C.onSurfaceTertiary} />
-          </Pressable>
-        )}
+              <View style={styles.qtyWrap}>
+                <StatusDot color={stockColor(item.quantity, item.low_stock_threshold, C)} />
+                <Text style={styles.qty}>{item.quantity}</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={C.onSurfaceTertiary} />
+            </Pressable>
+          );
+        }}
       />
     </View>
   );
 }
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function Chip({ label, active, onPress, styles }: { label: string; active: boolean; onPress: () => void; styles: any }) {
   return (
     <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
       <Text style={[styles.chipTxt, active && styles.chipTxtActive]}>{label}</Text>
@@ -108,7 +123,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   header: { paddingHorizontal: S.lg, paddingBottom: S.sm, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.divider },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: S.md },
   title: { color: C.onSurface, fontFamily: F.display, fontSize: 26, letterSpacing: 1 },
@@ -123,7 +138,10 @@ const styles = StyleSheet.create({
   card: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.md, padding: S.md, marginBottom: S.sm },
   thumb: { width: 48, height: 48, borderRadius: R.sm, backgroundColor: C.surfaceTertiary },
   thumbPh: { alignItems: "center", justifyContent: "center" },
-  pName: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: S.sm },
+  pName: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15, flexShrink: 1 },
+  lowBadge: { flexDirection: "row", alignItems: "center", gap: 2, paddingHorizontal: 6, paddingVertical: 2, borderRadius: R.sm, borderWidth: 1, borderColor: C.warning, backgroundColor: C.isDark ? "rgba(255,234,0,0.08)" : "rgba(230,149,0,0.12)" },
+  lowBadgeTxt: { fontFamily: F.textBold, fontSize: 9, letterSpacing: 0.5 },
   pSku: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
   qtyWrap: { alignItems: "center", gap: 2, marginRight: S.xs },
   qty: { color: C.onSurface, fontFamily: F.display, fontSize: 18 },

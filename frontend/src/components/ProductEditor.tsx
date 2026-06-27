@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { api } from "@/src/api";
-import { useAuth } from "@/src/auth";
+import { useColors, useT } from "@/src/appsettings";
 import { currencySymbol } from "@/src/currency";
-import { C, F, S, R } from "@/src/theme";
+import { useAuth } from "@/src/auth";
+import { F, S, R, Palette } from "@/src/theme";
 import { Field, Btn } from "@/src/components/ui";
 
 export type ProductForm = {
@@ -26,8 +27,11 @@ export function ProductEditor({
 }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const C = useColors();
+  const t = useT();
   const { currency } = useAuth();
   const sym = currencySymbol(currency);
+  const styles = useMemo(() => makeStyles(C), [C]);
   const [form, setForm] = useState<ProductForm>({
     name: "", barcode: "", sku: "", brand: "", image: "", price: "0", cost: "0",
     quantity: "0", low_stock_threshold: "5", category_id: null, warehouse_id: null,
@@ -50,7 +54,7 @@ export function ProductEditor({
   const set = (k: keyof ProductForm, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
   async function save() {
-    if (!form.name.trim()) { setErr("Product name is required"); return; }
+    if (!form.name.trim()) { setErr(t("nameRequired")); return; }
     setErr(""); setSaving(true);
     try {
       await onSave({
@@ -64,7 +68,7 @@ export function ProductEditor({
       });
       router.back();
     } catch (e: any) {
-      setErr(e.message || "Save failed");
+      setErr(e.message || t("saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -77,10 +81,10 @@ export function ProductEditor({
         {items.map((it: any) => (
           <Pressable key={it.id} onPress={() => onSelect(value === it.id ? null : it.id)}
             style={[styles.chip, value === it.id && styles.chipActive]}>
-            <Text style={[styles.chipTxt, value === it.id && styles.chipTxtActive]}>{it.name}</Text>
+            <Text style={[styles.chipTxt, value === it.id && { color: C.onBrand }]}>{it.name}</Text>
           </Pressable>
         ))}
-        {items.length === 0 && <Text style={styles.noneTxt}>Add in Settings</Text>}
+        {items.length === 0 && <Text style={styles.noneTxt}>{t("addInSettings")}</Text>}
       </ScrollView>
     </View>
   );
@@ -100,36 +104,36 @@ export function ProductEditor({
       </View>
 
       <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
-        <Field label="Product Name" testID="f-name" value={form.name} onChangeText={(v) => set("name", v)} placeholder="e.g. Steel Bolts M8" />
+        <Field label={t("productName")} testID="f-name" value={form.name} onChangeText={(v) => set("name", v)} placeholder="e.g. Steel Bolts M8" />
         <View style={styles.two}>
-          <View style={styles.half}><Field label="Barcode" testID="f-barcode" value={form.barcode} onChangeText={(v) => set("barcode", v)} placeholder="UPC" /></View>
-          <View style={styles.half}><Field label="SKU" testID="f-sku" value={form.sku} onChangeText={(v) => set("sku", v)} placeholder="SKU" /></View>
+          <View style={styles.half}><Field label={t("barcode")} testID="f-barcode" value={form.barcode} onChangeText={(v) => set("barcode", v)} placeholder="UPC" /></View>
+          <View style={styles.half}><Field label={t("sku")} testID="f-sku" value={form.sku} onChangeText={(v) => set("sku", v)} placeholder="SKU" /></View>
         </View>
         <View style={styles.two}>
-          <View style={styles.half}><Field label={`Price (${sym})`} testID="f-price" value={form.price} onChangeText={(v) => set("price", v)} keyboardType="decimal-pad" /></View>
-          <View style={styles.half}><Field label={`Cost (${sym})`} testID="f-cost" value={form.cost} onChangeText={(v) => set("cost", v)} keyboardType="decimal-pad" /></View>
+          <View style={styles.half}><Field label={`${t("price")} (${sym})`} testID="f-price" value={form.price} onChangeText={(v) => set("price", v)} keyboardType="decimal-pad" /></View>
+          <View style={styles.half}><Field label={`${t("cost")} (${sym})`} testID="f-cost" value={form.cost} onChangeText={(v) => set("cost", v)} keyboardType="decimal-pad" /></View>
         </View>
         <View style={styles.two}>
-          <View style={styles.half}><Field label="Quantity" testID="f-qty" value={form.quantity} onChangeText={(v) => set("quantity", v)} keyboardType="number-pad" /></View>
-          <View style={styles.half}><Field label="Low Stock At" testID="f-threshold" value={form.low_stock_threshold} onChangeText={(v) => set("low_stock_threshold", v)} keyboardType="number-pad" /></View>
+          <View style={styles.half}><Field label={t("quantity")} testID="f-qty" value={form.quantity} onChangeText={(v) => set("quantity", v)} keyboardType="number-pad" /></View>
+          <View style={styles.half}><Field label={t("lowStockAt")} testID="f-threshold" value={form.low_stock_threshold} onChangeText={(v) => set("low_stock_threshold", v)} keyboardType="number-pad" /></View>
         </View>
-        <Field label="Purchase Date" testID="f-purchase" value={form.purchase_date} onChangeText={(v) => set("purchase_date", v)} placeholder="YYYY-MM-DD" />
-        <Field label="Best Before Date" testID="f-bestbefore" value={form.best_before_date} onChangeText={(v) => set("best_before_date", v)} placeholder="YYYY-MM-DD" />
-        <Picker label="Warehouse" items={warehouses} value={form.warehouse_id} onSelect={(v: any) => set("warehouse_id", v)} />
-        <Picker label="Category" items={cats} value={form.category_id} onSelect={(v: any) => set("category_id", v)} />
-        <Picker label="Supplier" items={suppliers} value={form.supplier_id} onSelect={(v: any) => set("supplier_id", v)} />
-        <Field label="Notes" testID="f-notes" value={form.notes} onChangeText={(v) => set("notes", v)} placeholder="Optional notes" multiline />
+        <Field label={t("purchaseDate")} testID="f-purchase" value={form.purchase_date} onChangeText={(v) => set("purchase_date", v)} placeholder="YYYY-MM-DD" />
+        <Field label={t("bestBefore")} testID="f-bestbefore" value={form.best_before_date} onChangeText={(v) => set("best_before_date", v)} placeholder="YYYY-MM-DD" />
+        <Picker label={t("warehouse")} items={warehouses} value={form.warehouse_id} onSelect={(v: any) => set("warehouse_id", v)} />
+        <Picker label={t("category")} items={cats} value={form.category_id} onSelect={(v: any) => set("category_id", v)} />
+        <Picker label={t("supplier")} items={suppliers} value={form.supplier_id} onSelect={(v: any) => set("supplier_id", v)} />
+        <Field label={t("notes")} testID="f-notes" value={form.notes} onChangeText={(v) => set("notes", v)} placeholder={t("optionalNotes")} multiline />
         {!!err && <Text style={styles.err}>{err}</Text>}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + S.sm }]}>
-        <Btn testID="save-product-btn" title="Save Changes" icon="content-save" loading={saving} onPress={save} />
+        <Btn testID="save-product-btn" title={t("saveChanges")} icon="content-save" loading={saving} onPress={save} />
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: S.lg, paddingBottom: S.md, borderBottomWidth: 1, borderBottomColor: C.divider },
   title: { flex: 1, color: C.onSurface, fontFamily: F.display, fontSize: 22, marginHorizontal: S.sm },
   two: { flexDirection: "row", gap: S.md },
@@ -138,7 +142,6 @@ const styles = StyleSheet.create({
   chip: { height: 36, paddingHorizontal: S.lg, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: C.surfaceSecondary },
   chipActive: { backgroundColor: C.brand, borderColor: C.brand },
   chipTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 13 },
-  chipTxtActive: { color: C.onBrand },
   noneTxt: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13 },
   err: { color: C.error, fontFamily: F.text, marginTop: S.sm },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, padding: S.lg, paddingTop: S.sm, backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.divider },

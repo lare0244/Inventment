@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, Pressable, Modal, TextInput } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { api } from "@/src/api";
-import { C, F, S, R } from "@/src/theme";
+import { useColors, useT } from "@/src/appsettings";
+import { F, S, R, Palette } from "@/src/theme";
 import { ProductEditor } from "@/src/components/ProductEditor";
 import { Btn } from "@/src/components/ui";
 
@@ -13,6 +14,9 @@ export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const C = useColors();
+  const t = useT();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [receive, setReceive] = useState(false);
@@ -36,8 +40,8 @@ export default function ProductDetail() {
     router.back();
   }
 
-  if (loading) return <View style={s.c}><ActivityIndicator color={C.brand} /></View>;
-  if (!product) return <View style={s.c}><Text style={{ color: C.onSurface }}>Not found</Text></View>;
+  if (loading) return <View style={styles.c}><ActivityIndicator color={C.brand} /></View>;
+  if (!product) return <View style={styles.c}><Text style={{ color: C.onSurface }}>{t("notFound")}</Text></View>;
 
   return (
     <View style={{ flex: 1 }}>
@@ -54,21 +58,21 @@ export default function ProductDetail() {
         onSave={async (body) => { await api(`/products/${id}`, { method: "PUT", body }); }}
         onDelete={del}
       />
-      <Pressable testID="quick-receive-btn" onPress={() => setReceive(true)} style={[s.fab, { bottom: insets.bottom + 84 }]}>
+      <Pressable testID="quick-receive-btn" onPress={() => setReceive(true)} style={[styles.fab, { bottom: insets.bottom + 84 }]}>
         <MaterialCommunityIcons name="arrow-down-bold-circle" size={22} color={C.onBrand} />
-        <Text style={s.fabTxt}>Receive</Text>
+        <Text style={styles.fabTxt}>{t("receiveBtn")}</Text>
       </Pressable>
 
       <Modal visible={receive} transparent animationType="fade" onRequestClose={() => setReceive(false)}>
-        <View style={s.modalBg}>
-          <View style={s.modalCard}>
-            <Text style={s.modalTitle}>Receive Stock</Text>
-            <Text style={s.modalSub}>Current: {product.quantity} units</Text>
-            <TextInput testID="receive-qty" placeholder="Quantity received" placeholderTextColor={C.onSurfaceTertiary} value={qty} onChangeText={setQty} keyboardType="number-pad" style={s.input} />
-            <TextInput testID="receive-bb" placeholder="Best before (YYYY-MM-DD, optional)" placeholderTextColor={C.onSurfaceTertiary} value={bb} onChangeText={setBb} style={s.input} />
-            <Btn testID="confirm-receive" title="Add to Stock" icon="check" onPress={doReceive} />
+        <View style={styles.modalBg}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t("receiveStock")}</Text>
+            <Text style={styles.modalSub}>{t("current")}: {product.quantity} {t("units")}</Text>
+            <TextInput testID="receive-qty" placeholder={t("qtyReceived")} placeholderTextColor={C.onSurfaceTertiary} value={qty} onChangeText={setQty} keyboardType="number-pad" style={styles.input} />
+            <TextInput testID="receive-bb" placeholder={t("bestBeforeOptional")} placeholderTextColor={C.onSurfaceTertiary} value={bb} onChangeText={setBb} style={styles.input} />
+            <Btn testID="confirm-receive" title={t("addToStock")} icon="check" onPress={doReceive} />
             <Pressable onPress={() => setReceive(false)} style={{ alignItems: "center", paddingVertical: S.md }}>
-              <Text style={{ color: C.onSurfaceTertiary, fontFamily: F.textBold }}>Cancel</Text>
+              <Text style={{ color: C.onSurfaceTertiary, fontFamily: F.textBold }}>{t("cancel")}</Text>
             </Pressable>
           </View>
         </View>
@@ -77,7 +81,7 @@ export default function ProductDetail() {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (C: Palette) => StyleSheet.create({
   c: { flex: 1, backgroundColor: C.surface, alignItems: "center", justifyContent: "center" },
   fab: { position: "absolute", right: S.lg, flexDirection: "row", alignItems: "center", gap: S.xs, backgroundColor: C.brand, paddingHorizontal: S.lg, height: 48, borderRadius: R.pill },
   fabTxt: { color: C.onBrand, fontFamily: F.textBold, fontSize: 14 },

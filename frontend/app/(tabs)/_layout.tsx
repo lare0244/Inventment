@@ -2,7 +2,8 @@ import React from "react";
 import { Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Platform } from "react-native";
-import { C, F } from "@/src/theme";
+import { F } from "@/src/theme";
+import { useColors, useT } from "@/src/appsettings";
 
 function tabIcon(name: string, nameOutline: string) {
   return ({ focused, color, size }: any) => (
@@ -11,6 +12,8 @@ function tabIcon(name: string, nameOutline: string) {
 }
 
 export default function TabsLayout() {
+  const C = useColors();
+  const t = useT();
   return (
     <Tabs
       screenOptions={{
@@ -27,11 +30,11 @@ export default function TabsLayout() {
         tabBarLabelStyle: { fontFamily: F.text, fontSize: 11 },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Dashboard", tabBarIcon: tabIcon("view-dashboard", "view-dashboard-outline") }} />
-      <Tabs.Screen name="catalog" options={{ title: "Catalog", tabBarIcon: tabIcon("package-variant", "package-variant-closed") }} />
-      <Tabs.Screen name="scan" options={{ title: "Scan", tabBarIcon: tabIcon("barcode-scan", "barcode-scan") }} />
-      <Tabs.Screen name="orders" options={{ title: "Orders", tabBarIcon: tabIcon("clipboard-list", "clipboard-list-outline") }} />
-      <Tabs.Screen name="settings" options={{ title: "Settings", tabBarIcon: tabIcon("cog", "cog-outline") }} />
+      <Tabs.Screen name="index" options={{ title: t("dashboard"), tabBarIcon: tabIcon("view-dashboard", "view-dashboard-outline") }} />
+      <Tabs.Screen name="catalog" options={{ title: t("catalog"), tabBarIcon: tabIcon("package-variant", "package-variant-closed") }} />
+      <Tabs.Screen name="scan" options={{ title: t("scan"), tabBarIcon: tabIcon("barcode-scan", "barcode-scan") }} />
+      <Tabs.Screen name="orders" options={{ title: t("orders"), tabBarIcon: tabIcon("clipboard-list", "clipboard-list-outline") }} />
+      <Tabs.Screen name="settings" options={{ title: t("settings"), tabBarIcon: tabIcon("cog", "cog-outline") }} />
     </Tabs>
   );
 }
