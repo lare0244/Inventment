@@ -83,6 +83,11 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Warehouses & suppliers: full structured address (street1/2, number, postcode, city, state, county, contact_person, phone; supplier also email). PO delivery block uses formatted address.
 - Verified: 17/17 new v6 tests + regression green (after cleaning TEST_ seed data). All UI flows verified.
 
+## Implemented (2026-06-27 — Update 10)
+- "Send to supplier": one-tap opens device email app pre-filled (mailto:) with PO subject+body to supplier email — no auto-send. Available in PO email modal and draft-PO edit modal; marks draft as sent after composing. Shows alert if supplier has no email.
+- PO email subject+body now composed client-side and translated to active language (EN/SV) — always reflects current language setting (incl. delivery address from warehouse).
+- Verified: 6/6 new v7 tests + regression green; EN & SV email previews confirmed. NOTE: actual native mail-app opening requires a device/native build to validate (mailto can't open in web preview).
+
 ## Backlog
 - Idempotent PUT on warehouses/categories/suppliers returns 200 even when no doc matches (should be 404) — low priority carryover.
 - P1: Per-warehouse stock quantities (currently product-level), image upload/capture for products
