@@ -61,6 +61,14 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Place Order footer now has a "DELIVER TO" warehouse picker (defaults to first warehouse, user-selectable), matching the Orders-tab PO draft
 - i18n: added exportCsv (EN/SV)
 
+## Implemented (2026-06-27 — Update 7)
+- Per-warehouse stock: product.stock = {warehouse_id: qty}; product.quantity = total. Startup migration backfills existing products into their assigned warehouse.
+- Movements take warehouse_id (sticky "active warehouse" persisted on device, changeable per receive); only that warehouse's stock mutates; low_stock flag is per warehouse. Fallback: stockless/legacy products operate on total.
+- Dashboard & Catalog: "All warehouses" + per-warehouse filter chips; per-warehouse qty when scoped; dashboard low-stock rows show warehouse name (per product×warehouse alerts).
+- ProductEditor: quantity field tied to selected warehouse; saving updates only that warehouse.
+- Orders CSV/PDF export: warehouse + category filters; one row per (product, warehouse) with warehouse column.
+- Verified: 47/47 backend tests pass (11 new per-warehouse); frontend flows verified.
+
 ## Backlog
 - P1: Per-warehouse stock quantities (currently product-level), image upload/capture for products
 - P1: Native date pickers for purchase/best-before (currently text YYYY-MM-DD)

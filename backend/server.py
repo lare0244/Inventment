@@ -402,7 +402,7 @@ async def create_movement(body: StockMovementIn, background_tasks: BackgroundTas
     stock = dict(product.get("stock") or {})
     # resolve target warehouse: explicit -> product's primary -> first existing stock key
     wid = body.warehouse_id or product.get("warehouse_id") or (next(iter(stock), None))
-    prev_wh_qty = int(stock.get(wid, 0)) if wid else 0
+    prev_wh_qty = int(stock.get(wid, 0)) if wid else product_total(product)
     if body.type == "receive":
         new_wh_qty = prev_wh_qty + body.quantity
     elif body.type == "remove":
@@ -413,7 +413,9 @@ async def create_movement(body: StockMovementIn, background_tasks: BackgroundTas
         new_wh_qty = prev_wh_qty
     if wid:
         stock[wid] = new_wh_qty
-    total = sum(int(v) for v in stock.values()) if stock else new_wh_qty
+        total = sum(int(v) for v in stock.values())
+    else:
+        total = new_wh_qty
     update = {"stock": stock, "quantity": total, "updated_at": now_iso()}
     if body.best_before_date:
         update["best_before_date"] = body.best_before_date
