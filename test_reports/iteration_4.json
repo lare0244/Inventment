@@ -1,0 +1,55 @@
+{
+  "summary": "Tested v4 PER-WAREHOUSE STOCK feature end-to-end (backend pytest + Playwright mobile UI on the public preview). Created /app/backend/tests/test_per_warehouse_stock.py with 11 new pytest cases covering: (a) create/list returns stock dict + correct total, (b) ?warehouse_id filter returns per-wh quantity and excludes unstocked products, (c) /movements only mutates the target warehouse and recomputes total, (d) low_stock flag is PER warehouse (verified: w1=100 + w2=2 with threshold=5 -> low_stock=true on w2 movement), (e) remove cannot go negative, (f) PUT /products updates only the targeted warehouse without clobbering others, (g) dashboard no-filter returns per-(product,warehouse) low_stock rows with warehouse_name, (h) dashboard ?warehouse_id scopes totals + low_stock, (i) migration backfill: every product returned from /products has a stock dict and quantity == sum(stock). RESULT: 11/11 NEW PASS. Full regression: 45/47 PASS — 2 PRE-EXISTING TESTS REGRESSED due to the per-warehouse refactor: test_product_lifecycle_with_movement and test_snapshot_updated_by_movement both create a product WITHOUT warehouse_id and then send a movement without warehouse_id; the new code resolves wid=None, leaves stock={}, and overwrites quantity with just the delta (5) instead of original_qty+delta (15). This is an actual backend correctness bug for products that have no warehouse_id assigned. Frontend (390x844 mobile viewport): verified Dashboard shows the All-warehouses/Main Warehouse/Gothenburg DC filter chip row, Low Stock banner with Place Order CTA, low-stock alerts list. Catalog shows the same 3 warehouse chips + A-Z/By stock sort chips + product rows. Orders tab shows export-csv-btn + export-pdf-btn + filter-wh-all + 3 filter-wh-* chips (no category chips because user has no categories yet — wired correctly). Product detail Receive modal renders the warehouse picker chips (Main Warehouse seen). Settings shows both warehouses. No red-screen / pageerror events.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/movements (and POST /api/products with quantity>0)", "issue": "When a product has stock={} (no warehouse_id was ever set), a movement with no warehouse_id resolves wid=None, leaves stock={}, and sets total = new_wh_qty. The product's original quantity field is silently OVERWRITTEN by just the delta. Repro: POST /products {name,quantity:10}; POST /movements {product_id, type:'receive', quantity:5} -> resulting_qty=5 and product.quantity=5 (lost 10). Affected by current UI only if a user creates a product before any warehouse exists. Reference: server.py:402-417. Fix: when wid is None AND stock is empty, fall back to mutating product.quantity directly (prev = product.get('quantity',0); new = prev+delta...) OR require a warehouse_id on movements/products.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/dashboard", "issue": "When stock is empty AND best_before_date is set, the dashboard low_stock_count includes a row without warehouse_name and id (no per-wh expansion). Edge case but the UI relies on warehouse_name to render the row label."},
+      {"endpoint": "PUT /api/warehouses/{id}, /api/categories/{id}, /api/suppliers/{id}", "issue": "Carried over from prior iteration — still silent no-op + 200 on missing id (no 404). Confirmed not a security issue (isolation enforced)."},
+      {"endpoint": "passlib bcrypt warning", "issue": "Pre-existing benign startup warning 'module bcrypt has no attribute __about__'."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Orders tab — Export filters", "issues": ["Category chip row only renders when categories.length > 0. New users with no categories see only the warehouse filter row, which is fine, but the 'Export filters' label remains visible even when ONLY the warehouse row is shown — acceptable but could be confusing if only one warehouse and no categories (entire filterWrap is then hidden by the warehouses.length>1 || categories.length>0 guard — verified correct)."]},
+      {"screen": "orders.tsx buildRows()", "issues": ["Line 73: products with empty stock dict and no filterWh emit a row with empty warehouse=''/qty=0 in CSV/PDF. Displays as a dash but a user might expect that product to be omitted from the per-warehouse export."]}
+    ],
+    "react_native_issues": [
+      {"component": "react-native-web Pressable", "issue": "Carried over: 'props.pointerEvents is deprecated. Use style.pointerEvents' warning on web preview. Cosmetic only."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_per_warehouse_stock.py",
+    "/app/backend/tests/test_v3_features.py",
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/test_backend.py",
+    "/app/test_reports/pytest/pytest_per_wh_stock.xml",
+    "/app/test_reports/pytest/pytest_full_v4.xml"
+  ],
+  "action_items": [
+    "HIGH: Fix movement handling when product has no warehouse_id and stock is empty (server.py:402-417). Current: original quantity is wiped to just the delta. Suggested fix: if wid is None, mutate the legacy product.quantity field directly using prev+delta/prev-delta/quantity; OR require warehouse_id to be non-null on /movements (return 400). The two failing legacy tests (test_product_lifecycle_with_movement, test_snapshot_updated_by_movement) reproduce this exactly.",
+    "(Low) Consider whether buildRows() in orders.tsx should drop products with empty stock entries when filterWh is unset (currently emits one blank-warehouse row per such product).",
+    "(Carryover, low) Return 404 from PUT /api/warehouses|categories|suppliers when matched_count==0.",
+    "(Carryover, low) Silence the react-native-web pointerEvents deprecation warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py:357-360 create_product: stock = {wid: qty} if wid else {} — when wid is None and qty>0, the product is created with stock={} but quantity=qty, creating a divergence between stock and quantity that subsequent movements will not maintain consistently.",
+    "server.py:404 movement target warehouse fallback: wid = body.warehouse_id or product.get('warehouse_id') or next(iter(stock), None) — falls through to None if all three are missing; the code does NOT guard against wid being None when writing the stock dict, so the per-warehouse mutation is silently dropped but `total = new_wh_qty` still runs, overwriting product.quantity. Either reject wid=None with 400 or fall back to legacy quantity mutation.",
+    "server.py:493-499 dashboard low_stock construction creates per-warehouse rows with id = f'{p[id]}:{wid}' which collides with the catalog product-row testID pattern; frontend treats it correctly because dashboard renders by name + warehouse_name, but be careful if any UI tries to navigate to product by this composite id.",
+    "server.py is now 742 lines (was 640) — well past the 700-line split threshold flagged previously; recommend extracting models, routers and migration into modules.",
+    "orders.tsx:73 — 'if (wids.length === 0 && !filterWh) wids = [\"\"]' synthesises an empty-warehouse row for products that have never been stocked anywhere; CSV/PDF will show a dash. Consider skipping unstocked products altogether for clarity.",
+    "catalog.tsx:42-43 sort by stock uses `(a.quantity || 0) - (b.quantity || 0)` which sorts ASCENDING (lowest stock first) — likely the intended UX since users want to find low-stock first, but worth verifying with product owner."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_per_warehouse_stock.py (NEW — 11 pytest cases for per-warehouse stock feature)"
+  ],
+  "success_rate": {"backend": "95.7% (45/47 — 11/11 NEW per-warehouse tests pass; 2 legacy tests fail exposing the no-warehouse-id regression bug)", "frontend": "100% on tested per-warehouse UI flows (Dashboard chips + low-stock banner, Catalog filter chips + sort + product rows, Orders export buttons + warehouse filter chips, Receive modal warehouse picker, Settings list)"},
+  "seed_data_creation": "Tests create TEST_-prefixed warehouses + products and clean up in finally blocks (with a few orphaned movement records leaving 'TEST_DF_*' entries visible in Recent Activity — cosmetic only; movements collection has no API delete endpoint). UI tests reused the existing 'Gothenburg DC' second warehouse already present in the seed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend URL key is EXPO_PUBLIC_BACKEND_URL. test_per_warehouse_stock.py is the canonical regression suite for per-warehouse stock semantics. The 2 legacy failures (test_backend.py::test_product_lifecycle_with_movement and test_new_features.py::test_snapshot_updated_by_movement) are NOT flaky — they correctly expose a bug in /movements when product has no warehouse_id. Once main agent fixes server.py movement handling (legacy fallback to product.quantity OR enforce warehouse_id required), both legacy tests should pass without modification. Login is via 'Sign In' button (not 'Login'). Catalog warehouse chips only render when warehouses.length > 1. Orders filter chip row only renders when warehouses.length>1 OR categories.length>0.",
+  "rca_of_issue": "Backend bug RCA — POST /movements with no warehouse_id on a product that also has no warehouse_id and empty stock dict: server.py lines 402-417: wid = None -> stock unchanged ({}) -> total = sum(stock.values()) if stock else new_wh_qty -> total becomes the DELTA only (e.g. 5 instead of 10+5). update() then sets product.quantity to that delta, silently losing all prior quantity. Reproduction: POST /api/products {name,quantity:10,cost:1} (no warehouse_id); POST /api/movements {product_id,type:'receive',quantity:5} -> response.resulting_qty=5, GET /api/products/{id}.quantity=5. Mitigation options: (1) if wid is None and stock is empty: set new_total = (existing_qty + delta) for receive / max(0, existing_qty - delta) for remove / body.quantity for adjust, and write update={'quantity': new_total,...}; (2) make warehouse_id required on the /movements payload and return 400 when missing; (3) auto-assign first existing warehouse to products on create when warehouse_id is omitted."
+}

@@ -112,8 +112,16 @@ class StockMovementIn(BaseModel):
     product_id: str
     type: str  # 'receive' | 'adjust' | 'remove'
     quantity: int
+    warehouse_id: Optional[str] = None
     best_before_date: Optional[str] = None
     note: Optional[str] = None
+
+
+def product_total(p: dict) -> int:
+    stock = p.get("stock") or {}
+    if stock:
+        return sum(int(v) for v in stock.values())
+    return int(p.get("quantity", 0))
 
 
 # ---------------- Auth helpers ----------------
@@ -301,13 +309,22 @@ async def list_products(user: dict = Depends(get_current_user),
                         search: Optional[str] = None):
     q = {"owner_id": user["id"]}
     if warehouse_id:
-        q["warehouse_id"] = warehouse_id
+        q[f"stock.{warehouse_id}"] = {"$exists": True}
     if category_id:
         q["category_id"] = category_id
     if search:
         q["name"] = {"$regex": search, "$options": "i"}
     items = await db.products.find(q).sort("name", 1).to_list(2000)
-    return [clean(i) for i in items]
+    out = []
+    for i in items:
+        c = clean(i)
+        c["stock"] = c.get("stock") or {}
+        if warehouse_id:
+            c["quantity"] = int(c["stock"].get(warehouse_id, 0))
+        else:
+            c["quantity"] = product_total(i)
+        out.append(c)
+    return out
 
 
 @api_router.get("/products/by-barcode/{barcode}")
@@ -315,7 +332,10 @@ async def product_by_barcode(barcode: str, user: dict = Depends(get_current_user
     item = await db.products.find_one({"owner_id": user["id"], "barcode": barcode})
     if not item:
         raise HTTPException(status_code=404, detail="Not found")
-    return clean(item)
+    c = clean(item)
+    c["stock"] = c.get("stock") or {}
+    c["quantity"] = product_total(item)
+    return c
 
 
 @api_router.get("/products/{pid}")
@@ -323,28 +343,46 @@ async def get_product(pid: str, user: dict = Depends(get_current_user)):
     item = await db.products.find_one({"id": pid, "owner_id": user["id"]})
     if not item:
         raise HTTPException(status_code=404, detail="Not found")
-    return clean(item)
+    c = clean(item)
+    c["stock"] = c.get("stock") or {}
+    c["quantity"] = product_total(item)
+    return c
 
 
 @api_router.post("/products")
 async def create_product(body: ProductIn, user: dict = Depends(get_current_user)):
-    doc = {**body.dict(), "id": str(uuid.uuid4()), "owner_id": user["id"],
+    data = body.dict()
+    qty = int(data.get("quantity", 0))
+    wid = data.get("warehouse_id")
+    stock = {wid: qty} if wid else {}
+    doc = {**data, "stock": stock, "quantity": qty if wid else qty,
+           "id": str(uuid.uuid4()), "owner_id": user["id"],
            "created_at": now_iso(), "updated_at": now_iso()}
     await db.products.insert_one(dict(doc))
     await record_snapshot(user["id"])
-    return clean(dict(doc))
+    c = clean(dict(doc)); c["quantity"] = product_total(doc)
+    return c
 
 
 @api_router.put("/products/{pid}")
 async def update_product(pid: str, body: ProductIn, user: dict = Depends(get_current_user)):
-    upd = body.dict()
-    upd["updated_at"] = now_iso()
-    res = await db.products.update_one({"id": pid, "owner_id": user["id"]}, {"$set": upd})
-    if res.matched_count == 0:
+    existing = await db.products.find_one({"id": pid, "owner_id": user["id"]})
+    if not existing:
         raise HTTPException(status_code=404, detail="Not found")
+    upd = body.dict()
+    qty = int(upd.get("quantity", 0))
+    wid = upd.get("warehouse_id")
+    stock = dict(existing.get("stock") or {})
+    if wid:
+        stock[wid] = qty
+    upd["stock"] = stock
+    upd["quantity"] = sum(int(v) for v in stock.values()) if stock else qty
+    upd["updated_at"] = now_iso()
+    await db.products.update_one({"id": pid, "owner_id": user["id"]}, {"$set": upd})
     item = await db.products.find_one({"id": pid, "owner_id": user["id"]})
     await record_snapshot(user["id"])
-    return clean(item)
+    c = clean(item); c["stock"] = c.get("stock") or {}; c["quantity"] = product_total(item)
+    return c
 
 
 @api_router.delete("/products/{pid}")
@@ -360,26 +398,35 @@ async def create_movement(body: StockMovementIn, background_tasks: BackgroundTas
     product = await db.products.find_one({"id": body.product_id, "owner_id": user["id"]})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    prev_qty = int(product.get("quantity", 0))
     threshold = int(product.get("low_stock_threshold", 5))
-    qty = prev_qty
+    stock = dict(product.get("stock") or {})
+    # resolve target warehouse: explicit -> product's primary -> first existing stock key
+    wid = body.warehouse_id or product.get("warehouse_id") or (next(iter(stock), None))
+    prev_wh_qty = int(stock.get(wid, 0)) if wid else 0
     if body.type == "receive":
-        qty += body.quantity
+        new_wh_qty = prev_wh_qty + body.quantity
     elif body.type == "remove":
-        qty = max(0, qty - body.quantity)
+        new_wh_qty = max(0, prev_wh_qty - body.quantity)
     elif body.type == "adjust":
-        qty = body.quantity
-    update = {"quantity": qty, "updated_at": now_iso()}
+        new_wh_qty = body.quantity
+    else:
+        new_wh_qty = prev_wh_qty
+    if wid:
+        stock[wid] = new_wh_qty
+    total = sum(int(v) for v in stock.values()) if stock else new_wh_qty
+    update = {"stock": stock, "quantity": total, "updated_at": now_iso()}
     if body.best_before_date:
         update["best_before_date"] = body.best_before_date
     await db.products.update_one({"id": body.product_id, "owner_id": user["id"]}, {"$set": update})
+    wh = await db.warehouses.find_one({"id": wid, "owner_id": user["id"]}) if wid else None
     mv = {"id": str(uuid.uuid4()), "owner_id": user["id"], "product_id": body.product_id,
           "product_name": product.get("name"), "type": body.type, "quantity": body.quantity,
-          "resulting_qty": qty, "note": body.note, "created_at": now_iso()}
+          "warehouse_id": wid, "warehouse_name": wh.get("name") if wh else None,
+          "resulting_qty": new_wh_qty, "resulting_total": total, "note": body.note, "created_at": now_iso()}
     await db.movements.insert_one(dict(mv))
     await record_snapshot(user["id"])
     result = clean(dict(mv))
-    result["low_stock"] = qty <= threshold
+    result["low_stock"] = new_wh_qty <= threshold
     result["threshold"] = threshold
     return result
 
@@ -409,14 +456,51 @@ async def barcode_lookup(code: str, user: dict = Depends(get_current_user)):
 
 # ---------------- Dashboard & reports ----------------
 @api_router.get("/dashboard")
-async def dashboard(user: dict = Depends(get_current_user)):
+async def dashboard(user: dict = Depends(get_current_user), warehouse_id: Optional[str] = None):
     products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
     await record_snapshot(user["id"])
-    total_value = sum(float(p.get("cost", 0)) * int(p.get("quantity", 0)) for p in products)
-    retail_value = sum(float(p.get("price", 0)) * int(p.get("quantity", 0)) for p in products)
-    total_units = sum(int(p.get("quantity", 0)) for p in products)
-    low_stock = [clean(p) for p in products if int(p.get("quantity", 0)) <= int(p.get("low_stock_threshold", 5))]
-    # expiring within 30 days
+    warehouses = {w["id"]: w for w in await db.warehouses.find({"owner_id": user["id"]}).to_list(1000)}
+
+    def wh_name(wid):
+        w = warehouses.get(wid)
+        return w.get("name") if w else None
+
+    total_value = 0.0
+    retail_value = 0.0
+    total_units = 0
+    low_stock = []
+    for p in products:
+        cost = float(p.get("cost", 0)); price = float(p.get("price", 0))
+        threshold = int(p.get("low_stock_threshold", 5))
+        stock = p.get("stock") or {}
+        if warehouse_id:
+            qty = int(stock.get(warehouse_id, 0))
+            if warehouse_id not in stock:
+                continue
+            total_units += qty
+            total_value += cost * qty
+            retail_value += price * qty
+            if qty <= threshold:
+                row = clean(dict(p)); row["quantity"] = qty
+                row["warehouse_name"] = wh_name(warehouse_id)
+                low_stock.append(row)
+        else:
+            qty_total = product_total(p)
+            total_units += qty_total
+            total_value += cost * qty_total
+            retail_value += price * qty_total
+            # per-warehouse low alerts
+            if stock:
+                for wid, q in stock.items():
+                    if int(q) <= threshold:
+                        row = clean(dict(p)); row["quantity"] = int(q)
+                        row["warehouse_name"] = wh_name(wid)
+                        row["id"] = f"{p['id']}:{wid}"
+                        low_stock.append(row)
+            elif qty_total <= threshold:
+                row = clean(dict(p)); row["quantity"] = qty_total
+                low_stock.append(row)
+    # expiring within 30 days (product-level)
     expiring = []
     soon = datetime.now(timezone.utc) + timedelta(days=30)
     for p in products:
@@ -427,17 +511,18 @@ async def dashboard(user: dict = Depends(get_current_user)):
                 if d.tzinfo is None:
                     d = d.replace(tzinfo=timezone.utc)
                 if d <= soon:
-                    expiring.append(clean(dict(p)))
+                    row = clean(dict(p)); row["quantity"] = product_total(p)
+                    expiring.append(row)
             except Exception:
                 pass
     recent = await db.movements.find({"owner_id": user["id"]}).sort("created_at", -1).to_list(8)
     return {
-        "total_products": len(products),
+        "total_products": len(products) if not warehouse_id else len([p for p in products if warehouse_id in (p.get("stock") or {})]),
         "total_units": total_units,
         "stock_value": round(total_value, 2),
         "retail_value": round(retail_value, 2),
         "low_stock_count": len(low_stock),
-        "low_stock_items": low_stock[:20],
+        "low_stock_items": low_stock[:30],
         "expiring_count": len(expiring),
         "expiring_items": expiring[:20],
         "recent_movements": [clean(m) for m in recent],
@@ -632,6 +717,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def migrate_stock():
+    try:
+        cursor = db.products.find({"stock": {"$exists": False}})
+        async for p in cursor:
+            wid = p.get("warehouse_id")
+            qty = int(p.get("quantity", 0))
+            stock = {wid: qty} if wid else {}
+            await db.products.update_one(
+                {"_id": p["_id"]},
+                {"$set": {"stock": stock, "quantity": sum(stock.values()) if stock else qty}},
+            )
+        logger.info("Stock migration complete")
+    except Exception as e:
+        logger.warning(f"Stock migration skipped: {e}")
 
 
 @app.on_event("shutdown")

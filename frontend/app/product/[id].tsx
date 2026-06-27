@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, Modal, TextInput } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, Modal, TextInput, ScrollView } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { api } from "@/src/api";
+import { storage } from "@/src/utils/storage";
 import { useColors, useT } from "@/src/appsettings";
 import { F, S, R, Palette } from "@/src/theme";
 import { ProductEditor } from "@/src/components/ProductEditor";
 import { Btn } from "@/src/components/ui";
+
+const ACTIVE_WH_KEY = "active_warehouse";
 
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -18,20 +21,33 @@ export default function ProductDetail() {
   const t = useT();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [product, setProduct] = useState<any>(null);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [activeWh, setActiveWh] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [receive, setReceive] = useState(false);
   const [qty, setQty] = useState("");
   const [bb, setBb] = useState("");
 
   async function load() {
-    try { setProduct(await api(`/products/${id}`)); } catch {} finally { setLoading(false); }
+    try {
+      const [p, w] = await Promise.all([api(`/products/${id}`), api<any[]>("/warehouses")]);
+      setProduct(p); setWarehouses(w);
+      const saved = await storage.getItem<string>(ACTIVE_WH_KEY, "");
+      const stockKeys = Object.keys(p?.stock || {});
+      setActiveWh((cur) => cur || saved || p?.warehouse_id || stockKeys[0] || w[0]?.id || null);
+    } catch {} finally { setLoading(false); }
   }
   useEffect(() => { load(); }, [id]);
+
+  async function pickWarehouse(wid: string) {
+    setActiveWh(wid);
+    await storage.setItem(ACTIVE_WH_KEY, wid);
+  }
 
   async function doReceive() {
     const n = parseInt(qty); if (!n) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await api("/movements", { method: "POST", body: { product_id: id, type: "receive", quantity: n, best_before_date: bb || null } });
+    await api("/movements", { method: "POST", body: { product_id: id, type: "receive", quantity: n, warehouse_id: activeWh, best_before_date: bb || null } });
     setReceive(false); setQty(""); setBb(""); load();
   }
 
@@ -68,6 +84,20 @@ export default function ProductDetail() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>{t("receiveStock")}</Text>
             <Text style={styles.modalSub}>{t("current")}: {product.quantity} {t("units")}</Text>
+            {warehouses.length > 0 && (
+              <>
+                <Text style={styles.whLabel}>{t("warehouse")}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: S.sm, paddingBottom: S.md }}>
+                  {warehouses.map((w) => (
+                    <Pressable key={w.id} testID={`receive-wh-${w.id}`} onPress={() => pickWarehouse(w.id)}
+                      style={[styles.whChip, activeWh === w.id && styles.whChipActive]}>
+                      <Text style={[styles.whTxt, activeWh === w.id && { color: C.onBrand }]}>{w.name}</Text>
+                      <Text style={[styles.whQty, activeWh === w.id && { color: C.onBrand }]}>{(product.stock?.[w.id] ?? 0)}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            )}
             <TextInput testID="receive-qty" placeholder={t("qtyReceived")} placeholderTextColor={C.onSurfaceTertiary} value={qty} onChangeText={setQty} keyboardType="number-pad" style={styles.input} />
             <TextInput testID="receive-bb" placeholder={t("bestBeforeOptional")} placeholderTextColor={C.onSurfaceTertiary} value={bb} onChangeText={setBb} style={styles.input} />
             <Btn testID="confirm-receive" title={t("addToStock")} icon="check" onPress={doReceive} />
@@ -89,5 +119,10 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   modalCard: { backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.lg, padding: S.lg },
   modalTitle: { color: C.onSurface, fontFamily: F.display, fontSize: 22 },
   modalSub: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13, marginBottom: S.lg },
+  whLabel: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12, marginBottom: S.sm, textTransform: "uppercase", letterSpacing: 0.5 },
+  whChip: { flexDirection: "row", alignItems: "center", gap: S.sm, height: 38, paddingHorizontal: S.md, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface, flexShrink: 0 },
+  whChipActive: { backgroundColor: C.brand, borderColor: C.brand },
+  whTxt: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 13 },
+  whQty: { color: C.onSurfaceTertiary, fontFamily: F.display, fontSize: 14 },
   input: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: R.md, paddingHorizontal: S.md, height: 50, color: C.onSurface, fontFamily: F.text, fontSize: 15, marginBottom: S.md },
 });

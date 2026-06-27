@@ -18,11 +18,17 @@ export default function Dashboard() {
   const router = useRouter();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [data, setData] = useState<any>(null);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [activeWh, setActiveWh] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    try { setData(await api("/dashboard")); } catch {} finally { setLoading(false); }
-  }, []);
+    try {
+      const wq = activeWh ? `?warehouse_id=${activeWh}` : "";
+      const [d, w] = await Promise.all([api(`/dashboard${wq}`), api<any[]>("/warehouses")]);
+      setData(d); setWarehouses(w);
+    } catch {} finally { setLoading(false); }
+  }, [activeWh]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const stats = [
@@ -37,6 +43,18 @@ export default function Dashboard() {
       <View style={[styles.header, { paddingTop: insets.top + S.md }]}>
         <Text style={styles.hi}>{t("welcomeBack")}</Text>
         <Text style={styles.name}>{user?.name || t("operator")}</Text>
+        {warehouses.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.whChipRow}>
+            <Pressable testID="dash-wh-all" onPress={() => setActiveWh(null)} style={[styles.whChip, !activeWh && styles.whChipActive]}>
+              <Text style={[styles.whTxt, !activeWh && { color: C.onBrand }]}>{t("allWarehouses")}</Text>
+            </Pressable>
+            {warehouses.map((w) => (
+              <Pressable key={w.id} testID={`dash-wh-${w.id}`} onPress={() => setActiveWh(w.id)} style={[styles.whChip, activeWh === w.id && styles.whChipActive]}>
+                <Text style={[styles.whTxt, activeWh === w.id && { color: C.onBrand }]}>{w.name}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
       </View>
       {loading ? (
         <ActivityIndicator color={C.brand} style={{ marginTop: 40 }} />
@@ -76,7 +94,7 @@ export default function Dashboard() {
             data.low_stock_items.map((p: any) => (
               <Card key={p.id} style={styles.row}>
                 <StatusDot color={stockColor(p.quantity, p.low_stock_threshold, C)} />
-                <Text style={styles.rowName} numberOfLines={1}>{p.name}</Text>
+                <Text style={styles.rowName} numberOfLines={1}>{p.name}{p.warehouse_name ? `  ·  ${p.warehouse_name}` : ""}</Text>
                 <Text style={styles.rowQty}>{p.quantity} {t("left")}</Text>
               </Card>
             ))
@@ -119,6 +137,10 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   header: { paddingHorizontal: S.lg, paddingBottom: S.md, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.divider },
   hi: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13 },
   name: { color: C.onSurface, fontFamily: F.display, fontSize: 26, letterSpacing: 0.5 },
+  whChipRow: { gap: S.sm, paddingTop: S.md },
+  whChip: { height: 32, paddingHorizontal: S.md, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: C.surfaceSecondary },
+  whChipActive: { backgroundColor: C.brand, borderColor: C.brand },
+  whTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12 },
   warnBanner: { flexDirection: "row", alignItems: "center", gap: S.md, backgroundColor: C.isDark ? "rgba(255,234,0,0.08)" : "rgba(230,149,0,0.12)", borderWidth: 1, borderColor: C.warning, borderRadius: R.md, padding: S.md, marginBottom: S.lg },
   warnTitle: { color: C.warning, fontFamily: F.textBold, fontSize: 14 },
   warnText: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12, marginTop: 2 },

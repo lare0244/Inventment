@@ -25,6 +25,9 @@ export default function Orders() {
   const [data, setData] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [filterWh, setFilterWh] = useState<string | null>(null);
+  const [filterCat, setFilterCat] = useState<string | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [marking, setMarking] = useState(false);
   const [selWarehouse, setSelWarehouse] = useState<string | null>(null);
@@ -38,11 +41,11 @@ export default function Orders() {
 
   const load = useCallback(async () => {
     try {
-      const [sugg, hist, wh, pos] = await Promise.all([
+      const [sugg, hist, wh, pos, cats] = await Promise.all([
         api("/reports/reorder-suggestions"), api("/reports/stock-history"),
-        api("/warehouses"), api("/purchase-orders"),
+        api("/warehouses"), api("/purchase-orders"), api("/categories"),
       ]);
-      setData(sugg); setHistory(hist.history || []); setWarehouses(wh); setOrders(pos);
+      setData(sugg); setHistory(hist.history || []); setWarehouses(wh); setOrders(pos); setCategories(cats);
       setSelWarehouse((w) => w || wh[0]?.id || null);
     } catch {} finally { setLoading(false); }
   }, []);
@@ -53,16 +56,48 @@ export default function Orders() {
     try { const r = await api("/reports/ai-insights"); setInsight(r.insight); } catch {} finally { setAiLoading(false); }
   }
 
+  // Build flattened per-warehouse rows honoring warehouse + category filters
+  async function buildRows() {
+    const [products, cats, sups] = await Promise.all([
+      api<any[]>("/products"), api<any[]>("/categories"), api<any[]>("/suppliers"),
+    ]);
+    const catMap: Record<string, string> = Object.fromEntries(cats.map((c) => [c.id, c.name]));
+    const supMap: Record<string, string> = Object.fromEntries(sups.map((s) => [s.id, s.name]));
+    const whMap: Record<string, string> = Object.fromEntries(warehouses.map((w) => [w.id, w.name]));
+    const rows: any[] = [];
+    products.forEach((p) => {
+      if (filterCat && p.category_id !== filterCat) return;
+      const stock: Record<string, number> = p.stock || {};
+      let wids = Object.keys(stock);
+      if (filterWh) wids = wids.includes(filterWh) ? [filterWh] : [];
+      if (wids.length === 0 && !filterWh) wids = [""]; // product with no stock entries
+      wids.forEach((wid) => {
+        const qty = wid ? Number(stock[wid] || 0) : 0;
+        rows.push({
+          name: p.name, sku: p.sku || "", barcode: p.barcode || "",
+          category: catMap[p.category_id] || "", supplier: supMap[p.supplier_id] || "",
+          warehouse: wid ? (whMap[wid] || "") : "", quantity: qty,
+          cost: p.cost ?? 0, price: p.price ?? 0, value: (p.cost || 0) * qty,
+          purchase_date: (p.purchase_date || "").slice(0, 10),
+          best_before_date: (p.best_before_date || "").slice(0, 10),
+        });
+      });
+    });
+    return rows;
+  }
+
   async function exportPdf() {
     setExporting(true);
     try {
-      const products = await api<any[]>("/products");
+      const rows = await buildRows();
       const today = new Date().toLocaleDateString();
       const max = Math.max(1, ...history.map((h) => h.value));
       const pts = history.map((h, i) => `${40 + (i / Math.max(1, history.length - 1)) * 700},${250 - (h.value / max) * 200}`).join(" ");
-      const totalVal = products.reduce((s, p) => s + (p.cost || 0) * (p.quantity || 0), 0);
-      const rows = products.map((p) =>
-        `<tr><td>${p.name}</td><td>${p.sku || p.barcode || "-"}</td><td style="text-align:right">${p.quantity}</td><td style="text-align:right">${money(p.cost, currency)}</td><td style="text-align:right">${money((p.cost || 0) * (p.quantity || 0), currency)}</td></tr>`
+      const totalVal = rows.reduce((s, r) => s + r.value, 0);
+      const whLabel = filterWh ? (warehouses.find((w) => w.id === filterWh)?.name || "") : t("allWarehouses");
+      const catLabel = filterCat ? (categories.find((c) => c.id === filterCat)?.name || "") : t("all");
+      const tableRows = rows.map((r) =>
+        `<tr><td>${r.name}</td><td>${r.sku || r.barcode || "-"}</td><td>${r.warehouse || "-"}</td><td style="text-align:right">${r.quantity}</td><td style="text-align:right">${money(r.cost, currency)}</td><td style="text-align:right">${money(r.value, currency)}</td></tr>`
       ).join("");
       const html = `<html><head><meta name="viewport" content="width=device-width, initial-scale=1"/>
         <style>body{font-family:-apple-system,Helvetica,Arial;padding:24px;color:#111}h1{color:#E64A19;margin-bottom:0}
@@ -70,12 +105,13 @@ export default function Orders() {
         table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th,td{border-bottom:1px solid #ddd;padding:6px;text-align:left}
         th{background:#f4f4f4}svg{background:#fafafa;border:1px solid #eee;border-radius:8px}</style></head><body>
         <h1>INVENTMENT — ${t("stockValue")}</h1><div class="sub">${today} · ${user?.name || ""}</div>
+        <div class="sub">${t("warehouse")}: ${whLabel} · ${t("category")}: ${catLabel}</div>
         <div class="kpi">${t("stockValue")}: ${money(totalVal, currency)}</div>
         <h3>${t("stockValue15")}</h3>
         <svg width="780" height="280" viewBox="0 0 780 280"><line x1="40" y1="250" x2="740" y2="250" stroke="#ccc"/>
         <polyline points="${pts}" fill="none" stroke="#E64A19" stroke-width="3"/>
         ${history.map((h, i) => { const x = 40 + (i / Math.max(1, history.length - 1)) * 700; return `<text x="${x}" y="270" font-size="9" text-anchor="middle" fill="#888">${h.month.slice(2)}</text>`; }).join("")}</svg>
-        <h3>${t("products")}</h3><table><tr><th>${t("productName")}</th><th>${t("sku")}</th><th>${t("quantity")}</th><th>${t("cost")}</th><th>${t("stockValue")}</th></tr>${rows}</table></body></html>`;
+        <h3>${t("products")}</h3><table><tr><th>${t("productName")}</th><th>${t("sku")}</th><th>${t("warehouse")}</th><th>${t("quantity")}</th><th>${t("cost")}</th><th>${t("stockValue")}</th></tr>${tableRows}</table></body></html>`;
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "INVENTMENT Report" });
     } catch {} finally { setExporting(false); }
@@ -84,21 +120,12 @@ export default function Orders() {
   async function exportCsv() {
     setExportingCsv(true);
     try {
-      const [products, cats, sups] = await Promise.all([
-        api<any[]>("/products"), api<any[]>("/categories"), api<any[]>("/suppliers"),
-      ]);
-      const catMap: Record<string, string> = Object.fromEntries(cats.map((c) => [c.id, c.name]));
-      const supMap: Record<string, string> = Object.fromEntries(sups.map((s) => [s.id, s.name]));
-      const whMap: Record<string, string> = Object.fromEntries(warehouses.map((w) => [w.id, w.name]));
+      const rows = await buildRows();
       const esc = (v: any) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
       const headers = [t("productName"), t("sku"), t("barcode"), t("category"), t("supplier"), t("warehouse"), t("quantity"), t("cost"), t("price"), t("stockValue"), t("purchaseDate"), t("bestBefore")];
       const lines = [headers.join(",")];
-      products.forEach((p) => {
-        lines.push([
-          p.name, p.sku || "", p.barcode || "", catMap[p.category_id] || "", supMap[p.supplier_id] || "", whMap[p.warehouse_id] || "",
-          p.quantity ?? 0, p.cost ?? 0, p.price ?? 0, (p.cost || 0) * (p.quantity || 0),
-          (p.purchase_date || "").slice(0, 10), (p.best_before_date || "").slice(0, 10),
-        ].map(esc).join(","));
+      rows.forEach((r) => {
+        lines.push([r.name, r.sku, r.barcode, r.category, r.supplier, r.warehouse, r.quantity, r.cost, r.price, r.value, r.purchase_date, r.best_before_date].map(esc).join(","));
       });
       const csv = "\uFEFF" + lines.join("\n");
       const filename = `INVENTMENT_stock_${new Date().toISOString().slice(0, 10)}.csv`;
@@ -159,6 +186,33 @@ export default function Orders() {
             </View>
             {history.length > 0 && <StockLineChart data={history} width={width - 2 * S.lg - 2 * S.lg} />}
             <Text style={styles.chartLatest}>{t("latest")}: {money(history[history.length - 1]?.value || 0, currency)}</Text>
+            {(warehouses.length > 1 || categories.length > 0) && (
+              <View style={styles.filterWrap}>
+                <Text style={styles.filterLabel}>{t("exportFilters")}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                  <Pressable testID="filter-wh-all" onPress={() => setFilterWh(null)} style={[styles.filterChip, !filterWh && styles.filterChipActive]}>
+                    <Text style={[styles.filterTxt, !filterWh && { color: C.onBrand }]}>{t("allWarehouses")}</Text>
+                  </Pressable>
+                  {warehouses.map((w) => (
+                    <Pressable key={w.id} testID={`filter-wh-${w.id}`} onPress={() => setFilterWh(w.id)} style={[styles.filterChip, filterWh === w.id && styles.filterChipActive]}>
+                      <Text style={[styles.filterTxt, filterWh === w.id && { color: C.onBrand }]}>{w.name}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                {categories.length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                    <Pressable testID="filter-cat-all" onPress={() => setFilterCat(null)} style={[styles.filterChip, !filterCat && styles.filterChipActive]}>
+                      <Text style={[styles.filterTxt, !filterCat && { color: C.onBrand }]}>{t("all")}</Text>
+                    </Pressable>
+                    {categories.map((c) => (
+                      <Pressable key={c.id} testID={`filter-cat-${c.id}`} onPress={() => setFilterCat(c.id)} style={[styles.filterChip, filterCat === c.id && styles.filterChipActive]}>
+                        <Text style={[styles.filterTxt, filterCat === c.id && { color: C.onBrand }]}>{c.name}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            )}
           </Card>
 
           <Card style={{ marginBottom: S.lg }}>
@@ -267,6 +321,12 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   pdfBtn: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: C.border, borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: 6 },
   pdfTxt: { color: C.brand, fontFamily: F.textBold, fontSize: 12 },
   chartLatest: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: S.xs },
+  filterWrap: { marginTop: S.md, borderTopWidth: 1, borderTopColor: C.divider, paddingTop: S.md },
+  filterLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, letterSpacing: 0.5, marginBottom: S.sm },
+  filterRow: { gap: S.sm, paddingBottom: S.sm },
+  filterChip: { height: 30, paddingHorizontal: S.md, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: C.surface },
+  filterChipActive: { backgroundColor: C.brand, borderColor: C.brand },
+  filterTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12 },
   aiTitle: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
   aiTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 14, lineHeight: 21 },
   totalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: S.sm },

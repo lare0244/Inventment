@@ -61,6 +61,7 @@ const en: Dict = {
   sortStock: "By stock", sortName: "A–Z", outOfStock: "OUT OF STOCK", lowGroup: "LOW STOCK",
   inStockGroup: "IN STOCK", selectToOrder: "Select products to add to a purchase order",
   createOrder: "Create Purchase Order", selected: "selected", edit: "Edit", save2: "Save",
+  allWarehouses: "All warehouses", exportFilters: "Export filters",
 };
 
 const sv: Dict = {
@@ -112,6 +113,7 @@ const sv: Dict = {
   sortStock: "Efter lager", sortName: "A–Ö", outOfStock: "SLUT I LAGER", lowGroup: "LÅGT LAGER",
   inStockGroup: "I LAGER", selectToOrder: "Välj produkter att lägga till i en inköpsorder",
   createOrder: "Skapa inköpsorder", selected: "valda", edit: "Redigera", save2: "Spara",
+  allWarehouses: "Alla lager", exportFilters: "Exportfilter",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv };

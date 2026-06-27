@@ -20,16 +20,19 @@ export default function Catalog() {
   const styles = useMemo(() => makeStyles(C), [C]);
   const [products, setProducts] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
   const [activeCat, setActiveCat] = useState<string | null>(null);
+  const [activeWh, setActiveWh] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<"name" | "stock">("name");
 
   const load = useCallback(async () => {
     try {
-      const [p, c] = await Promise.all([api("/products"), api("/categories")]);
-      setProducts(p); setCats(c);
+      const wq = activeWh ? `?warehouse_id=${activeWh}` : "";
+      const [p, c, w] = await Promise.all([api(`/products${wq}`), api("/categories"), api("/warehouses")]);
+      setProducts(p); setCats(c); setWarehouses(w);
     } catch {}
-  }, []);
+  }, [activeWh]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const filtered = products.filter((p) =>
@@ -65,6 +68,14 @@ export default function Catalog() {
             <Chip key={c.id} label={c.name} active={activeCat === c.id} onPress={() => setActiveCat(c.id)} styles={styles} />
           ))}
         </ScrollView>
+        {warehouses.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.whChipRow}>
+            <Chip label={t("allWarehouses")} active={!activeWh} onPress={() => setActiveWh(null)} styles={styles} />
+            {warehouses.map((w) => (
+              <Chip key={w.id} label={w.name} active={activeWh === w.id} onPress={() => setActiveWh(w.id)} styles={styles} />
+            ))}
+          </ScrollView>
+        )}
         <View style={styles.sortRow}>
           <Text style={styles.sortLabel}>{t("sortBy")}:</Text>
           <Pressable testID="catalog-sort-name" onPress={() => setSortMode("name")} style={[styles.sortChip, sortMode === "name" && styles.sortChipActive]}>
@@ -143,6 +154,7 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   searchBox: { flexDirection: "row", alignItems: "center", gap: S.sm, backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.md, paddingHorizontal: S.md, height: 44 },
   searchInput: { flex: 1, color: C.onSurface, fontFamily: F.text, fontSize: 15 },
   chipRow: { gap: S.sm, paddingVertical: S.md, paddingRight: S.lg },
+  whChipRow: { gap: S.sm, paddingBottom: S.md, paddingRight: S.lg },
   chip: { height: 36, paddingHorizontal: S.lg, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: C.surfaceSecondary },
   chipActive: { backgroundColor: C.brand, borderColor: C.brand },
   chipTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 13 },

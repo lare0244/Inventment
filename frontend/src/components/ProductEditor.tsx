@@ -37,6 +37,7 @@ export function ProductEditor({
     quantity: "0", low_stock_threshold: "5", category_id: null, warehouse_id: null,
     supplier_id: null, purchase_date: "", best_before_date: "", notes: "", ...initial,
   } as ProductForm);
+  const stock: Record<string, number> = (initial as any)?.stock || {};
   const [cats, setCats] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -47,11 +48,18 @@ export function ProductEditor({
     (async () => {
       const [c, w, s] = await Promise.all([api("/categories"), api("/warehouses"), api("/suppliers")]);
       setCats(c); setWarehouses(w); setSuppliers(s);
-      setForm((f) => ({ ...f, warehouse_id: f.warehouse_id || w[0]?.id || null }));
+      setForm((f) => {
+        const wid = f.warehouse_id || w[0]?.id || null;
+        const q = wid && wid in stock ? String(stock[wid]) : f.quantity;
+        return { ...f, warehouse_id: wid, quantity: q };
+      });
     })();
   }, []);
 
   const set = (k: keyof ProductForm, v: any) => setForm((f) => ({ ...f, [k]: v }));
+  // when warehouse changes, reflect that warehouse's stock in the quantity field
+  const selectWarehouse = (wid: string | null) =>
+    setForm((f) => ({ ...f, warehouse_id: wid, quantity: wid && wid in stock ? String(stock[wid]) : "0" }));
 
   async function save() {
     if (!form.name.trim()) { setErr(t("nameRequired")); return; }
@@ -114,12 +122,12 @@ export function ProductEditor({
           <View style={styles.half}><Field label={`${t("cost")} (${sym})`} testID="f-cost" value={form.cost} onChangeText={(v) => set("cost", v)} keyboardType="decimal-pad" /></View>
         </View>
         <View style={styles.two}>
-          <View style={styles.half}><Field label={t("quantity")} testID="f-qty" value={form.quantity} onChangeText={(v) => set("quantity", v)} keyboardType="number-pad" /></View>
+          <View style={styles.half}><Field label={`${t("quantity")} (${t("warehouse")})`} testID="f-qty" value={form.quantity} onChangeText={(v) => set("quantity", v)} keyboardType="number-pad" /></View>
           <View style={styles.half}><Field label={t("lowStockAt")} testID="f-threshold" value={form.low_stock_threshold} onChangeText={(v) => set("low_stock_threshold", v)} keyboardType="number-pad" /></View>
         </View>
         <Field label={t("purchaseDate")} testID="f-purchase" value={form.purchase_date} onChangeText={(v) => set("purchase_date", v)} placeholder="YYYY-MM-DD" />
         <Field label={t("bestBefore")} testID="f-bestbefore" value={form.best_before_date} onChangeText={(v) => set("best_before_date", v)} placeholder="YYYY-MM-DD" />
-        <Picker label={t("warehouse")} items={warehouses} value={form.warehouse_id} onSelect={(v: any) => set("warehouse_id", v)} />
+        <Picker label={t("warehouse")} items={warehouses} value={form.warehouse_id} onSelect={(v: any) => selectWarehouse(v || warehouses[0]?.id || null)} />
         <Picker label={t("category")} items={cats} value={form.category_id} onSelect={(v: any) => set("category_id", v)} />
         <Picker label={t("supplier")} items={suppliers} value={form.supplier_id} onSelect={(v: any) => set("supplier_id", v)} />
         <Field label={t("notes")} testID="f-notes" value={form.notes} onChangeText={(v) => set("notes", v)} placeholder={t("optionalNotes")} multiline />
