@@ -65,6 +65,15 @@ export default function Catalog() {
             <Chip key={c.id} label={c.name} active={activeCat === c.id} onPress={() => setActiveCat(c.id)} styles={styles} />
           ))}
         </ScrollView>
+        <View style={styles.sortRow}>
+          <Text style={styles.sortLabel}>{t("sortBy")}:</Text>
+          <Pressable testID="catalog-sort-name" onPress={() => setSortMode("name")} style={[styles.sortChip, sortMode === "name" && styles.sortChipActive]}>
+            <Text style={[styles.sortTxt, sortMode === "name" && { color: C.onBrand }]}>{t("sortName")}</Text>
+          </Pressable>
+          <Pressable testID="catalog-sort-stock" onPress={() => setSortMode("stock")} style={[styles.sortChip, sortMode === "stock" && styles.sortChipActive]}>
+            <Text style={[styles.sortTxt, sortMode === "stock" && { color: C.onBrand }]}>{t("sortStock")}</Text>
+          </Pressable>
+        </View>
       </View>
 
       <FlatList

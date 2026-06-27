@@ -1,7 +1,17 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { getLocales } from "expo-localization";
 import { storage } from "@/src/utils/storage";
 import { DARK, LIGHT, Palette } from "@/src/theme";
 import { Lang, translate } from "@/src/i18n";
+
+function detectDeviceLang(): Lang {
+  try {
+    const code = getLocales()?.[0]?.languageCode?.toLowerCase();
+    return code === "sv" ? "sv" : "en";
+  } catch {
+    return "en";
+  }
+}
 
 type Ctx = {
   themeName: "dark" | "light";
@@ -24,9 +34,16 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       const th = await storage.secureGet<string>(THEME_KEY, "dark");
-      const lg = await storage.secureGet<string>(LANG_KEY, "en");
+      const lg = await storage.secureGet<string>(LANG_KEY, "");
       if (th === "light" || th === "dark") setThemeNameState(th);
-      if (lg === "en" || lg === "sv") setLangState(lg as Lang);
+      if (lg === "en" || lg === "sv") {
+        setLangState(lg as Lang);
+      } else {
+        // First launch: auto-detect from device locale (user can change in Settings)
+        const detected = detectDeviceLang();
+        setLangState(detected);
+        storage.secureSet(LANG_KEY, detected);
+      }
       setReady(true);
     })();
   }, []);
