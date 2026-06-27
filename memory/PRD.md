@@ -75,7 +75,16 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - PDF report: "Needs Reordering" section — low (product×warehouse) rows with threshold + suggested order qty = max(threshold, 2*threshold-qty); honors warehouse+category filters.
 - Verified: 59/59 backend tests (12 new transfer/adjust); frontend transfer/adjust/remove modals + PDF section verified.
 
+## Implemented (2026-06-27 — Update 9)
+- Movements history screen (/movements) with type + warehouse filters; reachable via "View all" on Dashboard Recent Activity. GET /movements supports type & warehouse_id filters.
+- Auto-create POs grouped by supplier (POST /purchase-orders/auto; no-supplier bucket) via Orders-tab button.
+- Editable unit quantities: qty steppers per product in Place Order (sends items[]); tap a draft PO in Orders → edit item quantities (PUT /purchase-orders/{id} recomputes total). POCreate now accepts items[] or legacy product_ids.
+- Settings: language & currency are dropdown menus (new reusable Dropdown in ui.tsx).
+- Warehouses & suppliers: full structured address (street1/2, number, postcode, city, state, county, contact_person, phone; supplier also email). PO delivery block uses formatted address.
+- Verified: 17/17 new v6 tests + regression green (after cleaning TEST_ seed data). All UI flows verified.
+
 ## Backlog
+- Idempotent PUT on warehouses/categories/suppliers returns 200 even when no doc matches (should be 404) — low priority carryover.
 - P1: Per-warehouse stock quantities (currently product-level), image upload/capture for products
 - P1: Native date pickers for purchase/best-before (currently text YYYY-MM-DD)
 - P2: Mark PO as sent / order history, CSV export of stock report
