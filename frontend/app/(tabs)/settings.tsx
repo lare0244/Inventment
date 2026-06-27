@@ -75,10 +75,16 @@ export default function Settings() {
     } catch (err: any) {
       const msg = String(err?.message || "");
       if (msg.includes("limit_reached")) {
-        Alert.alert(t("proRequired"), t("limitFreeHint"), [
-          { text: t("cancel"), style: "cancel" },
-          { text: t("upgradeToPro"), onPress: upgrade },
-        ]);
+        if (Platform.OS === "web" && typeof window !== "undefined") {
+          if (window.confirm(`${t("limitFreeHint")}\n\n${t("upgradeToPro")}?`)) upgrade();
+        } else {
+          Alert.alert(t("proRequired"), t("limitFreeHint"), [
+            { text: t("cancel"), style: "cancel" },
+            { text: t("upgradeToPro"), onPress: upgrade },
+          ]);
+        }
+      } else if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.alert(`${t("saveFailed")}: ${msg}`);
       } else {
         Alert.alert(t("saveFailed"), msg);
       }

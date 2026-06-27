@@ -99,7 +99,18 @@ Stock management app: scan product barcodes with phone; edit product info, price
 ## Implemented (2026-06-27 — Update 12)
 - Product editor: added "Volume/Weight/Length" numeric field with a connected unit dropdown (ml, litre, g, kilo, mm, meter), plus Headline and Description fields. Backend ProductIn gained measure_value, measure_unit, headline, description; verified create+read round-trip.
 
+## Implemented (2026-06-27 — Update 13)
+- Product measure ("X unit") now shown on Catalog rows and added as a column in CSV + PDF exports.
+- Free vs PRO tiers (publish-ready):
+  - Free limits: 2 warehouses, 9 products, 9 categories, 9 suppliers. PRO: 19 / 9999 / 99 / 9999. Enforced server-side (HTTP 403 `limit_reached:<kind>:<cap>:<plan>`).
+  - PRO upgrade via Stripe Checkout (6.99 EUR) through the Emergent Stripe proxy; implemented as a one-time 30-day PRO period (one-time payment — emergentintegrations StripeCheckout supports mode=payment only). True auto-renew subscription needs the user's own live Stripe Price at publish.
+  - Plan card in Settings (current plan, live usage, Upgrade button); /billing-return screen polls status and activates PRO; auto upgrade-prompt when a Free user hits a limit (web + native).
+  - STRIPE_API_KEY persisted in /app/backend/.env so it survives supervisor restarts.
+- Verified: 11/11 v9 backend tests; end-to-end FE→BE→Stripe checkout page (€6.99 sandbox) reached; status polling does not upgrade until paid.
+
 ## Backlog
+- At publish: switch to the user's live Stripe keys + a real recurring Price for true monthly auto-renewal (and/or app-store IAP for iOS/Android digital goods).
+- Test hygiene: legacy suites spam entities against caps — migrate to fresh per-test users.
 - Test hygiene: migrate legacy test suites (v3/v5/v6/v7) to fresh per-test users so the 19-warehouse cap doesn't block reruns.
 - Idempotent PUT on warehouses/categories/suppliers returns 200 even when no doc matches (should be 404) — low priority carryover.
 - P1: Per-warehouse stock quantities (currently product-level), image upload/capture for products
