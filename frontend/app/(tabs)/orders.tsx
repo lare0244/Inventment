@@ -214,9 +214,14 @@ export default function Orders() {
   }
 
   function deletePo(po: any) {
+    const doDelete = async () => { try { await api(`/purchase-orders/${po.id}`, { method: "DELETE" }); await load(); } catch {} };
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined" && window.confirm(t("confirmDeleteDraft"))) doDelete();
+      return;
+    }
     Alert.alert(t("deleteDraft"), t("confirmDeleteDraft"), [
       { text: t("cancel"), style: "cancel" },
-      { text: t("deleteDraft"), style: "destructive", onPress: async () => { try { await api(`/purchase-orders/${po.id}`, { method: "DELETE" }); await load(); } catch {} } },
+      { text: t("deleteDraft"), style: "destructive", onPress: doDelete },
     ]);
   }
 

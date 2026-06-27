@@ -88,7 +88,16 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - PO email subject+body now composed client-side and translated to active language (EN/SV) — always reflects current language setting (incl. delivery address from warehouse).
 - Verified: 6/6 new v7 tests + regression green; EN & SV email previews confirmed. NOTE: actual native mail-app opening requires a device/native build to validate (mailto can't open in web preview).
 
+## Implemented (2026-06-27 — Update 11)
+- Catalog: search matches product OR category name; product sort by A–Z / stock / category / price; category filter shows top-5 (by product count) chips + a dropdown of all categories sortable by count or name (shown when >5).
+- Place Order: button is "Save order draft" (saves draft with per-product quantities).
+- Orders: draft POs deletable (trash icon + confirm; web uses window.confirm, native uses Alert).
+- AI insights respond in the user's language + currency (ai-insights?lang=&currency=).
+- Entity limits enforced (HTTP 400 + alert): products 9999, categories 99, warehouses 19, suppliers 9999.
+- Verified: 10/10 new v8 tests; AI Swedish output + warehouse(19)/category(99) limits confirmed. (Regression failures seen are legacy tests spamming warehouses against the new 19 cap — test hygiene, not a code bug.)
+
 ## Backlog
+- Test hygiene: migrate legacy test suites (v3/v5/v6/v7) to fresh per-test users so the 19-warehouse cap doesn't block reruns.
 - Idempotent PUT on warehouses/categories/suppliers returns 200 even when no doc matches (should be 404) — low priority carryover.
 - P1: Per-warehouse stock quantities (currently product-level), image upload/capture for products
 - P1: Native date pickers for purchase/best-before (currently text YYYY-MM-DD)
