@@ -1,9 +1,10 @@
 import React from "react";
-import { Tabs } from "expo-router";
+import { Tabs, Redirect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Platform } from "react-native";
 import { F } from "@/src/theme";
 import { useColors, useT } from "@/src/appsettings";
+import { useAuth } from "@/src/auth";
 
 function tabIcon(name: string, nameOutline: string) {
   return ({ focused, color, size }: any) => (
@@ -14,6 +15,8 @@ function tabIcon(name: string, nameOutline: string) {
 export default function TabsLayout() {
   const C = useColors();
   const t = useT();
+  const { user, loading } = useAuth();
+  if (!loading && !user) return <Redirect href="/(auth)/login" />;
   return (
     <Tabs
       screenOptions={{
