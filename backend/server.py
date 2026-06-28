@@ -653,7 +653,7 @@ async def dashboard(user: dict = Depends(get_current_user), warehouse_id: Option
 
 @api_router.get("/reports/stock-history")
 async def stock_history(user: dict = Depends(get_current_user), warehouse_id: Optional[str] = None,
-                        end: Optional[str] = None):
+                        end: Optional[str] = None, metric: Optional[str] = None):
     now = datetime.now(timezone.utc)
     # Anchor month: the chosen `end` date if provided, otherwise today.
     end_cutoff: Optional[str] = None
@@ -677,7 +677,7 @@ async def stock_history(user: dict = Depends(get_current_user), warehouse_id: Op
         seq.append(f"{yy:04d}-{mm:02d}")
 
     # Fast path: total value up to today via monthly snapshots.
-    if not warehouse_id and not end:
+    if not warehouse_id and not end and metric != "units":
         await record_snapshot(user["id"])
         snaps = {s["ym"]: s["value"] for s in await db.stock_snapshots.find({"owner_id": user["id"]}).to_list(1000)}
         last = 0.0

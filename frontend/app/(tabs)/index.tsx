@@ -32,10 +32,10 @@ export default function Dashboard() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const stats = [
-    { label: t("stockValue"), value: data ? money(data.stock_value, currency) : "—", icon: "cash-multiple", color: C.success },
-    { label: t("totalUnits"), value: data ? data.total_units : "—", icon: "cube-outline", color: C.info },
-    { label: t("products"), value: data ? data.total_products : "—", icon: "package-variant", color: C.brand },
-    { label: t("lowStock"), value: data ? data.low_stock_count : "—", icon: "alert", color: C.warning },
+    { label: t("stockValue"), value: data ? money(data.stock_value, currency) : "—", icon: "cash-multiple", color: C.success, mode: "value" },
+    { label: t("totalUnits"), value: data ? data.total_units : "—", icon: "cube-outline", color: C.info, mode: "units" },
+    { label: t("products"), value: data ? data.total_products : "—", icon: "package-variant", color: C.brand, mode: "products" },
+    { label: t("lowStock"), value: data ? data.low_stock_count : "—", icon: "alert", color: C.warning, mode: "low" },
   ];
 
   return (
@@ -83,7 +83,10 @@ export default function Dashboard() {
                 key={s.label}
                 testID={`stat-${s.icon}`}
                 style={styles.statCard}
-                onPress={() => router.push(activeWh ? `/warehouse-overview?warehouse_id=${activeWh}` : "/warehouse-overview")}>
+                onPress={() => {
+                  const w = activeWh ? `&warehouse_id=${activeWh}` : "";
+                  router.push(`/warehouse-overview?mode=${s.mode}${w}`);
+                }}>
                 <Card style={{ gap: S.xs }}>
                   <MaterialCommunityIcons name={s.icon as any} size={22} color={s.color} />
                   <Text style={styles.statVal}>{s.value}</Text>

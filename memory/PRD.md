@@ -120,8 +120,13 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - P2: Return 404 on DELETE when no doc matches; pin bcrypt<4 to silence startup warning
 
 ## Completed (latest)
-- Orders-tab stock-value graph now draws up to today by default, and up to the chosen "Stock value date" when one is entered (also reflected in the PDF chart). Backend GET /api/reports/stock-history accepts optional `end=YYYY-MM-DD` and reconstructs the series ending at that date.
-- Stock Overview page (/warehouse-overview) reachable from the 4 dashboard KPI boxes.
+- Stock Overview page (/warehouse-overview?mode=) is now context-aware per tapped KPI box:
+  • value → total stock value + value graph + warehouse chooser (no list)
+  • units → total units + units-over-time graph (15mo) + product rows
+  • products → total + top-5 category bar chart + product rows (per warehouse)
+  • low → no graph, only low-stock product rows (qty ≤ threshold)
+  All modes reflect the chosen warehouse. Backend GET /api/reports/stock-history gained metric=units (+ earlier end=, warehouse_id=).
+- Fixed a stray duplicate `client.close()` line in server.py shutdown handler (was an IndentationError).
 - StockLineChart enhanced with adaptive round-number horizontal gridlines (100s/1000s) + Y-axis value labels (showGrid/formatValue props).
 - Backend GET /api/reports/stock-history now accepts optional warehouse_id and reconstructs per-warehouse monthly values from movements (anchored on current stock, valued at current cost).
 - Currencies (7): SEK, DKK, NOK, EUR, GBP, USD, AUD. Languages (9): EN, SV, DA, NL, FR, DE, ES, IT, PL across UI + AI.
