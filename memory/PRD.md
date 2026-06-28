@@ -120,10 +120,10 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - P2: Return 404 on DELETE when no doc matches; pin bcrypt<4 to silence startup warning
 
 ## Completed (latest)
-- Currencies expanded to 7: SEK, DKK, NOK, EUR, GBP, USD, AUD (currency.ts formatting + backend /settings validation).
-- Languages expanded to 9: EN, SV, DA, NL, FR, DE, ES, IT, PL — full UI dictionaries in i18n.ts, endonym LANGUAGES list, device-lang detection + persistence for all, Settings dropdown, and AI insights (lang_name map + localized fallback messages). Reports/PO emails already use t() so they follow the active language.
-- iOS store config in app.json; removed deprecated billing-return.tsx.
-- Historical stock-value export via GET /api/reports/stock-at-date (backward-from-current reconstruction).
+- Stock Overview page (/warehouse-overview): tapping any of the 4 dashboard KPI boxes opens it, carrying the active warehouse. Shows warehouse selector chips, KPI grid, per-warehouse stock-value graph, and the warehouse's product list (tap → product detail).
+- StockLineChart enhanced with adaptive round-number horizontal gridlines (100s/1000s) + Y-axis value labels (showGrid/formatValue props).
+- Backend GET /api/reports/stock-history now accepts optional warehouse_id and reconstructs per-warehouse monthly values from movements (anchored on current stock, valued at current cost).
+- Currencies (7): SEK, DKK, NOK, EUR, GBP, USD, AUD. Languages (9): EN, SV, DA, NL, FR, DE, ES, IT, PL across UI + AI.
 
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker

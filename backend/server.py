@@ -652,9 +652,7 @@ async def dashboard(user: dict = Depends(get_current_user), warehouse_id: Option
 
 
 @api_router.get("/reports/stock-history")
-async def stock_history(user: dict = Depends(get_current_user)):
-    await record_snapshot(user["id"])
-    snaps = {s["ym"]: s["value"] for s in await db.stock_snapshots.find({"owner_id": user["id"]}).to_list(1000)}
+async def stock_history(user: dict = Depends(get_current_user), warehouse_id: Optional[str] = None):
     now = datetime.now(timezone.utc)
     seq = []
     for i in range(14, -1, -1):
@@ -664,12 +662,60 @@ async def stock_history(user: dict = Depends(get_current_user)):
             mm += 12
             yy -= 1
         seq.append(f"{yy:04d}-{mm:02d}")
-    last = 0.0
-    result = []
-    for ym in seq:
-        if ym in snaps:
-            last = snaps[ym]
-        result.append({"month": ym, "value": last})
+
+    if not warehouse_id:
+        await record_snapshot(user["id"])
+        snaps = {s["ym"]: s["value"] for s in await db.stock_snapshots.find({"owner_id": user["id"]}).to_list(1000)}
+        last = 0.0
+        result = []
+        for ym in seq:
+            if ym in snaps:
+                last = snaps[ym]
+            result.append({"month": ym, "value": last})
+        return {"history": result}
+
+    # Per-warehouse history: reconstruct each month-end value from movements,
+    # anchored on current stock (valued at current cost).
+    products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
+    movements = await (db.movements.find({"owner_id": user["id"]})
+                       .sort("created_at", 1).to_list(50000))
+    mv_by_prod: dict = {}
+    for m in movements:
+        mv_by_prod.setdefault(m["product_id"], []).append(m)
+
+    def month_end_iso(ym: str) -> str:
+        y, mo = int(ym[:4]), int(ym[5:7])
+        nm, ny = (mo + 1, y) if mo < 12 else (1, y + 1)
+        last_day = datetime(ny, nm, 1, tzinfo=timezone.utc) - timedelta(seconds=1)
+        return last_day.isoformat()
+
+    def wh_value_at(end_iso: str) -> float:
+        total = 0.0
+        for p in products:
+            created = p.get("created_at") or ""
+            if created and created > end_iso:
+                continue
+            qty = int((p.get("stock") or {}).get(warehouse_id, 0))
+            for m in mv_by_prod.get(p["id"], []):
+                if (m.get("created_at") or "") <= end_iso:
+                    continue
+                q = int(m.get("quantity", 0))
+                if m.get("type") == "transfer":
+                    if m.get("from_warehouse_id") == warehouse_id:
+                        qty += q
+                    elif m.get("warehouse_id") == warehouse_id:
+                        qty -= q
+                elif m.get("warehouse_id") == warehouse_id:
+                    if m.get("prev_qty") is not None and m.get("resulting_qty") is not None:
+                        qty -= (int(m["resulting_qty"]) - int(m["prev_qty"]))
+                    elif m.get("type") == "receive":
+                        qty -= q
+                    elif m.get("type") == "remove":
+                        qty += q
+            total += float(p.get("cost", 0)) * max(0, qty)
+        return round(total, 2)
+
+    result = [{"month": ym, "value": wh_value_at(month_end_iso(ym))} for ym in seq]
     return {"history": result}
 
 

@@ -17,6 +17,7 @@ type Dict = Record<string, string>;
 const en: Dict = {
   // tabs
   dashboard: "Dashboard", catalog: "Catalog", scan: "Scan", orders: "Orders", settings: "Settings",
+  stockOverview: "Stock Overview", allProducts: "All Products",
   // dashboard
   welcomeBack: "Welcome back", operator: "Operator",
   stockValue: "Stock Value", totalUnits: "Total Units", products: "Products", lowStock: "Low Stock",
@@ -109,6 +110,7 @@ const en: Dict = {
 
 const sv: Dict = {
   dashboard: "Översikt", catalog: "Katalog", scan: "Skanna", orders: "Beställningar", settings: "Inställningar",
+  stockOverview: "Lageröversikt", allProducts: "Alla produkter",
   welcomeBack: "Välkommen tillbaka", operator: "Operatör",
   stockValue: "Lagervärde", totalUnits: "Antal enheter", products: "Produkter", lowStock: "Lågt lager",
   lowStockWarning: "Varning för lågt lager",
@@ -191,6 +193,7 @@ const sv: Dict = {
 };
 
 const da: Dict = {
+  stockOverview: "Lageroversigt", allProducts: "Alle produkter",
   dashboard: "Oversigt", catalog: "Katalog", scan: "Scan", orders: "Bestillinger", settings: "Indstillinger",
   welcomeBack: "Velkommen tilbage", operator: "Operatør",
   stockValue: "Lagerværdi", totalUnits: "Antal enheder", products: "Produkter", lowStock: "Lavt lager",
@@ -274,6 +277,7 @@ const da: Dict = {
 };
 
 const nl: Dict = {
+  stockOverview: "Voorraadoverzicht", allProducts: "Alle producten",
   dashboard: "Dashboard", catalog: "Catalogus", scan: "Scannen", orders: "Bestellingen", settings: "Instellingen",
   welcomeBack: "Welkom terug", operator: "Operator",
   stockValue: "Voorraadwaarde", totalUnits: "Totaal aantal", products: "Producten", lowStock: "Lage voorraad",
@@ -357,6 +361,7 @@ const nl: Dict = {
 };
 
 const fr: Dict = {
+  stockOverview: "Vue du stock", allProducts: "Tous les produits",
   dashboard: "Tableau de bord", catalog: "Catalogue", scan: "Scanner", orders: "Commandes", settings: "Paramètres",
   welcomeBack: "Bon retour", operator: "Opérateur",
   stockValue: "Valeur du stock", totalUnits: "Unités totales", products: "Produits", lowStock: "Stock faible",
@@ -440,6 +445,7 @@ const fr: Dict = {
 };
 
 const de: Dict = {
+  stockOverview: "Lagerübersicht", allProducts: "Alle Produkte",
   dashboard: "Übersicht", catalog: "Katalog", scan: "Scannen", orders: "Bestellungen", settings: "Einstellungen",
   welcomeBack: "Willkommen zurück", operator: "Bediener",
   stockValue: "Lagerwert", totalUnits: "Einheiten gesamt", products: "Produkte", lowStock: "Niedriger Bestand",
@@ -524,6 +530,7 @@ const de: Dict = {
 
 const es: Dict = {
   dashboard: "Panel", catalog: "Catálogo", scan: "Escanear", orders: "Pedidos", settings: "Ajustes",
+  stockOverview: "Resumen del stock", allProducts: "Todos los productos",
   welcomeBack: "Bienvenido de nuevo", operator: "Operador",
   stockValue: "Valor del stock", totalUnits: "Unidades totales", products: "Productos", lowStock: "Stock bajo",
   lowStockWarning: "Aviso de stock bajo",
@@ -606,6 +613,7 @@ const es: Dict = {
 };
 
 const it: Dict = {
+  stockOverview: "Panoramica del magazzino", allProducts: "Tutti i prodotti",
   dashboard: "Dashboard", catalog: "Catalogo", scan: "Scansiona", orders: "Ordini", settings: "Impostazioni",
   welcomeBack: "Bentornato", operator: "Operatore",
   stockValue: "Valore del magazzino", totalUnits: "Unità totali", products: "Prodotti", lowStock: "Scorte basse",
@@ -690,6 +698,7 @@ const it: Dict = {
 
 const pl: Dict = {
   dashboard: "Pulpit", catalog: "Katalog", scan: "Skanuj", orders: "Zamówienia", settings: "Ustawienia",
+  stockOverview: "Przegląd magazynu", allProducts: "Wszystkie produkty",
   welcomeBack: "Witaj ponownie", operator: "Operator",
   stockValue: "Wartość magazynu", totalUnits: "Łączna liczba sztuk", products: "Produkty", lowStock: "Niski stan",
   lowStockWarning: "Ostrzeżenie o niskim stanie",

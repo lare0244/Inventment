@@ -79,11 +79,17 @@ export default function Dashboard() {
           )}
           <View style={styles.grid}>
             {stats.map((s) => (
-              <Card key={s.label} style={styles.statCard}>
-                <MaterialCommunityIcons name={s.icon as any} size={22} color={s.color} />
-                <Text style={styles.statVal}>{s.value}</Text>
-                <Text style={styles.statLabel}>{s.label}</Text>
-              </Card>
+              <Pressable
+                key={s.label}
+                testID={`stat-${s.icon}`}
+                style={styles.statCard}
+                onPress={() => router.push(activeWh ? `/warehouse-overview?warehouse_id=${activeWh}` : "/warehouse-overview")}>
+                <Card style={{ gap: S.xs }}>
+                  <MaterialCommunityIcons name={s.icon as any} size={22} color={s.color} />
+                  <Text style={styles.statVal}>{s.value}</Text>
+                  <Text style={styles.statLabel}>{s.label}</Text>
+                </Card>
+              </Pressable>
             ))}
           </View>
 
