@@ -12,7 +12,7 @@ import { useColors, useT } from "@/src/appsettings";
 import { money } from "@/src/currency";
 import { LOGO_DATA_URI } from "@/src/logoBase64";
 import { F, S, R, stockColor, Palette } from "@/src/theme";
-import { Card } from "@/src/components/ui";
+import { Card, Btn } from "@/src/components/ui";
 import { StockLineChart } from "@/src/components/StockLineChart";
 
 type Mode = "value" | "units" | "products" | "low";
@@ -232,6 +232,46 @@ export default function WarehouseOverview() {
             </>
           )}
 
+          {/* Stock value report: date selection, category filter & exports */}
+          {mode === "value" && (
+            <>
+              <Text style={styles.section}>{t("exportFilters")}</Text>
+              <Card>
+                <Text style={styles.repFilterLabel}>{t("stockValueDate")}</Text>
+                <View style={styles.dateRow}>
+                  <TextInput testID="wo-date-input" value={asOfDate} onChangeText={setAsOfDate} placeholder="YYYY-MM-DD" placeholderTextColor={C.onSurfaceTertiary} autoCapitalize="none" style={styles.dateInput} />
+                  <Pressable testID="wo-today" onPress={() => setAsOfDate("")} style={styles.todayChip}>
+                    <Text style={styles.todayTxt}>{t("today")}</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.dateHint}>{t("dateHint")}</Text>
+                {categories.length > 0 && (
+                  <>
+                    <Text style={[styles.repFilterLabel, { marginTop: S.md }]}>{t("category")}</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.repFilterRow}>
+                      <Pressable testID="wo-cat-all" onPress={() => setFilterCat(null)} style={[styles.repChip, !filterCat && styles.repChipActive]}>
+                        <Text style={[styles.repChipTxt, !filterCat && { color: C.onBrand }]}>{t("all")}</Text>
+                      </Pressable>
+                      {categories.map((c) => (
+                        <Pressable key={c.id} testID={`wo-cat-${c.id}`} onPress={() => setFilterCat(c.id)} style={[styles.repChip, filterCat === c.id && styles.repChipActive]}>
+                          <Text style={[styles.repChipTxt, filterCat === c.id && { color: C.onBrand }]}>{c.name}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </>
+                )}
+                <View style={styles.exportRow}>
+                  <View style={{ flex: 1 }}>
+                    <Btn testID="wo-export-pdf" title={t("exportPdf")} icon="file-pdf-box" variant="secondary" loading={exporting} onPress={exportPdf} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Btn testID="wo-export-csv" title={t("exportCsv")} icon="file-delimited-outline" variant="secondary" loading={exportingCsv} onPress={exportCsv} />
+                  </View>
+                </View>
+              </Card>
+            </>
+          )}
+
           {/* Top categories bar chart for products mode */}
           {mode === "products" && (
             <>
@@ -315,6 +355,17 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   toggleBtnActive: { backgroundColor: C.brand },
   toggleTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 11 },
   chartLatest: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: S.sm },
+  repFilterLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, letterSpacing: 0.5, marginBottom: S.sm },
+  dateRow: { flexDirection: "row", alignItems: "center", gap: S.sm },
+  dateInput: { flex: 1, height: 44, borderWidth: 1, borderColor: C.border, borderRadius: R.sm, paddingHorizontal: S.md, color: C.onSurface, fontFamily: F.text, fontSize: 14, backgroundColor: C.surface },
+  todayChip: { height: 44, paddingHorizontal: S.md, borderRadius: R.sm, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", backgroundColor: C.surface },
+  todayTxt: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 13 },
+  dateHint: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, marginTop: S.xs, lineHeight: 16 },
+  repFilterRow: { gap: S.sm, paddingVertical: S.xs },
+  repChip: { height: 32, paddingHorizontal: S.md, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: C.surface },
+  repChipActive: { backgroundColor: C.brand, borderColor: C.brand },
+  repChipTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12 },
+  exportRow: { flexDirection: "row", gap: S.sm, marginTop: S.md },
   barRow: { flexDirection: "row", alignItems: "center", gap: S.sm, marginVertical: S.xs },
   barLabel: { width: 80, color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12 },
   barTrack: { flex: 1, height: 16, borderRadius: R.sm, backgroundColor: C.surfaceSecondary, overflow: "hidden" },

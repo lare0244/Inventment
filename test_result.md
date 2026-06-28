@@ -101,3 +101,38 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## Current Test Cycle (Stock Value report migration + sign-out)
+
+frontend:
+  - task: "Stock Value report under Dashboard drill-down"
+    file: "/app/frontend/app/warehouse-overview.tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Migrated the full Stock Value report (date selection input + Today reset, category filter chips, Export PDF, Export CSV) from orders.tsx into the Dashboard -> Stock Value overview (mode=value). Warehouse filter chips already at top. Removed all dead report code from orders.tsx. Lint clean. Need e2e verification that Export PDF and Export CSV trigger from the new location and that picking a past date updates the graph."
+
+  - task: "Sign-out redirects to login"
+    file: "/app/frontend/src/auth.tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "signOut() now calls router.replace('/(auth)/login') after clearing the token so the user lands on the login screen instead of a blank tab."
+
+metadata:
+  created_by: "main_agent"
+  test_sequence: 1
+
+test_plan:
+  current_focus:
+    - "Stock Value report under Dashboard drill-down"
+    - "Sign-out redirects to login"
+  stuck_tasks: []
+  test_all: false
+
+agent_communication:
+  - agent: "main"
+    message: "Please test FRONTEND only. Login warehouse@test.com / test123. (1) From Dashboard tap the 'Stock Value' KPI box -> verify overview opens with the graph, an 'Export filters' card containing a date input (YYYY-MM-DD), a 'Today' button, and 'Export PDF' + 'Export CSV' buttons. Tapping export buttons should not crash (on web CSV downloads, PDF opens print). (2) Verify the Orders tab no longer shows any stock-value graph/date/export UI (only AI insight, reorder suggestions, PO history). (3) Sign out from Settings -> verify it navigates to the login screen."

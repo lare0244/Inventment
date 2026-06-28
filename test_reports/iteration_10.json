@@ -1,0 +1,23 @@
+{
+  "summary": "Verified UI migration of Stock Value report from Orders → Dashboard 'Stock Value' KPI drill-down, plus sign-out redirect. All 6 acceptance criteria pass on web preview at mobile viewport (390x844). Login (warehouse@test.com/test123) succeeded; tapping stat-cash-multiple on Dashboard navigates to /warehouse-overview?mode=value where the 15-month stock-value line chart, wo-date-input (YYYY-MM-DD), wo-today, wo-export-pdf and wo-export-csv are all rendered. Entering 2025-06-01 in wo-date-input did not crash and triggered a /reports/stock-history refetch; tapping wo-today cleared the value (DOM value = '', placeholder restored as confirmed by screenshot). wo-export-csv triggered a CSV download (INVENTMENT_stock_2026-06-28.csv). Orders tab (Purchase Orders) NO LONGER contains any wo-date-input / wo-export-csv / wo-export-pdf / stock-value graph — only ai-insight-btn, suggestions, auto-po-btn and order history remain. Sign-out from Settings (logout-btn) redirects to /login and shows the email/password form. No deprecated expo packages detected.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_10.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "warehouse-overview.tsx is ~380 lines and is starting to accumulate multiple concerns (warehouse overview + value/units/products/low modes + export filters + PDF/CSV generation). Consider extracting exportPdf/exportCsv/buildRows into a hook (e.g. useStockExports) for maintainability if the file keeps growing.",
+    "exportPdf/exportCsv/load all swallow errors via empty catch blocks ('} catch {}'). User gets no feedback if /reports/stock-at-date or printing fails; consider surfacing a toast/Alert."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (6/6 criteria)"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Stock Value report UI (chart + date filter + PDF/CSV export) now lives only under /warehouse-overview?mode=value, reached by tapping the Dashboard 'Stock Value' KPI (testID stat-cash-multiple). Orders tab is purely PO-focused. Sign-out (testID logout-btn in Settings) navigates to /login via router.replace.",
+  "rca_of_issue": "Initial test reported wo-today not clearing the date (Playwright ElementHandle.input_value() returned stale value '2025-06-01'). Re-checked via page.evaluate(...).value which returned '' and screenshot confirmed placeholder restored — so the bug was in the test, not the app. Today button works correctly."
+}

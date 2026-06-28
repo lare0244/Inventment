@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { router } from "expo-router";
 import { api, setToken, clearToken, getToken } from "@/src/api";
 
 type Company = { company_name?: string; street1?: string; street2?: string; postcode?: string; city?: string; state?: string; county?: string };
@@ -66,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     await clearToken();
     setUser(null);
+    router.replace("/(auth)/login");
   }
 
   async function saveSettings(patch: SettingsPatch) {

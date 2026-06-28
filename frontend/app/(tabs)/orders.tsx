@@ -1,9 +1,6 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal, useWindowDimensions, Platform, Linking, Alert, TextInput } from "react-native";
+import React, { useState, useCallback, useMemo } from "react";
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal, Platform, Linking, Alert } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import * as Print from "expo-print";
-import * as Sharing from "expo-sharing";
-import * as FileSystem from "expo-file-system/legacy";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -13,32 +10,22 @@ import { useColors, useT, useApp } from "@/src/appsettings";
 import { money } from "@/src/currency";
 import { F, S, R, Palette } from "@/src/theme";
 import { Card, Btn } from "@/src/components/ui";
-import { StockLineChart } from "@/src/components/StockLineChart";
-import { LOGO_DATA_URI } from "@/src/logoBase64";
 
 export default function Orders() {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const { currency, user, company } = useAuth();
+  const { currency, user } = useAuth();
   const { lang } = useApp();
   const C = useColors();
   const t = useT();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [data, setData] = useState<any>(null);
-  const [history, setHistory] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [filterWh, setFilterWh] = useState<string | null>(null);
-  const [filterCat, setFilterCat] = useState<string | null>(null);
-  const [asOfDate, setAsOfDate] = useState("");
   const [orders, setOrders] = useState<any[]>([]);
   const [marking, setMarking] = useState(false);
   const [selWarehouse, setSelWarehouse] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [insight, setInsight] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [exportingCsv, setExportingCsv] = useState(false);
   const [emailModal, setEmailModal] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [autoLoading, setAutoLoading] = useState(false);
@@ -48,146 +35,19 @@ export default function Orders() {
 
   const load = useCallback(async () => {
     try {
-      const [sugg, wh, pos, cats] = await Promise.all([
+      const [sugg, wh, pos] = await Promise.all([
         api("/reports/reorder-suggestions"),
-        api("/warehouses"), api("/purchase-orders"), api("/categories"),
+        api("/warehouses"), api("/purchase-orders"),
       ]);
-      setData(sugg); setWarehouses(wh); setOrders(pos); setCategories(cats);
+      setData(sugg); setWarehouses(wh); setOrders(pos);
       setSelWarehouse((w) => w || wh[0]?.id || null);
     } catch {} finally { setLoading(false); }
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // Graph is always drawn up to today, unless the user picks a valid date.
-  useEffect(() => {
-    const valid = /^\d{4}-\d{2}-\d{2}$/.test(asOfDate) && !isNaN(Date.parse(asOfDate));
-    const q = valid ? `?end=${asOfDate}` : "";
-    api<{ history: any[] }>(`/reports/stock-history${q}`)
-      .then((h) => setHistory(h.history || []))
-      .catch(() => {});
-  }, [asOfDate]);
-
   async function getAi() {
     setAiLoading(true);
     try { const r = await api(`/reports/ai-insights?lang=${lang}&currency=${currency}`); setInsight(r.insight); } catch {} finally { setAiLoading(false); }
-  }
-
-  // Build flattened per-warehouse rows honoring warehouse + category filters
-  async function buildRows() {
-    const [products, cats, sups] = await Promise.all([
-      asOfDate
-        ? api<any>(`/reports/stock-at-date?date=${asOfDate}`).then((r) => r.products || [])
-        : api<any[]>("/products"),
-      api<any[]>("/categories"), api<any[]>("/suppliers"),
-    ]);
-    const catMap: Record<string, string> = Object.fromEntries(cats.map((c) => [c.id, c.name]));
-    const supMap: Record<string, string> = Object.fromEntries(sups.map((s) => [s.id, s.name]));
-    const whMap: Record<string, string> = Object.fromEntries(warehouses.map((w) => [w.id, w.name]));
-    const rows: any[] = [];
-    products.forEach((p) => {
-      if (filterCat && p.category_id !== filterCat) return;
-      const stock: Record<string, number> = p.stock || {};
-      let wids = Object.keys(stock);
-      if (filterWh) wids = wids.includes(filterWh) ? [filterWh] : [];
-      if (wids.length === 0 && !filterWh) wids = [""]; // product with no stock entries
-      wids.forEach((wid) => {
-        const qty = wid ? Number(stock[wid] || 0) : 0;
-        rows.push({
-          name: p.name, sku: p.sku || "", barcode: p.barcode || "",
-          category: catMap[p.category_id] || "", supplier: supMap[p.supplier_id] || "",
-          warehouse: wid ? (whMap[wid] || "") : "", quantity: qty,
-          measure: (p.measure_value != null && p.measure_unit) ? `${p.measure_value} ${p.measure_unit}` : "",
-          threshold: p.low_stock_threshold ?? 5, cost: p.cost ?? 0, price: p.price ?? 0, value: (p.cost || 0) * qty,
-          purchase_date: (p.purchase_date || "").slice(0, 10),
-          best_before_date: (p.best_before_date || "").slice(0, 10),
-        });
-      });
-    });
-    return rows;
-  }
-
-  const validDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
-  function guardDate(): boolean {
-    if (asOfDate && !validDate(asOfDate)) {
-      const m = t("invalidDate");
-      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(m);
-      else Alert.alert(t("invalidDate"), "");
-      return false;
-    }
-    return true;
-  }
-
-  async function exportPdf() {
-    if (!guardDate()) return;
-    setExporting(true);
-    try {
-      const rows = await buildRows();
-      const reportDate = asOfDate || new Date().toISOString().slice(0, 10);
-      const dateLabel = asOfDate ? `${t("asOf")} ${reportDate}` : reportDate;
-      const max = Math.max(1, ...history.map((h) => h.value));
-      const pts = history.map((h, i) => `${40 + (i / Math.max(1, history.length - 1)) * 700},${250 - (h.value / max) * 200}`).join(" ");
-      const totalVal = rows.reduce((s, r) => s + r.value, 0);
-      const whLabel = filterWh ? (warehouses.find((w) => w.id === filterWh)?.name || "") : t("allWarehouses");
-      const catLabel = filterCat ? (categories.find((c) => c.id === filterCat)?.name || "") : t("all");
-      const tableRows = rows.map((r) =>
-        `<tr><td>${r.name}</td><td>${r.sku || r.barcode || "-"}</td><td>${r.warehouse || "-"}</td><td>${r.measure || "-"}</td><td style="text-align:right">${r.quantity}</td><td style="text-align:right">${money(r.cost, currency)}</td><td style="text-align:right">${money(r.value, currency)}</td></tr>`
-      ).join("");
-      const reorder = rows.filter((r) => r.warehouse && r.quantity <= r.threshold)
-        .sort((a, b) => (a.warehouse + a.name).localeCompare(b.warehouse + b.name));
-      const reorderRows = reorder.map((r) => {
-        const suggest = Math.max(r.threshold, r.threshold * 2 - r.quantity);
-        return `<tr><td>${r.warehouse}</td><td>${r.name}</td><td>${r.supplier || "-"}</td><td style="text-align:right">${r.quantity}</td><td style="text-align:right">${r.threshold}</td><td style="text-align:right;font-weight:700;color:#E64A19">${suggest}</td></tr>`;
-      }).join("");
-      const reorderSection = reorder.length
-        ? `<h3 style="color:#E64A19">${t("needsReordering")} (${reorder.length})</h3>
-           <table><tr><th>${t("warehouse")}</th><th>${t("productName")}</th><th>${t("supplier")}</th><th>${t("quantity")}</th><th>${t("threshold")}</th><th>${t("suggestedOrder")}</th></tr>${reorderRows}</table>`
-        : "";
-      const html = `<html><head><meta name="viewport" content="width=device-width, initial-scale=1"/>
-        <style>body{font-family:-apple-system,Helvetica,Arial;padding:24px;color:#111}h1{color:#E64A19;margin-bottom:0}
-        .sub{color:#666;margin-top:4px}.kpi{font-size:28px;font-weight:700;margin:8px 0}
-        table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th,td{border-bottom:1px solid #ddd;padding:6px;text-align:left}
-        th{background:#f4f4f4}svg{background:#fafafa;border:1px solid #eee;border-radius:8px}</style></head><body>
-        <h1>INVENTMENT — ${t("stockValue")}</h1><div class="sub">${dateLabel} · ${user?.name || ""}</div>
-        ${company?.company_name ? `<div style="font-size:18px;font-weight:700;color:#111;margin-top:8px">${company.company_name}</div>${[company.street1, company.street2, company.postcode, company.city, company.state, company.county].filter(Boolean).join(", ") ? `<div class="sub">${[company.street1, company.street2, company.postcode, company.city, company.state, company.county].filter(Boolean).join(", ")}</div>` : ""}` : ""}
-        <div class="sub">${t("warehouse")}: ${whLabel} · ${t("category")}: ${catLabel}</div>
-        ${asOfDate ? `<div class="sub" style="font-style:italic">${t("asOfNote")}</div>` : ""}
-        <div class="kpi">${t("stockValue")}: ${money(totalVal, currency)}</div>
-        <h3>${t("stockValue15")}</h3>
-        <svg width="780" height="280" viewBox="0 0 780 280"><line x1="40" y1="250" x2="740" y2="250" stroke="#ccc"/>
-        <polyline points="${pts}" fill="none" stroke="#E64A19" stroke-width="3"/>
-        ${history.map((h, i) => { const x = 40 + (i / Math.max(1, history.length - 1)) * 700; return `<text x="${x}" y="270" font-size="9" text-anchor="middle" fill="#888">${h.month.slice(2)}</text>`; }).join("")}</svg>
-        ${reorderSection}
-        <h3>${t("products")}</h3><table><tr><th>${t("productName")}</th><th>${t("sku")}</th><th>${t("warehouse")}</th><th>${t("measure")}</th><th>${t("quantity")}</th><th>${t("cost")}</th><th>${t("stockValue")}</th></tr>${tableRows}</table><div style="text-align:center;margin-top:32px;border-top:1px solid #eee;padding-top:14px"><img src="${LOGO_DATA_URI}" style="height:64px"/></div></body></html>`;
-      const { uri } = await Print.printToFileAsync({ html });
-      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "INVENTMENT Report" });
-    } catch {} finally { setExporting(false); }
-  }
-
-  async function exportCsv() {
-    if (!guardDate()) return;
-    setExportingCsv(true);
-    try {
-      const rows = await buildRows();
-      const esc = (v: any) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-      const headers = [t("productName"), t("sku"), t("barcode"), t("category"), t("supplier"), t("warehouse"), t("measure"), t("quantity"), t("cost"), t("price"), t("stockValue"), t("purchaseDate"), t("bestBefore")];
-      const lines = [headers.join(",")];
-      rows.forEach((r) => {
-        lines.push([r.name, r.sku, r.barcode, r.category, r.supplier, r.warehouse, r.measure, r.quantity, r.cost, r.price, r.value, r.purchase_date, r.best_before_date].map(esc).join(","));
-      });
-      const csv = "\uFEFF" + lines.join("\n");
-      const filename = `INVENTMENT_stock_${asOfDate || new Date().toISOString().slice(0, 10)}.csv`;
-      if (Platform.OS === "web") {
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url; a.download = filename; a.click();
-        URL.revokeObjectURL(url);
-      } else {
-        const uri = FileSystem.cacheDirectory + filename;
-        await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
-        if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "text/csv", dialogTitle: "INVENTMENT Stock CSV" });
-      }
-    } catch {} finally { setExportingCsv(false); }
   }
 
   async function draftEmail() {
@@ -425,22 +285,6 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   title: { color: C.onSurface, fontFamily: F.display, fontSize: 26, letterSpacing: 1 },
   sub: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13 },
   aiHead: { flexDirection: "row", alignItems: "center", gap: S.sm, marginBottom: S.md },
-  chartHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: S.sm },
-  exportRow: { flexDirection: "row", alignItems: "center", gap: S.sm },
-  pdfBtn: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: C.border, borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: 6 },
-  pdfTxt: { color: C.brand, fontFamily: F.textBold, fontSize: 12 },
-  chartLatest: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: S.xs },
-  dateWrap: { marginTop: S.md },
-  dateRow: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.xs },
-  dateInput: { flex: 1, height: 40, borderWidth: 1, borderColor: C.border, borderRadius: R.sm, paddingHorizontal: S.md, color: C.onSurface, fontFamily: F.text, fontSize: 14, backgroundColor: C.surface },
-  todayChip: { height: 40, paddingHorizontal: S.md, borderRadius: R.sm, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", backgroundColor: C.surface },
-  dateHint: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, marginTop: S.xs, lineHeight: 16 },
-  filterWrap: { marginTop: S.md, borderTopWidth: 1, borderTopColor: C.divider, paddingTop: S.md },
-  filterLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, letterSpacing: 0.5, marginBottom: S.sm },
-  filterRow: { gap: S.sm, paddingBottom: S.sm },
-  filterChip: { height: 30, paddingHorizontal: S.md, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: C.surface },
-  filterChipActive: { backgroundColor: C.brand, borderColor: C.brand },
-  filterTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12 },
   aiTitle: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
   aiTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 14, lineHeight: 21 },
   totalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: S.sm },
