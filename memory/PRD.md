@@ -132,6 +132,11 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Backend GET /api/reports/stock-history now accepts optional warehouse_id and reconstructs per-warehouse monthly values from movements (anchored on current stock, valued at current cost).
 - Currencies (7): SEK, DKK, NOK, EUR, GBP, USD, AUD. Languages (9): EN, SV, DA, NL, FR, DE, ES, IT, PL across UI + AI.
 
+## Completed (2026-06-28)
+- Stock Value report fully migrated from the Orders tab into the Dashboard → "Stock Value" drill-down (warehouse-overview.tsx, mode=value): 15-month stock-value graph, date selection (YYYY-MM-DD input + "Today" reset), warehouse + category filters, and Export PDF / Export CSV. Orders tab cleaned of all report code (now only AI insight, reorder suggestions, auto-create POs, PO history). Verified e2e by testing agent (iteration_10).
+- Sign-out now redirects to the login screen: signOut() in src/auth.tsx calls router.replace('/(auth)/login') after clearing the token.
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker
-- Per-warehouse inventory tracking
+- Native App Store / Google Play PRO subscriptions (requires native build to QA)
+- Android store config in app.json (package, versionCode, splash/icon)
