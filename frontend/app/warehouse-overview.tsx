@@ -69,18 +69,19 @@ export default function WarehouseOverview() {
     [visibleProducts]
   );
 
-  // Top 5 categories by number of products (reflecting chosen warehouse)
+  // Top 5 categories — by product count or by total units (reflecting chosen warehouse)
+  const [catMetric, setCatMetric] = useState<"count" | "units">("count");
   const catChart = useMemo(() => {
-    const counts: Record<string, number> = {};
+    const agg: Record<string, number> = {};
     for (const p of visibleProducts) {
       const cid = p.category_id || "__none";
-      counts[cid] = (counts[cid] || 0) + 1;
+      agg[cid] = (agg[cid] || 0) + (catMetric === "units" ? (p.whQty || 0) : 1);
     }
-    return Object.entries(counts)
+    return Object.entries(agg)
       .map(([cid, count]) => ({ name: cid === "__none" ? "—" : (categories.find((c) => c.id === cid)?.name || "—"), count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-  }, [visibleProducts, categories]);
+  }, [visibleProducts, categories, catMetric]);
 
   const titleKey = mode === "units" ? "totalUnits" : mode === "products" ? "products" : mode === "low" ? "lowStock" : "stockValue";
   const headlineValue = !data ? "—"
@@ -144,7 +145,17 @@ export default function WarehouseOverview() {
           {/* Top categories bar chart for products mode */}
           {mode === "products" && (
             <>
-              <Text style={styles.section}>{t("categories")}</Text>
+              <View style={styles.catHeaderRow}>
+                <Text style={[styles.section, { marginBottom: 0 }]}>{t("categories")}</Text>
+                <View style={styles.toggle}>
+                  <Pressable testID="cat-toggle-count" onPress={() => setCatMetric("count")} style={[styles.toggleBtn, catMetric === "count" && styles.toggleBtnActive]}>
+                    <Text style={[styles.toggleTxt, catMetric === "count" && { color: C.onBrand }]}>{t("products")}</Text>
+                  </Pressable>
+                  <Pressable testID="cat-toggle-units" onPress={() => setCatMetric("units")} style={[styles.toggleBtn, catMetric === "units" && styles.toggleBtnActive]}>
+                    <Text style={[styles.toggleTxt, catMetric === "units" && { color: C.onBrand }]}>{t("totalUnits")}</Text>
+                  </Pressable>
+                </View>
+              </View>
               <Card>
                 {catChart.length === 0 ? (
                   <Text style={styles.empty}>{t("noProducts")}</Text>
@@ -208,6 +219,11 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   totalLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, textTransform: "uppercase", letterSpacing: 1 },
   totalVal: { color: C.onSurface, fontFamily: F.display, fontSize: 40 },
   section: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 13, letterSpacing: 1, marginTop: S.xl, marginBottom: S.sm },
+  catHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: S.xl, marginBottom: S.sm },
+  toggle: { flexDirection: "row", borderWidth: 1, borderColor: C.border, borderRadius: R.pill, overflow: "hidden" },
+  toggleBtn: { paddingHorizontal: S.md, paddingVertical: 5, backgroundColor: C.surfaceSecondary },
+  toggleBtnActive: { backgroundColor: C.brand },
+  toggleTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 11 },
   chartLatest: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: S.sm },
   barRow: { flexDirection: "row", alignItems: "center", gap: S.sm, marginVertical: S.xs },
   barLabel: { width: 80, color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12 },
