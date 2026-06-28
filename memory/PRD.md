@@ -120,8 +120,10 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - P2: Return 404 on DELETE when no doc matches; pin bcrypt<4 to silence startup warning
 
 ## Completed (latest)
-- iOS store config in app.json (bundleIdentifier com.inventment.app, buildNumber, encryption flag); removed deprecated billing-return.tsx.
-- Historical stock-value export: Orders tab "Stock value date" input (YYYY-MM-DD, blank=today) drives PDF/CSV via GET /api/reports/stock-at-date. Reconstruction anchors on current stock and reverses movements after the chosen date (movements now store prev_qty + transfer from_resulting_qty for exact reversal). Valued at current cost. i18n EN/SV added.
+- Currencies expanded to 7: SEK, DKK, NOK, EUR, GBP, USD, AUD (currency.ts formatting + backend /settings validation).
+- Languages expanded to 9: EN, SV, DA, NL, FR, DE, ES, IT, PL — full UI dictionaries in i18n.ts, endonym LANGUAGES list, device-lang detection + persistence for all, Settings dropdown, and AI insights (lang_name map + localized fallback messages). Reports/PO emails already use t() so they follow the active language.
+- iOS store config in app.json; removed deprecated billing-return.tsx.
+- Historical stock-value export via GET /api/reports/stock-at-date (backward-from-current reconstruction).
 
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker

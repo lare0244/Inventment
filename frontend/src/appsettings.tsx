@@ -4,10 +4,12 @@ import { storage } from "@/src/utils/storage";
 import { DARK, LIGHT, Palette } from "@/src/theme";
 import { Lang, translate } from "@/src/i18n";
 
+const SUPPORTED: Lang[] = ["en", "sv", "da", "nl", "fr", "de", "es", "it", "pl"];
+
 function detectDeviceLang(): Lang {
   try {
     const code = getLocales()?.[0]?.languageCode?.toLowerCase();
-    return code === "sv" ? "sv" : "en";
+    return (SUPPORTED as string[]).includes(code || "") ? (code as Lang) : "en";
   } catch {
     return "en";
   }
@@ -36,7 +38,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       const th = await storage.secureGet<string>(THEME_KEY, "dark");
       const lg = await storage.secureGet<string>(LANG_KEY, "");
       if (th === "light" || th === "dark") setThemeNameState(th);
-      if (lg === "en" || lg === "sv") {
+      if (SUPPORTED.includes(lg as Lang)) {
         setLangState(lg as Lang);
       } else {
         // First launch: auto-detect from device locale (user can change in Settings)

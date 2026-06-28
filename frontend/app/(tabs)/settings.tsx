@@ -7,6 +7,7 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { useColors, useT, useApp } from "@/src/appsettings";
 import { CURRENCIES } from "@/src/currency";
+import { LANGUAGES } from "@/src/i18n";
 import { F, S, R, Palette } from "@/src/theme";
 import { Card, Btn, Dropdown } from "@/src/components/ui";
 
@@ -164,7 +165,7 @@ export default function Settings() {
         <Card style={{ marginBottom: S.lg }}>
           <View style={styles.secTitleRow}><MaterialCommunityIcons name="translate" size={20} color={C.brand} /><Text style={styles.secTitle}>{t("language")}</Text></View>
           <Dropdown testID="lang-dropdown" value={lang} onChange={(v) => setLang(v as any)}
-            options={[{ value: "en", label: t("english") }, { value: "sv", label: t("swedish") }]} />
+            options={LANGUAGES.map((l) => ({ value: l.code, label: l.label }))} />
         </Card>
 
         <Card style={{ marginBottom: S.lg }}>

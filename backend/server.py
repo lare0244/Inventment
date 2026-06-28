@@ -239,7 +239,7 @@ async def me(user: dict = Depends(get_current_user)):
 async def update_settings(body: SettingsUpdate, user: dict = Depends(get_current_user)):
     updates = {}
     if body.currency is not None:
-        if body.currency not in ("SEK", "DKK", "EUR", "GBP"):
+        if body.currency not in ("SEK", "DKK", "NOK", "EUR", "GBP", "USD", "AUD"):
             raise HTTPException(status_code=400, detail="Unsupported currency")
         updates["currency"] = body.currency
     if body.low_stock_alert_email is not None:
@@ -760,12 +760,24 @@ async def reorder_suggestions(user: dict = Depends(get_current_user)):
 @api_router.get("/reports/ai-insights")
 async def ai_insights(user: dict = Depends(get_current_user), lang: Optional[str] = None, currency: Optional[str] = None):
     cur = currency or user.get("currency", "SEK")
-    lang_name = {"sv": "Swedish", "en": "English"}.get((lang or "en").lower(), "English")
+    lc = (lang or "en").lower()
+    lang_name = {"sv": "Swedish", "en": "English", "da": "Danish", "nl": "Dutch",
+                 "fr": "French", "de": "German", "es": "Spanish", "it": "Italian",
+                 "pl": "Polish"}.get(lc, "English")
     products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
     if not products:
-        msg = {"sv": "Inga produkter än. Lägg till och skanna produkter för att få AI-drivna påfyllningsförslag.",
-               "en": "No products yet. Add and scan products to get AI-powered restocking insights."}
-        return {"insight": msg.get((lang or "en").lower(), msg["en"])}
+        msg = {
+            "en": "No products yet. Add and scan products to get AI-powered restocking insights.",
+            "sv": "Inga produkter än. Lägg till och skanna produkter för att få AI-drivna påfyllningsförslag.",
+            "da": "Ingen produkter endnu. Tilføj og scan produkter for at få AI-drevne genbestillingsforslag.",
+            "nl": "Nog geen producten. Voeg producten toe en scan ze voor AI-aanbevelingen voor herbevoorrading.",
+            "fr": "Aucun produit pour l'instant. Ajoutez et scannez des produits pour obtenir des recommandations de réapprovisionnement par IA.",
+            "de": "Noch keine Produkte. Füge Produkte hinzu und scanne sie, um KI-gestützte Nachbestellvorschläge zu erhalten.",
+            "es": "Aún no hay productos. Añade y escanea productos para obtener recomendaciones de reabastecimiento con IA.",
+            "it": "Ancora nessun prodotto. Aggiungi e scansiona prodotti per ottenere consigli di riassortimento basati su IA.",
+            "pl": "Brak produktów. Dodaj i zeskanuj produkty, aby otrzymać oparte na AI propozycje uzupełnienia zapasów.",
+        }
+        return {"insight": msg.get(lc, msg["en"])}
     low = [p for p in products if int(p.get("quantity", 0)) <= int(p.get("low_stock_threshold", 5))]
     lines = []
     for p in products[:60]:
@@ -788,9 +800,18 @@ async def ai_insights(user: dict = Depends(get_current_user), lang: Optional[str
         return {"insight": text.strip()}
     except Exception as e:
         logger.warning(f"AI insight failed: {e}")
-        unavailable = {"sv": "AI-insikter är tillfälligt otillgängliga. Regelbaserade förslag finns i påfyllningslistan.",
-                       "en": "AI insights are temporarily unavailable. Rule-based suggestions are available in the reorder list."}
-        return {"insight": unavailable.get((lang or "en").lower(), unavailable["en"])}
+        unavailable = {
+            "en": "AI insights are temporarily unavailable. Rule-based suggestions are available in the reorder list.",
+            "sv": "AI-insikter är tillfälligt otillgängliga. Regelbaserade förslag finns i påfyllningslistan.",
+            "da": "AI-indsigter er midlertidigt utilgængelige. Regelbaserede forslag findes i genbestillingslisten.",
+            "nl": "AI-inzichten zijn tijdelijk niet beschikbaar. Op regels gebaseerde suggesties staan in de bestellijst.",
+            "fr": "Les analyses IA sont temporairement indisponibles. Des suggestions basées sur des règles sont disponibles dans la liste de réapprovisionnement.",
+            "de": "KI-Einblicke sind vorübergehend nicht verfügbar. Regelbasierte Vorschläge findest du in der Nachbestellliste.",
+            "es": "Los análisis de IA no están disponibles temporalmente. Hay sugerencias basadas en reglas en la lista de reabastecimiento.",
+            "it": "Le analisi IA sono temporaneamente non disponibili. Suggerimenti basati su regole sono disponibili nell'elenco di riassortimento.",
+            "pl": "Analizy AI są chwilowo niedostępne. Propozycje oparte na regułach są dostępne na liście uzupełnień.",
+        }
+        return {"insight": unavailable.get(lc, unavailable["en"])}
 
 
 class POEmailRequest(BaseModel):
