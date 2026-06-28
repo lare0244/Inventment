@@ -36,7 +36,7 @@ export default function Login() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.surface }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={[styles.c, { paddingTop: insets.top + S["3xl"] }]} keyboardShouldPersistTaps="handled">
         <View style={styles.logoWrap}>
-          <Image source={require("@/assets/images/logo.png")} style={styles.logoImg} resizeMode="cover" />
+          <Image source={require("@/assets/images/logo.png")} style={styles.logoImg} resizeMode="contain" />
         </View>
         <Text style={styles.sub}>{t("appTagline")}</Text>
 
@@ -56,7 +56,7 @@ export default function Login() {
 
 const makeStyles = (C: Palette) => StyleSheet.create({
   c: { paddingHorizontal: S.xl, paddingBottom: S["3xl"] },
-  logoWrap: { alignSelf: "center", width: "100%", height: 150, borderRadius: 18, overflow: "hidden", marginBottom: S.md, backgroundColor: "#0a0a0c" },
+  logoWrap: { alignSelf: "center", width: "100%", height: 110, borderRadius: 16, overflow: "hidden", marginBottom: S.md, backgroundColor: "#ffffff", paddingHorizontal: S.lg, justifyContent: "center" },
   logoImg: { width: "100%", height: "100%" },
   sub: { fontFamily: F.text, fontSize: 14, color: C.onSurfaceTertiary, textAlign: "center", marginTop: S.xs },
   err: { color: C.error, fontFamily: F.text, marginBottom: S.md },
