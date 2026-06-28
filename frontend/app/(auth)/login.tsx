@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from "react-native";
 import { useRouter, Link } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/auth";
 import { useColors, useT } from "@/src/appsettings";
@@ -36,10 +35,9 @@ export default function Login() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.surface }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={[styles.c, { paddingTop: insets.top + S["3xl"] }]} keyboardShouldPersistTaps="handled">
-        <View style={styles.logo}>
-          <MaterialCommunityIcons name="warehouse" size={40} color={C.brand} />
+        <View style={styles.logoWrap}>
+          <Image source={require("@/assets/images/logo.png")} style={styles.logoImg} resizeMode="cover" />
         </View>
-        <Text style={styles.title}>INVENTMENT</Text>
         <Text style={styles.sub}>{t("appTagline")}</Text>
 
         <View style={{ height: S["2xl"] }} />
@@ -58,8 +56,8 @@ export default function Login() {
 
 const makeStyles = (C: Palette) => StyleSheet.create({
   c: { paddingHorizontal: S.xl, paddingBottom: S["3xl"] },
-  logo: { width: 72, height: 72, borderRadius: 16, backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.brand, alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: S.lg },
-  title: { fontFamily: F.display, fontSize: 32, color: C.onSurface, textAlign: "center", letterSpacing: 2 },
+  logoWrap: { alignSelf: "center", width: "100%", height: 150, borderRadius: 18, overflow: "hidden", marginBottom: S.md, backgroundColor: "#0a0a0c" },
+  logoImg: { width: "100%", height: "100%" },
   sub: { fontFamily: F.text, fontSize: 14, color: C.onSurfaceTertiary, textAlign: "center", marginTop: S.xs },
   err: { color: C.error, fontFamily: F.text, marginBottom: S.md },
   row: { flexDirection: "row", justifyContent: "center", marginTop: S.xl },

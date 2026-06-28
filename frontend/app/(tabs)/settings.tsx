@@ -15,7 +15,7 @@ type Kind = "warehouses" | "categories" | "suppliers";
 
 export default function Settings() {
   const insets = useSafeAreaInsets();
-  const { user, signOut, currency, setCurrency, plan, refreshUser } = useAuth();
+  const { user, signOut, currency, setCurrency, plan, refreshUser, company, saveSettings } = useAuth();
   const { themeName, setThemeName, lang, setLang } = useApp();
   const C = useColors();
   const t = useT();
@@ -29,6 +29,17 @@ export default function Settings() {
   const emptyForm = { name: "", email: "", phone: "", contact_person: "", street1: "", street2: "", number: "", postcode: "", city: "", state: "", county: "" };
   const [form, setForm] = useState<Record<string, string>>(emptyForm);
   const setField = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const cEmpty = { company_name: "", street1: "", street2: "", postcode: "", city: "", state: "", county: "" };
+  const [cForm, setCForm] = useState<Record<string, string>>(cEmpty);
+  const setCField = (k: string, v: string) => setCForm((f) => ({ ...f, [k]: v }));
+  const openCompany = () => { setCForm({ ...cEmpty, ...(company || {}) }); setCompanyOpen(true); };
+  const saveCompany = async () => { try { await saveSettings({ company: cForm }); } catch {} setCompanyOpen(false); };
+  const COMPANY_FIELDS = [
+    { k: "street1", label: t("street1") }, { k: "street2", label: t("street2") },
+    { k: "postcode", label: t("postcode") }, { k: "city", label: t("city") },
+    { k: "state", label: t("stateRegion") }, { k: "county", label: t("county") },
+  ];
 
   const load = useCallback(async () => {
     const [w, c, s, b] = await Promise.all([api("/warehouses"), api("/categories"), api("/suppliers"), api("/billing/plan").catch(() => null)]);
@@ -174,6 +185,30 @@ export default function Settings() {
             options={CURRENCIES.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}`, sub: c.symbol }))} />
         </Card>
 
+        <Card style={{ marginBottom: S.lg }}>
+          <View style={styles.secHead}>
+            <View style={styles.secTitleRow}>
+              <MaterialCommunityIcons name="office-building-outline" size={20} color={C.brand} />
+              <Text style={styles.secTitle}>{t("companyInfo")}</Text>
+            </View>
+            <Pressable testID="edit-company" onPress={openCompany}>
+              <MaterialCommunityIcons name="pencil-outline" size={22} color={C.brand} />
+            </Pressable>
+          </View>
+          {company?.company_name ? (
+            <>
+              <Text style={styles.itemName}>{company.company_name}</Text>
+              {!!(company.street1 || company.city) && (
+                <Text style={styles.planUsage}>
+                  {[company.street1, company.street2, company.postcode, company.city, company.state, company.county].filter(Boolean).join(", ")}
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text style={styles.emptyTxt}>{t("noneYet")}</Text>
+          )}
+        </Card>
+
         <Section kind="warehouses" title={t("warehouses")} icon="warehouse" items={warehouses} sub="address" />
         <Section kind="categories" title={t("categories")} icon="shape-outline" items={categories} />
         <Section kind="suppliers" title={t("suppliers")} icon="truck-outline" items={suppliers} sub="email" />
@@ -197,6 +232,26 @@ export default function Settings() {
             </ScrollView>
             <Btn testID="modal-save" title={t("save")} onPress={save} />
             <Pressable onPress={() => { setModal(null); setEditId(null); }} style={{ alignItems: "center", paddingVertical: S.md }}>
+              <Text style={{ color: C.onSurfaceTertiary, fontFamily: F.textBold }}>{t("cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={companyOpen} transparent animationType="fade" onRequestClose={() => setCompanyOpen(false)}>
+        <View style={styles.modalBg}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t("companyInfo")}</Text>
+            <ScrollView style={{ maxHeight: 420 }} keyboardShouldPersistTaps="handled">
+              <TextInput testID="company-name" placeholder={t("companyName")} placeholderTextColor={C.onSurfaceTertiary}
+                value={cForm.company_name} onChangeText={(v) => setCField("company_name", v)} style={styles.input} />
+              {COMPANY_FIELDS.map((cf) => (
+                <TextInput key={cf.k} testID={`company-${cf.k}`} placeholder={cf.label} placeholderTextColor={C.onSurfaceTertiary}
+                  value={cForm[cf.k]} onChangeText={(v) => setCField(cf.k, v)} style={styles.input} />
+              ))}
+            </ScrollView>
+            <Btn testID="company-save" title={t("save")} onPress={saveCompany} />
+            <Pressable onPress={() => setCompanyOpen(false)} style={{ alignItems: "center", paddingVertical: S.md }}>
               <Text style={{ color: C.onSurfaceTertiary, fontFamily: F.textBold }}>{t("cancel")}</Text>
             </Pressable>
           </View>

@@ -70,11 +70,13 @@ class UserPublic(BaseModel):
     currency: str = "SEK"
     plan: str = "free"
     low_stock_alert_email: Optional[str] = None
+    company: Optional[dict] = None
 
 
 class SettingsUpdate(BaseModel):
     currency: Optional[str] = None
     low_stock_alert_email: Optional[str] = None
+    company: Optional[dict] = None
 
 
 class Warehouse(BaseModel):
@@ -227,7 +229,8 @@ def _public_user(user: dict) -> UserPublic:
     return UserPublic(id=user["id"], email=user["email"], name=user.get("name"),
                       currency=user.get("currency", "SEK"),
                       plan=user.get("plan", "free"),
-                      low_stock_alert_email=user.get("low_stock_alert_email"))
+                      low_stock_alert_email=user.get("low_stock_alert_email"),
+                      company=user.get("company"))
 
 
 @api_router.get("/auth/me", response_model=UserPublic)
@@ -244,6 +247,9 @@ async def update_settings(body: SettingsUpdate, user: dict = Depends(get_current
         updates["currency"] = body.currency
     if body.low_stock_alert_email is not None:
         updates["low_stock_alert_email"] = body.low_stock_alert_email.strip() or None
+    if body.company is not None:
+        allowed = ("company_name", "street1", "street2", "postcode", "city", "state", "county")
+        updates["company"] = {k: (str(body.company.get(k) or "").strip()) for k in allowed}
     if updates:
         await db.users.update_one({"id": user["id"]}, {"$set": updates})
         user = {**user, **updates}

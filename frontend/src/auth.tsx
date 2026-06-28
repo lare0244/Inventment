@@ -1,14 +1,16 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { api, setToken, clearToken, getToken } from "@/src/api";
 
-type User = { id: string; email: string; name?: string; currency?: string; plan?: string; low_stock_alert_email?: string | null };
-type SettingsPatch = { currency?: string; low_stock_alert_email?: string };
+type Company = { company_name?: string; street1?: string; street2?: string; postcode?: string; city?: string; state?: string; county?: string };
+type User = { id: string; email: string; name?: string; currency?: string; plan?: string; low_stock_alert_email?: string | null; company?: Company | null };
+type SettingsPatch = { currency?: string; low_stock_alert_email?: string; company?: Company };
 type AuthCtx = {
   user: User | null;
   loading: boolean;
   currency: string;
   plan: string;
   alertEmail: string;
+  company: Company;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -79,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await saveSettings({ currency });
   }
 
-  return <Ctx.Provider value={{ user, loading, currency: user?.currency || "SEK", plan: user?.plan || "free", alertEmail: user?.low_stock_alert_email || "", signIn, signUp, signOut, setCurrency, saveSettings, refreshUser }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, loading, currency: user?.currency || "SEK", plan: user?.plan || "free", alertEmail: user?.low_stock_alert_email || "", company: user?.company || {}, signIn, signUp, signOut, setCurrency, saveSettings, refreshUser }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {

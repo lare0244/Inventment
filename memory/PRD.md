@@ -120,7 +120,8 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - P2: Return 404 on DELETE when no doc matches; pin bcrypt<4 to silence startup warning
 
 ## Completed (latest)
-- Stock Overview page (/warehouse-overview?mode=) is now context-aware per tapped KPI box:
+- Branding/logo: company logo shown as a rounded banner on the login screen and embedded (base64) at the bottom of PDF reports (src/logoBase64.ts, assets/images/logo.png).
+- Company Information: new Settings section + edit modal with company_name, street1, street2, postcode, city, state, county. Persisted via PUT /api/settings (company object on user; returned by /auth/me). Exposed through auth context (company). PDF reports now print the company name + address above the warehouse line. i18n companyInfo/companyName added to all 9 languages.
   • value → total stock value + value graph + warehouse chooser (no list)
   • units → total units + units-over-time graph (15mo) + product rows
   • products → total + top-5 category bar chart + product rows (per warehouse)

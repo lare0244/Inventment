@@ -14,11 +14,12 @@ import { money } from "@/src/currency";
 import { F, S, R, Palette } from "@/src/theme";
 import { Card, Btn } from "@/src/components/ui";
 import { StockLineChart } from "@/src/components/StockLineChart";
+import { LOGO_DATA_URI } from "@/src/logoBase64";
 
 export default function Orders() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { currency, user } = useAuth();
+  const { currency, user, company } = useAuth();
   const { lang } = useApp();
   const C = useColors();
   const t = useT();
@@ -147,6 +148,7 @@ export default function Orders() {
         table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th,td{border-bottom:1px solid #ddd;padding:6px;text-align:left}
         th{background:#f4f4f4}svg{background:#fafafa;border:1px solid #eee;border-radius:8px}</style></head><body>
         <h1>INVENTMENT — ${t("stockValue")}</h1><div class="sub">${dateLabel} · ${user?.name || ""}</div>
+        ${company?.company_name ? `<div style="font-size:18px;font-weight:700;color:#111;margin-top:8px">${company.company_name}</div>${[company.street1, company.street2, company.postcode, company.city, company.state, company.county].filter(Boolean).join(", ") ? `<div class="sub">${[company.street1, company.street2, company.postcode, company.city, company.state, company.county].filter(Boolean).join(", ")}</div>` : ""}` : ""}
         <div class="sub">${t("warehouse")}: ${whLabel} · ${t("category")}: ${catLabel}</div>
         ${asOfDate ? `<div class="sub" style="font-style:italic">${t("asOfNote")}</div>` : ""}
         <div class="kpi">${t("stockValue")}: ${money(totalVal, currency)}</div>
@@ -155,7 +157,7 @@ export default function Orders() {
         <polyline points="${pts}" fill="none" stroke="#E64A19" stroke-width="3"/>
         ${history.map((h, i) => { const x = 40 + (i / Math.max(1, history.length - 1)) * 700; return `<text x="${x}" y="270" font-size="9" text-anchor="middle" fill="#888">${h.month.slice(2)}</text>`; }).join("")}</svg>
         ${reorderSection}
-        <h3>${t("products")}</h3><table><tr><th>${t("productName")}</th><th>${t("sku")}</th><th>${t("warehouse")}</th><th>${t("measure")}</th><th>${t("quantity")}</th><th>${t("cost")}</th><th>${t("stockValue")}</th></tr>${tableRows}</table></body></html>`;
+        <h3>${t("products")}</h3><table><tr><th>${t("productName")}</th><th>${t("sku")}</th><th>${t("warehouse")}</th><th>${t("measure")}</th><th>${t("quantity")}</th><th>${t("cost")}</th><th>${t("stockValue")}</th></tr>${tableRows}</table><div style="text-align:center;margin-top:32px;border-top:1px solid #eee;padding-top:14px"><img src="${LOGO_DATA_URI}" style="height:64px"/></div></body></html>`;
       const { uri } = await Print.printToFileAsync({ html });
       if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "INVENTMENT Report" });
     } catch {} finally { setExporting(false); }
