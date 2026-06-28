@@ -730,7 +730,7 @@ async def stock_history(user: dict = Depends(get_current_user), warehouse_id: Op
                             qty -= q
                         elif m.get("type") == "remove":
                             qty += q
-            total += float(p.get("cost", 0)) * max(0, qty)
+            total += (max(0, qty) if metric == "units" else float(p.get("cost", 0)) * max(0, qty))
         return round(total, 2)
 
     last_idx = len(seq) - 1
