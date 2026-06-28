@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal, useWindowDimensions, Platform, Linking, Alert, TextInput } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import * as Print from "expo-print";
@@ -47,15 +47,24 @@ export default function Orders() {
 
   const load = useCallback(async () => {
     try {
-      const [sugg, hist, wh, pos, cats] = await Promise.all([
-        api("/reports/reorder-suggestions"), api("/reports/stock-history"),
+      const [sugg, wh, pos, cats] = await Promise.all([
+        api("/reports/reorder-suggestions"),
         api("/warehouses"), api("/purchase-orders"), api("/categories"),
       ]);
-      setData(sugg); setHistory(hist.history || []); setWarehouses(wh); setOrders(pos); setCategories(cats);
+      setData(sugg); setWarehouses(wh); setOrders(pos); setCategories(cats);
       setSelWarehouse((w) => w || wh[0]?.id || null);
     } catch {} finally { setLoading(false); }
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Graph is always drawn up to today, unless the user picks a valid date.
+  useEffect(() => {
+    const valid = /^\d{4}-\d{2}-\d{2}$/.test(asOfDate) && !isNaN(Date.parse(asOfDate));
+    const q = valid ? `?end=${asOfDate}` : "";
+    api<{ history: any[] }>(`/reports/stock-history${q}`)
+      .then((h) => setHistory(h.history || []))
+      .catch(() => {});
+  }, [asOfDate]);
 
   async function getAi() {
     setAiLoading(true);

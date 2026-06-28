@@ -652,18 +652,32 @@ async def dashboard(user: dict = Depends(get_current_user), warehouse_id: Option
 
 
 @api_router.get("/reports/stock-history")
-async def stock_history(user: dict = Depends(get_current_user), warehouse_id: Optional[str] = None):
+async def stock_history(user: dict = Depends(get_current_user), warehouse_id: Optional[str] = None,
+                        end: Optional[str] = None):
     now = datetime.now(timezone.utc)
+    # Anchor month: the chosen `end` date if provided, otherwise today.
+    end_cutoff: Optional[str] = None
+    if end:
+        try:
+            ed = datetime.fromisoformat(end[:10])
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid end date, expected YYYY-MM-DD")
+        anchor_y, anchor_m = ed.year, ed.month
+        end_cutoff = ed.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc).isoformat()
+    else:
+        anchor_y, anchor_m = now.year, now.month
+
     seq = []
     for i in range(14, -1, -1):
-        mm = now.month - i
-        yy = now.year
+        mm = anchor_m - i
+        yy = anchor_y
         while mm <= 0:
             mm += 12
             yy -= 1
         seq.append(f"{yy:04d}-{mm:02d}")
 
-    if not warehouse_id:
+    # Fast path: total value up to today via monthly snapshots.
+    if not warehouse_id and not end:
         await record_snapshot(user["id"])
         snaps = {s["ym"]: s["value"] for s in await db.stock_snapshots.find({"owner_id": user["id"]}).to_list(1000)}
         last = 0.0
@@ -674,8 +688,8 @@ async def stock_history(user: dict = Depends(get_current_user), warehouse_id: Op
             result.append({"month": ym, "value": last})
         return {"history": result}
 
-    # Per-warehouse history: reconstruct each month-end value from movements,
-    # anchored on current stock (valued at current cost).
+    # Reconstruction path (per-warehouse and/or limited to a chosen end date):
+    # anchor on current stock and reverse every movement after the cutoff.
     products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
     movements = await (db.movements.find({"owner_id": user["id"]})
                        .sort("created_at", 1).to_list(50000))
@@ -689,33 +703,41 @@ async def stock_history(user: dict = Depends(get_current_user), warehouse_id: Op
         last_day = datetime(ny, nm, 1, tzinfo=timezone.utc) - timedelta(seconds=1)
         return last_day.isoformat()
 
-    def wh_value_at(end_iso: str) -> float:
+    def value_at(cutoff: str) -> float:
         total = 0.0
         for p in products:
             created = p.get("created_at") or ""
-            if created and created > end_iso:
+            if created and created > cutoff:
                 continue
-            qty = int((p.get("stock") or {}).get(warehouse_id, 0))
+            stock = p.get("stock") or {}
+            qty = int(stock.get(warehouse_id, 0)) if warehouse_id else sum(int(v) for v in stock.values())
             for m in mv_by_prod.get(p["id"], []):
-                if (m.get("created_at") or "") <= end_iso:
+                if (m.get("created_at") or "") <= cutoff:
                     continue
                 q = int(m.get("quantity", 0))
                 if m.get("type") == "transfer":
-                    if m.get("from_warehouse_id") == warehouse_id:
-                        qty += q
-                    elif m.get("warehouse_id") == warehouse_id:
-                        qty -= q
-                elif m.get("warehouse_id") == warehouse_id:
-                    if m.get("prev_qty") is not None and m.get("resulting_qty") is not None:
-                        qty -= (int(m["resulting_qty"]) - int(m["prev_qty"]))
-                    elif m.get("type") == "receive":
-                        qty -= q
-                    elif m.get("type") == "remove":
-                        qty += q
+                    if warehouse_id:
+                        if m.get("from_warehouse_id") == warehouse_id:
+                            qty += q
+                        elif m.get("warehouse_id") == warehouse_id:
+                            qty -= q
+                    # transfers do not change the total across all warehouses
+                else:
+                    if warehouse_id is None or m.get("warehouse_id") == warehouse_id:
+                        if m.get("prev_qty") is not None and m.get("resulting_qty") is not None:
+                            qty -= (int(m["resulting_qty"]) - int(m["prev_qty"]))
+                        elif m.get("type") == "receive":
+                            qty -= q
+                        elif m.get("type") == "remove":
+                            qty += q
             total += float(p.get("cost", 0)) * max(0, qty)
         return round(total, 2)
 
-    result = [{"month": ym, "value": wh_value_at(month_end_iso(ym))} for ym in seq]
+    last_idx = len(seq) - 1
+    result = []
+    for idx, ym in enumerate(seq):
+        cutoff = end_cutoff if (end_cutoff and idx == last_idx) else month_end_iso(ym)
+        result.append({"month": ym, "value": value_at(cutoff)})
     return {"history": result}
 
 
