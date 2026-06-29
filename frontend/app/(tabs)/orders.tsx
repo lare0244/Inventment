@@ -219,7 +219,7 @@ export default function Orders() {
         </ScrollView>
       )}
 
-      {data?.suggestions?.length > 0 && (
+      {tab === "purchase" && data?.suggestions?.length > 0 && (
         <View style={[styles.footer, { paddingBottom: insets.bottom + S.sm }]}>
           {warehouses.length > 0 && (
             <>
