@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal, Platform, Linking, Alert } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
@@ -13,11 +13,13 @@ import { Card, Btn } from "@/src/components/ui";
 
 export default function Orders() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { currency, user } = useAuth();
   const { lang } = useApp();
   const C = useColors();
   const t = useT();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const [tab, setTab] = useState<"purchase" | "sales">("purchase");
   const [data, setData] = useState<any>(null);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -134,11 +136,23 @@ export default function Orders() {
   return (
     <View style={{ flex: 1, backgroundColor: C.surface }}>
       <View style={[styles.header, { paddingTop: insets.top + S.md }]}>
-        <Text style={styles.title}>{t("purchaseOrders")}</Text>
-        <Text style={styles.sub}>{t("reorderSubtitle")}</Text>
+        <Text style={styles.title}>{tab === "sales" ? t("salesOrders") : t("purchaseOrders")}</Text>
+        <View style={styles.segWrap}>
+          <Pressable testID="tab-purchase" onPress={() => setTab("purchase")} style={[styles.segBtn, tab === "purchase" && styles.segBtnActive]}>
+            <Text style={[styles.segTxt, tab === "purchase" && { color: C.onBrand }]}>{t("purchaseOrders")}</Text>
+          </Pressable>
+          <Pressable testID="tab-sales" onPress={() => setTab("sales")} style={[styles.segBtn, tab === "sales" && styles.segBtnActive]}>
+            <Text style={[styles.segTxt, tab === "sales" && { color: C.onBrand }]}>{t("salesOrders")}</Text>
+          </Pressable>
+        </View>
       </View>
 
-      {loading ? (
+      {tab === "sales" ? (
+        <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 120 }}>
+          <Btn testID="so-create-btn" title={t("createSalesOrder")} icon="plus-circle-outline" onPress={() => router.push("/sales-order/new")} />
+          <Btn testID="so-orders-btn" title={t("orders")} icon="format-list-bulleted" variant="secondary" style={{ marginTop: S.md }} onPress={() => router.push("/sales-orders")} />
+        </ScrollView>
+      ) : loading ? (
         <ActivityIndicator color={C.brand} style={{ marginTop: 40 }} />
       ) : (
         <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 120 }}>
@@ -284,6 +298,10 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   header: { paddingHorizontal: S.lg, paddingBottom: S.md, borderBottomWidth: 1, borderBottomColor: C.divider },
   title: { color: C.onSurface, fontFamily: F.display, fontSize: 26, letterSpacing: 1 },
   sub: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13 },
+  segWrap: { flexDirection: "row", backgroundColor: C.surfaceSecondary, borderRadius: R.md, padding: 3, marginTop: S.md },
+  segBtn: { flex: 1, height: 38, alignItems: "center", justifyContent: "center", borderRadius: R.sm },
+  segBtnActive: { backgroundColor: C.brand },
+  segTxt: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 13 },
   aiHead: { flexDirection: "row", alignItems: "center", gap: S.sm, marginBottom: S.md },
   aiTitle: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
   aiTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 14, lineHeight: 21 },

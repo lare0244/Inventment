@@ -183,3 +183,58 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "Test BOTH backend and frontend. Credentials in test_credentials.md (warehouse@test.com/test123, bob@test.com/test123). BACKEND: verify PRO gating (create/join fail with 403 pro_required before activation; POST /billing/activate-test makes the user PRO), company create/join, GET /company member list (masters only, sorted alpha), assign master (max 2 extra), member email/name edit, remove member, owner-leave dissolves company, and that two connected members see the SAME products/warehouses/dashboard (merged data scope). FRONTEND: (1) Dashboard -> Products box -> verify sort toggle A-Z/Stock up/Stock down reorders rows. (2) Settings -> 'Activate PRO (test)' -> Company card -> /company -> create company 'ACME01' -> verify connected state, code & role show -> Disconnect. Note: store purchase flow is a placeholder (test activation used instead)."
+
+## Test Cycle 3 (Sales Orders module)
+
+backend:
+  - task: "Sales Orders API (CRUD, auto order number, status transitions, stock effects, chart)"
+    file: "/app/backend/server.py"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Endpoints: POST/GET /api/sales-orders, GET /api/sales-orders/chart (15-month counts per status), GET/PUT/DELETE /api/sales-orders/{id}, POST /api/sales-orders/{id}/status. Order number = YYMM + letter + 6 digits (e.g. 2606A000001), company-scoped counter. Status forward-only: saved->picked/shipped, picked->shipped, shipped->returned (others 400 invalid_transition). Shipping deducts stock, return restocks (per warehouse_id, records movements). PUT locked once shipped/returned. Settings so_field1_label/so_field2_label (max 12). Curl-verified: order number format, transitions, and stock 50->38 (ship) ->50 (return)."
+
+frontend:
+  - task: "Orders tab Purchase/Sales toggle + Sales hub"
+    file: "/app/frontend/app/(tabs)/orders.tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Orders tab has a segmented toggle (tab-purchase / tab-sales). Purchase = existing PO content unchanged. Sales = two buttons: Create sales order (so-create-btn -> /sales-order/new) and Orders (so-orders-btn -> /sales-orders)."
+  - task: "Sales Orders list + status chart + search + filters"
+    file: "/app/frontend/app/sales-orders.tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "15-month multi-line status chart (StatusLineChart), 4 status tabs (so-tab-*), search bar (so-search), sort filters (so-sort-date/order_number/field1/field2 using user field labels). Tap row -> /sales-order/{id}."
+  - task: "Sales order create + detail/status + Settings Orders labels"
+    file: "/app/frontend/app/sales-order/new.tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Create form (SalesOrderEditor): 2 custom fields, shipping ref, comment, date+Today, ship-from warehouse, product items with qty stepper. Detail [id].tsx: order number header, 4 status checkboxes with confirm popups (forward-only), edit locked after shipped, delete. Settings 'Orders' card (so-label1/so-label2, max 12) saves field labels."
+
+metadata:
+  created_by: "main_agent"
+  test_sequence: 3
+
+test_plan:
+  current_focus:
+    - "Sales Orders API (CRUD, auto order number, status transitions, stock effects, chart)"
+    - "Orders tab Purchase/Sales toggle + Sales hub"
+    - "Sales Orders list + status chart + search + filters"
+    - "Sales order create + detail/status + Settings Orders labels"
+  stuck_tasks: []
+  test_all: false
+
+agent_communication:
+  - agent: "main"
+    message: "Test BOTH. Login warehouse@test.com/test123 (PRO). BACKEND focus: order number format YYMM+letter+6digits, forward-only status transitions (reject backward with 400), stock deduct on shipped & restock on returned, 15-month chart shape {months:[15], series:{saved,picked,shipped,returned:[15]}}, PUT locked after shipped, settings so_field labels persist via PUT /api/settings & GET /api/auth/me. FRONTEND: Orders tab -> toggle to Sales -> Create sales order (add a product with qty, pick ship-from warehouse, save) -> appears under Saved in /sales-orders -> open it -> tick Picked (confirm) -> tick Shipped (confirm, stock should drop) -> tick Returned (confirm). Verify search + the 4 sort filters, and that Settings 'Orders' card renames the 2 fields and the names appear as field labels + sort chips. Confirm Purchase Orders tab still shows the old reorder/PO content. Note: status chart may show flat lines when there is little data - that's fine."

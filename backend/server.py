@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import re
+from pymongo import ReturnDocument
 import logging
 import uuid
 import httpx
@@ -76,6 +77,8 @@ class UserPublic(BaseModel):
     company_connected: bool = False
     is_company_master: bool = False
     is_company_owner: bool = False
+    so_field1_label: Optional[str] = None
+    so_field2_label: Optional[str] = None
 
 
 class CompanyCreate(BaseModel):
@@ -96,6 +99,8 @@ class SettingsUpdate(BaseModel):
     currency: Optional[str] = None
     low_stock_alert_email: Optional[str] = None
     company: Optional[dict] = None
+    so_field1_label: Optional[str] = None
+    so_field2_label: Optional[str] = None
 
 
 class Warehouse(BaseModel):
@@ -259,7 +264,9 @@ def _public_user(user: dict) -> UserPublic:
                       company_code=user.get("company_code"),
                       company_connected=bool(user.get("company_id")),
                       is_company_master=bool(user.get("is_company_master")),
-                      is_company_owner=bool(user.get("is_company_owner")))
+                      is_company_owner=bool(user.get("is_company_owner")),
+                      so_field1_label=user.get("so_field1_label") or "Field 1",
+                      so_field2_label=user.get("so_field2_label") or "Field 2")
 
 
 @api_router.get("/auth/me", response_model=UserPublic)
@@ -279,6 +286,10 @@ async def update_settings(body: SettingsUpdate, user: dict = Depends(get_current
     if body.company is not None:
         allowed = ("company_name", "street1", "street2", "postcode", "city", "state", "county")
         updates["company"] = {k: (str(body.company.get(k) or "").strip()) for k in allowed}
+    if body.so_field1_label is not None:
+        updates["so_field1_label"] = (body.so_field1_label or "").strip()[:12] or "Field 1"
+    if body.so_field2_label is not None:
+        updates["so_field2_label"] = (body.so_field2_label or "").strip()[:12] or "Field 2"
     if updates:
         await db.users.update_one({"id": user["id"]}, {"$set": updates})
         user = {**user, **updates}
@@ -1311,6 +1322,185 @@ async def activate_test_pro(user: dict = Depends(get_current_user)):
     expires = (datetime.now(timezone.utc) + timedelta(days=365)).isoformat()
     await db.users.update_one({"id": user["id"]}, {"$set": {"plan": "pro", "plan_expires_at": expires}})
     return {"ok": True, "plan": "pro"}
+
+
+# ---------------- Sales Orders ----------------
+SO_STATUSES = ["saved", "picked", "shipped", "returned"]
+SO_ALLOWED = {"saved": {"picked", "shipped"}, "picked": {"shipped"}, "shipped": {"returned"}, "returned": set()}
+
+
+class SOItem(BaseModel):
+    product_id: str
+    name: Optional[str] = None
+    quantity: int = 1
+
+
+class SalesOrderIn(BaseModel):
+    field1: Optional[str] = ""
+    field2: Optional[str] = ""
+    comment: Optional[str] = ""
+    shipping_ref: Optional[str] = ""
+    order_date: Optional[str] = None
+    warehouse_id: Optional[str] = None
+    items: List[SOItem] = []
+
+
+class SOStatusUpdate(BaseModel):
+    status: str
+
+
+def _so_counter_key(user: dict) -> str:
+    return user.get("company_id") or user["id"]
+
+
+async def _gen_order_number(user: dict) -> str:
+    now = datetime.now(timezone.utc)
+    period = now.strftime("%y%m")  # e.g. 2601
+    doc = await db.so_counters.find_one_and_update(
+        {"key": _so_counter_key(user), "period": period},
+        {"$inc": {"seq": 1}},
+        upsert=True, return_document=ReturnDocument.AFTER)
+    n = int(doc["seq"])  # starts at 1
+    letter = chr(ord("A") + ((n - 1) // 1_000_000) % 26)
+    digits = ((n - 1) % 1_000_000) + 1
+    return f"{period}{letter}{digits:06d}"
+
+
+async def _apply_so_stock(user: dict, items: list, warehouse_id: Optional[str], sign: int, note: str):
+    for it in items:
+        pid = it.get("product_id")
+        qty = int(it.get("quantity", 0) or 0)
+        if not pid or qty <= 0:
+            continue
+        product = await db.products.find_one({"id": pid, "owner_id": {"$in": user["_scope"]}})
+        if not product:
+            continue
+        stock = dict(product.get("stock") or {})
+        wid = warehouse_id or product.get("warehouse_id") or next(iter(stock), None)
+        prev = int(stock.get(wid, 0)) if wid else product_total(product)
+        new = max(0, prev + sign * qty)
+        if wid:
+            stock[wid] = new
+            total = sum(int(v) for v in stock.values())
+        else:
+            total = new
+        await db.products.update_one({"id": pid, "owner_id": {"$in": user["_scope"]}},
+                                     {"$set": {"stock": stock, "quantity": total, "updated_at": now_iso()}})
+        wh = await db.warehouses.find_one({"id": wid, "owner_id": {"$in": user["_scope"]}}) if wid else None
+        mv = {"id": str(uuid.uuid4()), "owner_id": user["id"], "product_id": pid,
+              "product_name": product.get("name"), "type": "remove" if sign < 0 else "receive",
+              "quantity": qty, "warehouse_id": wid, "warehouse_name": wh.get("name") if wh else None,
+              "prev_qty": prev, "resulting_qty": new, "resulting_total": total,
+              "note": note, "created_at": now_iso()}
+        await db.movements.insert_one(dict(mv))
+    await record_snapshot(user["id"])
+
+
+@api_router.post("/sales-orders")
+async def create_sales_order(body: SalesOrderIn, user: dict = Depends(get_current_user)):
+    num = await _gen_order_number(user)
+    order_date = body.order_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    doc = {"id": str(uuid.uuid4()), "owner_id": user["id"], "order_number": num,
+           "field1": (body.field1 or "").strip(), "field2": (body.field2 or "").strip(),
+           "comment": (body.comment or "").strip(), "shipping_ref": (body.shipping_ref or "").strip(),
+           "order_date": order_date, "warehouse_id": body.warehouse_id,
+           "items": [it.dict() for it in body.items], "status": "saved",
+           "created_at": now_iso(), "updated_at": now_iso()}
+    await db.sales_orders.insert_one(dict(doc))
+    return clean(dict(doc))
+
+
+@api_router.get("/sales-orders/chart")
+async def sales_orders_chart(user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    months = []
+    for i in range(14, -1, -1):
+        mm = now.month - i
+        yy = now.year
+        while mm <= 0:
+            mm += 12
+            yy -= 1
+        months.append(f"{yy:04d}-{mm:02d}")
+    orders = await db.sales_orders.find({"owner_id": {"$in": user["_scope"]}}).to_list(5000)
+    series = {s: {ym: 0 for ym in months} for s in SO_STATUSES}
+    for o in orders:
+        ym = (o.get("order_date") or "")[:7]
+        st = o.get("status", "saved")
+        if st in series and ym in series[st]:
+            series[st][ym] += 1
+    return {"months": months, "series": {s: [series[s][ym] for ym in months] for s in SO_STATUSES}}
+
+
+@api_router.get("/sales-orders")
+async def list_sales_orders(user: dict = Depends(get_current_user), status: Optional[str] = None,
+                            q: Optional[str] = None, sort: str = "date"):
+    query = {"owner_id": {"$in": user["_scope"]}}
+    if status:
+        query["status"] = status
+    if q:
+        rx = {"$regex": re.escape(q), "$options": "i"}
+        query["$or"] = [{"order_number": rx}, {"field1": rx}, {"field2": rx},
+                        {"comment": rx}, {"shipping_ref": rx}, {"order_date": rx}]
+    items = await db.sales_orders.find(query).to_list(2000)
+    if sort == "order_number":
+        items.sort(key=lambda o: o.get("order_number", ""))
+    elif sort in ("field1", "field2"):
+        items.sort(key=lambda o: (str(o.get(sort, "")).lower(), o.get("order_date", ""), o.get("order_number", "")))
+    else:
+        items.sort(key=lambda o: (o.get("order_date", ""), o.get("order_number", "")), reverse=True)
+    return [clean(i) for i in items]
+
+
+@api_router.get("/sales-orders/{oid}")
+async def get_sales_order(oid: str, user: dict = Depends(get_current_user)):
+    o = await db.sales_orders.find_one({"id": oid, "owner_id": {"$in": user["_scope"]}})
+    if not o:
+        raise HTTPException(status_code=404, detail="Not found")
+    return clean(o)
+
+
+@api_router.put("/sales-orders/{oid}")
+async def update_sales_order(oid: str, body: SalesOrderIn, user: dict = Depends(get_current_user)):
+    o = await db.sales_orders.find_one({"id": oid, "owner_id": {"$in": user["_scope"]}})
+    if not o:
+        raise HTTPException(status_code=404, detail="Not found")
+    if o.get("status") in ("shipped", "returned"):
+        raise HTTPException(status_code=400, detail="locked_after_shipped")
+    upd = {"field1": (body.field1 or "").strip(), "field2": (body.field2 or "").strip(),
+           "comment": (body.comment or "").strip(), "shipping_ref": (body.shipping_ref or "").strip(),
+           "order_date": body.order_date or o.get("order_date"),
+           "warehouse_id": body.warehouse_id if body.warehouse_id is not None else o.get("warehouse_id"),
+           "items": [it.dict() for it in body.items], "updated_at": now_iso()}
+    await db.sales_orders.update_one({"id": oid, "owner_id": {"$in": user["_scope"]}}, {"$set": upd})
+    return clean({**o, **upd})
+
+
+@api_router.post("/sales-orders/{oid}/status")
+async def set_sales_order_status(oid: str, body: SOStatusUpdate, user: dict = Depends(get_current_user)):
+    o = await db.sales_orders.find_one({"id": oid, "owner_id": {"$in": user["_scope"]}})
+    if not o:
+        raise HTTPException(status_code=404, detail="Not found")
+    new = body.status
+    if new not in SO_STATUSES:
+        raise HTTPException(status_code=400, detail="bad_status")
+    cur = o.get("status", "saved")
+    if new not in SO_ALLOWED.get(cur, set()):
+        raise HTTPException(status_code=400, detail="invalid_transition")
+    items = o.get("items") or []
+    wid = o.get("warehouse_id")
+    if new == "shipped":
+        await _apply_so_stock(user, items, wid, -1, f"Sales order {o.get('order_number')} shipped")
+    elif new == "returned":
+        await _apply_so_stock(user, items, wid, +1, f"Sales order {o.get('order_number')} returned")
+    await db.sales_orders.update_one({"id": oid, "owner_id": {"$in": user["_scope"]}},
+                                     {"$set": {"status": new, "updated_at": now_iso()}})
+    return clean({**o, "status": new})
+
+
+@api_router.delete("/sales-orders/{oid}")
+async def delete_sales_order(oid: str, user: dict = Depends(get_current_user)):
+    await db.sales_orders.delete_one({"id": oid, "owner_id": {"$in": user["_scope"]}})
+    return {"ok": True}
 
 
 app.include_router(api_router)

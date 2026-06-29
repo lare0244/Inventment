@@ -36,6 +36,10 @@ export default function Settings() {
   const setCField = (k: string, v: string) => setCForm((f) => ({ ...f, [k]: v }));
   const openCompany = () => { setCForm({ ...cEmpty, ...(company || {}) }); setCompanyOpen(true); };
   const saveCompany = async () => { try { await saveSettings({ company: cForm }); } catch {} setCompanyOpen(false); };
+  const [of1, setOf1] = useState(user?.so_field1_label || "");
+  const [of2, setOf2] = useState(user?.so_field2_label || "");
+  const [savingOf, setSavingOf] = useState(false);
+  const saveOrderFields = async () => { setSavingOf(true); try { await saveSettings({ so_field1_label: of1.trim() || "Field 1", so_field2_label: of2.trim() || "Field 2" }); } catch {} setSavingOf(false); };
   const COMPANY_FIELDS = [
     { k: "street1", label: t("street1") }, { k: "street2", label: t("street2") },
     { k: "postcode", label: t("postcode") }, { k: "city", label: t("city") },
@@ -209,6 +213,19 @@ export default function Settings() {
             )}
           </Card>
         </Pressable>
+
+        <Card style={{ marginBottom: S.lg }}>
+          <View style={styles.secTitleRow}>
+            <MaterialCommunityIcons name="clipboard-list-outline" size={20} color={C.brand} />
+            <Text style={styles.secTitle}>{t("orderSettings")}</Text>
+          </View>
+          <Text style={styles.emptyTxt}>{t("fieldLabelHint")}</Text>
+          <TextInput testID="so-label1" placeholder="Field 1" placeholderTextColor={C.onSurfaceTertiary} value={of1}
+            onChangeText={(v) => setOf1(v.slice(0, 12))} maxLength={12} style={[styles.input, { marginTop: S.md }]} />
+          <TextInput testID="so-label2" placeholder="Field 2" placeholderTextColor={C.onSurfaceTertiary} value={of2}
+            onChangeText={(v) => setOf2(v.slice(0, 12))} maxLength={12} style={styles.input} />
+          <Btn testID="so-labels-save" title={t("save")} icon="content-save-outline" loading={savingOf} onPress={saveOrderFields} />
+        </Card>
 
         <Card style={{ marginBottom: S.lg }}>
           <View style={styles.secHead}>

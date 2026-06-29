@@ -4,7 +4,7 @@ import { api, setToken, clearToken, getToken } from "@/src/api";
 
 type Company = { company_name?: string; street1?: string; street2?: string; postcode?: string; city?: string; state?: string; county?: string };
 type User = { id: string; email: string; name?: string; currency?: string; plan?: string; low_stock_alert_email?: string | null; company?: Company | null; company_code?: string | null; company_connected?: boolean; is_company_master?: boolean; is_company_owner?: boolean };
-type SettingsPatch = { currency?: string; low_stock_alert_email?: string; company?: Company };
+type SettingsPatch = { currency?: string; low_stock_alert_email?: string; company?: Company; so_field1_label?: string; so_field2_label?: string };
 type AuthCtx = {
   user: User | null;
   loading: boolean;

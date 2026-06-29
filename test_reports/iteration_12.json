@@ -1,0 +1,28 @@
+{
+  "summary": "Sales Orders module fully tested - backend + frontend. 15/15 backend pytest cases passed covering: order number format/increment (YYMM + letter + 6 digits), all forward-only status transitions (saved->picked, saved->shipped, picked->shipped, shipped->returned), all backward/invalid transitions blocked with detail invalid_transition, bad_status returns 400, ship/return stock math (-N on shipped, +N on returned), edit lock after shipped/returned (locked_after_shipped), chart shape (15 months YYYY-MM, 4 series of 15 ints each), list filter+search+sort (date desc default, order_number asc, field1/field2 alpha), settings labels persistence with 12-char truncation. Frontend mobile flow verified end-to-end: login, Orders tab toggle (tab-purchase/tab-sales) keeps Purchase content unchanged and reveals so-create-btn / so-orders-btn under Sales; Settings 'Orders' card with so-label1/so-label2/so-labels-save saves Customer/PO Ref labels and they propagate to the create form labels and the sort chip labels; create form (/sales-order/new) shows so-field1/so-field2/so-shipref/so-comment/so-date/so-today plus ship-from warehouse chips (so-wh-*); so-add-product opens picker with so-pick-* options; so-save navigates to /sales-orders where chart, status tabs (so-tab-*), so-search, sort chips (so-sort-date/order_number/field1/field2) and so-row-* are all present; detail page shows order number + 4 status checkboxes (so-status-saved/picked/shipped/returned) and so-delete; advancing saved->picked via web confirm dialog succeeded.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_sales_orders.py",
+    "/app/test_reports/pytest/pytest_sales_orders.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now ~1537 lines; consider splitting sales-orders endpoints into a dedicated module for maintainability (non-blocking).",
+    "Order-number letter rollover at 1M only ever returns A in normal usage; acceptable but worth noting as edge case."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sales_orders.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Tests created several TEST_ sales orders/products under warehouse@test.com (PRO) and a fresh isolated user (TEST_iso_*) to verify the A000001 reset. Test data is auto-prefixed TEST_ and does not modify seeded data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend test suite at /app/backend/tests/test_sales_orders.py is idempotent and can be re-run. Browser flow uses page.on('dialog', accept) for the web window.confirm() popup that advances status. Custom labels were set to 'Customer' / 'PO Ref' on the primary user; if reset is needed run PUT /api/settings with the desired labels. Current system month observed in tests = 2026-06 (YYMM=2606); the task description's '2601A000001' was just an example of the format - the actual prefix matches whatever the current month is when run.",
+  "rca_of_issue": "n/a - no defects found."
+}
