@@ -136,6 +136,10 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Stock Value report fully migrated from the Orders tab into the Dashboard → "Stock Value" drill-down (warehouse-overview.tsx, mode=value): 15-month stock-value graph, date selection (YYYY-MM-DD input + "Today" reset), warehouse + category filters, and Export PDF / Export CSV. Orders tab cleaned of all report code (now only AI insight, reorder suggestions, auto-create POs, PO history). Verified e2e by testing agent (iteration_10).
 - Sign-out now redirects to the login screen: signOut() in src/auth.tsx calls router.replace('/(auth)/login') after clearing the token.
 
+## Completed (2026-06-29)
+- Products drill-down (Dashboard → Products) now has a sort toggle: A–Z, Stock low→high, Stock high→low.
+- Company sharing / Master users (PRO): unique company code create + join; merged data so connected members share & co-manage all warehouses/products/stock. Master sees connected users (name+email, sorted A–Z), edits name/email, assigns up to 2 extra masters (3 total incl owner), and disconnects users. Max 50 members. Every connected user must be PRO. Owner-leave dissolves the company. New endpoints under /api/company + POST /api/billing/activate-test (test-only PRO activation). New screen /app/company.tsx + Settings "Company" card and "Activate PRO (test)" button. Verified: backend 20/20 pytest + frontend flows.
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker
 - Native App Store / Google Play PRO subscriptions (requires native build to QA)
