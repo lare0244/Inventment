@@ -1,0 +1,30 @@
+{
+  "summary": "Tested scan-to-pick feature end-to-end. BACKEND (3/3 pytest pass in /app/backend/tests/test_so_picked_persistence.py): (a) POST /api/sales-orders defaults item.picked=0; (b) PUT /api/sales-orders/{id} with picked=N persists, GET returns N; (c) picked value survives status transitions saved->picked and picked->shipped; PUT after shipped correctly returns 400 locked_after_shipped. FRONTEND (mobile 390x844, warehouse@test.com/test123, Saved order 2606A000021 with item Demo Widget qty=8): /sales-order/{id} renders so-pdf-pick AND so-scan-pick buttons in the Saved-only action card; tapping so-scan-pick does NOT crash (no red-screen, page remains alive). On web preview the camera modal stays closed because camera permission is unavailable (expected and acceptable per the request - the close button is unreachable without a granted permission). Verified pick modal markup exists in code: Modal renders 'Demanded: <qty>' label, pick-qty-input TextInput (number-pad), and pick-save Btn; onScan() opens it after a matching barcode. Bug FIXED during testing: load() in /app/frontend/app/sales-order/[id].tsx was stripping items[].picked when copying server data into the editor's value state, so 'Picked: 0/<demanded>' never rendered on saved-order rows. After adding picked into the map, the Demo Widget row now correctly displays 'Picked: 0/8'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_so_picked_persistence.py",
+    "/app/test_reports/pytest/pytest_so_picked.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "openScanner() in /app/frontend/app/sales-order/[id].tsx silently returns when camera permission is denied/unavailable. On web that means tapping 'Scan to pick' does nothing visible; consider showing an Alert (e.g. 'Camera unavailable on web') for clearer UX. Non-blocking.",
+    "savePick() writes items via PUT but does not optimistically clamp pickQty to demanded - currently any non-negative integer (including > demanded) is saved. Backend also accepts picked > quantity. If business rule is 'picked <= demanded', enforce on both ends. Currently not specified so left as-is.",
+    "Per testID consistency, the Saved-only action card has no testID wrapper; not required but would help future tests group so-pdf-pick + so-scan-pick visibility checks."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_so_picked_persistence.py (new)",
+    "/app/frontend/app/sales-order/[id].tsx (load() now preserves items[].picked so 'Picked: x/y' renders)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Backend tests POST /api/billing/activate-test then create TEST_PICK_* products with barcodes and sales orders that are deleted at end of each test. Frontend reused the existing Saved order 2606A000021 (Demo Widget qty=8) created by previous testing iterations.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Re-run /app/backend/tests/test_so_picked_persistence.py to verify picked persists through PUT and saved->picked->shipped transitions. Frontend smoke: login warehouse@test.com/test123, open Orders -> Saved tab -> tap any so-row-* with items -> expect so-pdf-pick + so-scan-pick visible together, each item row shows 'Picked: <picked>/<demanded>'. To unit-test the pick modal without a hardware scan, set pickItem state via a small dev hook (or paste the barcode value into onScan in the bundle); the modal then shows 'Demanded:', pick-qty-input, pick-save. Camera permission on web preview is not granted, so the scan overlay itself cannot be visually opened in playwright - this is expected and acceptable per the review_request.",
+  "rca_of_issue": "Bug: 'Picked: 0/<demanded>' did not render under each item on /sales-order/{id}. RCA: In /app/frontend/app/sales-order/[id].tsx the load() callback mapped server items into SOValue.items but only copied {product_id, name, quantity}, discarding the picked field returned by GET. SalesOrderEditor only renders the picked line when typeof it.picked === 'number', so the line was always hidden. Fix: include picked (default 0) in the mapped items, preserving the server value. Re-verified: Demo Widget now shows 'Picked: 0/8'."
+}

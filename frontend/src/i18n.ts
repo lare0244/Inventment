@@ -104,6 +104,7 @@ const en: Dict = {
   deleteOrder: "Delete order", orderItems: "Order items", emptyItems: "No products added.",
   pickingList: "Picking List", packingSlip: "Packing Slip", printPickingList: "Print picking list", printPackingSlip: "Print packing slip",
   chooseReturnWarehouse: "Choose the warehouse to restock the returned items into.",
+  scanToPick: "Scan to pick", notInOrder: "That product is not in this order.", demanded: "Demanded", pickedAmount: "Picked amount", picked: "Picked",
   stockValueDate: "Stock value date", asOf: "As of", today: "Today", currentToday: "Current (today)",
   dateHint: "Leave blank for today's value, or enter a past date.", asOfNote: "Quantities reconstructed from stock movements; valued at current cost.", invalidDate: "Use format YYYY-MM-DD",
   adjustBtn: "Adjust", transferBtn: "Transfer", adjustStock: "Adjust stock",

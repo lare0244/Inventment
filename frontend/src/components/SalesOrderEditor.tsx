@@ -7,7 +7,7 @@ import { Card } from "@/src/components/ui";
 
 export type SOValue = {
   field1: string; field2: string; comment: string; shipping_ref: string;
-  order_date: string; warehouse_id: string | null; items: { product_id: string; name: string; quantity: number }[];
+  order_date: string; warehouse_id: string | null; items: { product_id: string; name: string; quantity: number; picked?: number }[];
 };
 
 export function SalesOrderEditor({ value, onChange, products, warehouses, label1, label2, editable = true }: {
@@ -22,7 +22,7 @@ export function SalesOrderEditor({ value, onChange, products, warehouses, label1
 
   function addProduct(p: any) {
     if (value.items.find((it) => it.product_id === p.id)) { setPicker(false); return; }
-    set({ items: [...value.items, { product_id: p.id, name: p.name, quantity: 1 }] });
+    set({ items: [...value.items, { product_id: p.id, name: p.name, quantity: 1, picked: 0 }] });
     setPicker(false);
   }
   const setQty = (idx: number, n: number) =>
@@ -82,7 +82,14 @@ export function SalesOrderEditor({ value, onChange, products, warehouses, label1
         <Card><Text style={styles.empty}>{t("emptyItems")}</Text></Card>
       ) : value.items.map((it, idx) => (
         <Card key={it.product_id} style={styles.itemRow}>
-          <Text style={styles.itemName} numberOfLines={1}>{it.name}</Text>
+          <View style={{ flex: 1, marginRight: S.sm }}>
+            <Text style={styles.itemName} numberOfLines={1}>{it.name}</Text>
+            {typeof it.picked === "number" && (
+              <Text style={[styles.pickedTxt, { color: it.picked >= it.quantity ? C.success : C.onSurfaceTertiary }]}>
+                {t("picked")}: {it.picked}/{it.quantity}
+              </Text>
+            )}
+          </View>
           {editable ? (
             <View style={styles.stepper}>
               <Pressable onPress={() => setQty(idx, it.quantity - 1)} style={styles.stepBtn}><MaterialCommunityIcons name="minus" size={16} color={C.onSurface} /></Pressable>
@@ -138,6 +145,7 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   empty: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13, textAlign: "center", paddingVertical: S.sm },
   itemRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: S.sm, paddingVertical: S.md },
   itemName: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15, flex: 1, marginRight: S.sm },
+  pickedTxt: { fontFamily: F.text, fontSize: 12, marginTop: 2 },
   stepper: { flexDirection: "row", alignItems: "center", gap: S.sm },
   stepBtn: { width: 30, height: 30, borderRadius: R.sm, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" },
   qty: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15, minWidth: 28, textAlign: "center" },

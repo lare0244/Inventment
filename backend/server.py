@@ -1333,6 +1333,7 @@ class SOItem(BaseModel):
     product_id: str
     name: Optional[str] = None
     quantity: int = 1
+    picked: int = 0
 
 
 class SalesOrderIn(BaseModel):

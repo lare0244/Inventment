@@ -261,3 +261,26 @@ frontend:
 agent_communication:
   - agent: "main"
     message: "Test the NEW additions only (Sales Orders core already passed in cycle 3). Login warehouse@test.com/test123 (PRO). BACKEND: POST /api/sales-orders/{id}/status {status:'returned', warehouse_id: <otherWh>} restocks into that warehouse (check GET /api/products/{id} stock map) and persists return_warehouse_id. FRONTEND: create an order with an item + ship-from warehouse; on the Saved order detail confirm 'so-pdf-pick' button exists and tapping it doesn't crash (web opens print). Advance to Shipped; confirm 'so-pdf-pack' button appears. Tap the Returned status box -> a warehouse-picker modal appears (return-wh-*), pick one and confirm (return-confirm) -> order becomes returned. PDFs are client-side print; just verify buttons render per status and no crash."
+
+## Test Cycle 5 (Scan-to-pick on saved orders)
+backend:
+  - task: "Sales order item 'picked' quantity persists (SOItem.picked)"
+    file: "/app/backend/server.py"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "SOItem gained picked:int=0. Create defaults picked=0; PUT /api/sales-orders/{id} persists picked per item. Curl-verified: picked 0 -> PUT 4 -> GET shows 4."
+frontend:
+  - task: "Scan-to-pick on saved sales order (camera) + picked progress"
+    file: "/app/frontend/app/sales-order/[id].tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "On a Saved order detail: 'Scan to pick' button (so-scan-pick) opens a CameraView barcode scanner (close=scan-pick-close). When a scanned barcode matches an order item's product, a pick modal opens showing Demanded (item.quantity) and a picked-amount input (pick-qty-input); saving (pick-save) PUTs picked. Item rows show 'Picked: X/Y' (green when complete). Barcode not in order -> 'not in order' alert. NOTE: actual camera barcode scanning can only be validated on a real device build, not web/Expo Go."
+agent_communication:
+  - agent: "main"
+    message: "Test login warehouse@test.com/test123 (PRO). BACKEND (primary): SOItem.picked persists - create order item (picked defaults 0), PUT with picked=N, GET returns N; ensure picked survives status changes too. FRONTEND: open a Saved sales order detail and confirm the 'Scan to pick' button (so-scan-pick) renders alongside 'Print picking list', and each item row shows 'Picked: 0/<qty>'. Tapping so-scan-pick should open the camera scanner overlay (scan-pick-close visible) WITHOUT crashing; on web, camera may be unavailable - just confirm no crash and the close button works. The end-to-end barcode scan -> pick popup is a device-only camera feature; do not fail the suite if a hardware scan cannot be simulated - validate the backend picked persistence and that the UI elements render."
