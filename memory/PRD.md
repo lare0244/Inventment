@@ -140,6 +140,13 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Products drill-down (Dashboard → Products) now has a sort toggle: A–Z, Stock low→high, Stock high→low.
 - Company sharing / Master users (PRO): unique company code create + join; merged data so connected members share & co-manage all warehouses/products/stock. Master sees connected users (name+email, sorted A–Z), edits name/email, assigns up to 2 extra masters (3 total incl owner), and disconnects users. Max 50 members. Every connected user must be PRO. Owner-leave dissolves the company. New endpoints under /api/company + POST /api/billing/activate-test (test-only PRO activation). New screen /app/company.tsx + Settings "Company" card and "Activate PRO (test)" button. Verified: backend 20/20 pytest + frontend flows.
 
+## Completed (2026-06-29) — Sales Orders module
+- Orders tab now has a Purchase Orders / Sales Orders toggle (Purchase = existing content, unchanged).
+- Sales Orders: "Create sales order" + "Orders". Orders have 4 statuses (Saved/Picked/Shipped/Returned) shown in a 15-month multi-line chart (colour per status).
+- Orders contain product line items + ship-from warehouse; shipping deducts stock, returning restocks (records movements). Status is forward-only (saved→picked→shipped→returned) with a confirm popup each step; editing locks after shipped.
+- Auto order number YYMM + letter + 6 digits (e.g. 2606A000001), company-scoped counter. Fields: order number, 2 user-named custom fields (Settings → Orders, max 12 chars), comment, shipping reference, date (with Today).
+- Orders list per status: scrollable, sorted date→order number, with search bar + sort filters (date, order number, the 2 custom fields). Verified: backend 15/15 pytest + frontend flows.
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker
 - Native App Store / Google Play PRO subscriptions (requires native build to QA)
