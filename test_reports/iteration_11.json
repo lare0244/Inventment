@@ -1,0 +1,31 @@
+{
+  "summary": "Tested v10 PRO gating + company sharing + product-sort toggle. Backend: 20/20 pytest cases pass (test_v10_company.py) covering PRO gating on /api/company/create+/join (403 pro_required for free users), /api/billing/activate-test flipping plan to pro, company create with case-insensitive code, duplicate code -> 409 code_taken, join non-existent -> 404, already_in_company -> 400, members sorted alphabetically with is_owner/is_master flags, master assignment + 3rd-master 403 master_limit, name update, duplicate email -> 409 email_taken, owner_is_always_master -> 400 demote attempt, cannot_remove_owner -> 400, merged scope (owner-created product visible in bob's /api/products and reflected in bob's /api/dashboard), disconnect removes merged data from bob, owner /company/leave dissolves company. Frontend: 1) Logged in as warehouse@test.com -> Dashboard 'Products' KPI (stat-package-variant) -> navigates to /warehouse-overview?mode=products and renders all three sort toggles sort-az/sort-low/sort-high, all tappable, no errors (only 1 product so visible order does not change - matches request guidance). 2) Logged in as bob@test.com -> Settings shows company-card (Bob was already PRO from backend tests, so activate-pro-test-btn correctly not displayed). Tapped company-card -> navigates to /company; create/join form shows company-code-input + company-create-btn + company-join-btn. Created TEST6138 -> screen flipped to connected state showing 'TEST6138' in company-code-value, role 'Owner', and company-leave-btn. Tapping Disconnect returned to the create/join form. NOTE: backend dashboard endpoint is /api/dashboard (not /api/reports/dashboard) — test was adjusted accordingly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Pressable / TouchableOpacity (RN web shim)", "issue": "Console warns 'props.pointerEvents is deprecated. Use style.pointerEvents' on every page. Internal RN warning (from RN/Expo shim, not user code), low priority - safe to ignore until next RN upgrade."}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_11.json",
+    "/app/backend/tests/test_v10_company.py",
+    "/app/test_reports/pytest/pytest_v10.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now 1346 lines and contains auth + products + warehouses + suppliers + categories + movements + reports + PO + AI insights + billing + company — strongly recommend splitting into routers/ subpackage (auth.py, company.py, billing.py, reports.py, products.py) before adding more features.",
+    "company_create accepts an empty body.code through the Pydantic min_length=4 only; however CompanyJoin has no min/max constraints so a free-PRO user can POST {code:''} and get 404 (acceptable, but inconsistent).",
+    "Frontend warehouse-overview.tsx still swallows all load/api errors via empty `} catch {}` — users get no feedback if /dashboard or /products fails on the products drill-down."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v10_company.py (new)"
+  ],
+  "success_rate": {"backend": "100% (20/20)", "frontend": "100% (sort toggle + company create/disconnect flow)"},
+  "seed_data_creation": "Test creates ephemeral users (freshpro_*, carol_*, dave_*, eve_*) per run and a transient 'TEST_SharedProd_*' product (deleted before owner-leave); warehouse@test.com & bob@test.com kept clean (no company at end of run). Frontend created company TEST6138 then disconnected, so bob ends clean.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Company endpoints live at /api/company (GET/POST create/POST join/POST leave/PUT|DELETE members/{uid}). PRO test activator: POST /api/billing/activate-test (auth required, sets plan=pro for 365d). Dashboard endpoint is /api/dashboard (not /api/reports/dashboard). Frontend testIDs to know: stat-package-variant (Products KPI), sort-az/sort-low/sort-high (on /warehouse-overview?mode=products), company-card (Settings), activate-pro-test-btn (Settings, only when plan!=pro), company-code-input / company-create-btn / company-join-btn / company-leave-btn / company-code-value / member-{id} (on /company)."
+}

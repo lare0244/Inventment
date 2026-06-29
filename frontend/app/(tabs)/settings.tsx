@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Alert, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
@@ -15,6 +15,7 @@ type Kind = "warehouses" | "categories" | "suppliers";
 
 export default function Settings() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { user, signOut, currency, setCurrency, plan, refreshUser, company, saveSettings } = useAuth();
   const { themeName, setThemeName, lang, setLang } = useApp();
   const C = useColors();
@@ -52,6 +53,10 @@ export default function Settings() {
     const msg = t("storeUpgradeHint");
     if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
     else Alert.alert(t("upgradeToPro"), msg);
+  }
+
+  async function activateTestPro() {
+    try { await api("/billing/activate-test", { method: "POST" }); await refreshUser(); load(); } catch {}
   }
 
   function openModal(kind: Kind, item?: any) {
@@ -159,6 +164,7 @@ export default function Settings() {
             <>
               <Text style={styles.planPitch}>{t("proPitch")}</Text>
               <Btn testID="upgrade-btn" title={`${t("upgradeViaStore")} · ${billing ? `${billing.price.amount} ${billing.price.currency}/${t("month")}` : "6.99 EUR/mo"}`} icon="crown" onPress={upgrade} />
+              <Btn testID="activate-pro-test-btn" title={t("activateProTest")} variant="ghost" icon="flask-outline" style={{ marginTop: S.sm }} onPress={activateTestPro} />
             </>
           ) : (
             <Text style={styles.planUsage}>{t("proActive")}{billing?.plan_expires_at ? ` · ${t("renews")} ${String(billing.plan_expires_at).slice(0, 10)}` : ""}</Text>
@@ -184,6 +190,25 @@ export default function Settings() {
           <Dropdown testID="currency-dropdown" value={currency} onChange={(v) => setCurrency(v)}
             options={CURRENCIES.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}`, sub: c.symbol }))} />
         </Card>
+
+        <Pressable testID="company-card" onPress={() => router.push("/company")}>
+          <Card style={{ marginBottom: S.lg }}>
+            <View style={styles.secHead}>
+              <View style={styles.secTitleRow}>
+                <MaterialCommunityIcons name="account-group-outline" size={20} color={C.brand} />
+                <Text style={styles.secTitle}>{t("company")}</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={24} color={C.onSurfaceTertiary} />
+            </View>
+            {user?.company_connected ? (
+              <Text style={styles.planUsage}>
+                {t("companyCode")}: {user.company_code} · {user.is_company_owner ? t("roleOwner") : user.is_company_master ? t("roleMaster") : t("roleMember")}
+              </Text>
+            ) : (
+              <Text style={styles.emptyTxt}>{t("companyShareInfo")}</Text>
+            )}
+          </Card>
+        </Pressable>
 
         <Card style={{ marginBottom: S.lg }}>
           <View style={styles.secHead}>

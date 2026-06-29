@@ -4,6 +4,7 @@ from starlette.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import re
 import logging
 import uuid
 import httpx
@@ -71,6 +72,24 @@ class UserPublic(BaseModel):
     plan: str = "free"
     low_stock_alert_email: Optional[str] = None
     company: Optional[dict] = None
+    company_code: Optional[str] = None
+    company_connected: bool = False
+    is_company_master: bool = False
+    is_company_owner: bool = False
+
+
+class CompanyCreate(BaseModel):
+    code: str = Field(min_length=4, max_length=32)
+
+
+class CompanyJoin(BaseModel):
+    code: str
+
+
+class MemberUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    is_master: Optional[bool] = None
 
 
 class SettingsUpdate(BaseModel):
@@ -192,6 +211,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     user = await db.users.find_one({"id": uid})
     if not user:
         raise cred_exc
+    cid = user.get("company_id")
+    if cid:
+        members = await db.users.find({"company_id": cid}).to_list(100)
+        user["_scope"] = [m["id"] for m in members] or [user["id"]]
+    else:
+        user["_scope"] = [user["id"]]
     return user
 
 
@@ -230,7 +255,11 @@ def _public_user(user: dict) -> UserPublic:
                       currency=user.get("currency", "SEK"),
                       plan=user.get("plan", "free"),
                       low_stock_alert_email=user.get("low_stock_alert_email"),
-                      company=user.get("company"))
+                      company=user.get("company"),
+                      company_code=user.get("company_code"),
+                      company_connected=bool(user.get("company_id")),
+                      is_company_master=bool(user.get("is_company_master")),
+                      is_company_owner=bool(user.get("is_company_owner")))
 
 
 @api_router.get("/auth/me", response_model=UserPublic)
@@ -293,7 +322,7 @@ def clean(doc: dict) -> dict:
 # Warehouses
 @api_router.get("/warehouses")
 async def list_warehouses(user: dict = Depends(get_current_user)):
-    items = await db.warehouses.find({"owner_id": user["id"]}).to_list(1000)
+    items = await db.warehouses.find({"owner_id": {"$in": user["_scope"]}}).to_list(1000)
     return [clean(i) for i in items]
 
 
@@ -308,20 +337,20 @@ async def create_warehouse(body: Warehouse, user: dict = Depends(get_current_use
 @api_router.put("/warehouses/{wid}")
 async def update_warehouse(wid: str, body: Warehouse, user: dict = Depends(get_current_user)):
     upd = body.dict(); upd["id"] = wid
-    await db.warehouses.update_one({"id": wid, "owner_id": user["id"]}, {"$set": upd})
+    await db.warehouses.update_one({"id": wid, "owner_id": {"$in": user["_scope"]}}, {"$set": upd})
     return clean({**upd})
 
 
 @api_router.delete("/warehouses/{wid}")
 async def delete_warehouse(wid: str, user: dict = Depends(get_current_user)):
-    await db.warehouses.delete_one({"id": wid, "owner_id": user["id"]})
+    await db.warehouses.delete_one({"id": wid, "owner_id": {"$in": user["_scope"]}})
     return {"ok": True}
 
 
 # Categories
 @api_router.get("/categories")
 async def list_categories(user: dict = Depends(get_current_user)):
-    items = await db.categories.find({"owner_id": user["id"]}).to_list(1000)
+    items = await db.categories.find({"owner_id": {"$in": user["_scope"]}}).to_list(1000)
     return [clean(i) for i in items]
 
 
@@ -336,20 +365,20 @@ async def create_category(body: Category, user: dict = Depends(get_current_user)
 @api_router.put("/categories/{cid}")
 async def update_category(cid: str, body: Category, user: dict = Depends(get_current_user)):
     upd = body.dict(); upd["id"] = cid
-    await db.categories.update_one({"id": cid, "owner_id": user["id"]}, {"$set": upd})
+    await db.categories.update_one({"id": cid, "owner_id": {"$in": user["_scope"]}}, {"$set": upd})
     return clean({**upd})
 
 
 @api_router.delete("/categories/{cid}")
 async def delete_category(cid: str, user: dict = Depends(get_current_user)):
-    await db.categories.delete_one({"id": cid, "owner_id": user["id"]})
+    await db.categories.delete_one({"id": cid, "owner_id": {"$in": user["_scope"]}})
     return {"ok": True}
 
 
 # Suppliers
 @api_router.get("/suppliers")
 async def list_suppliers(user: dict = Depends(get_current_user)):
-    items = await db.suppliers.find({"owner_id": user["id"]}).to_list(1000)
+    items = await db.suppliers.find({"owner_id": {"$in": user["_scope"]}}).to_list(1000)
     return [clean(i) for i in items]
 
 
@@ -365,13 +394,13 @@ async def create_supplier(body: Supplier, user: dict = Depends(get_current_user)
 async def update_supplier(sid: str, body: Supplier, user: dict = Depends(get_current_user)):
     upd = body.dict()
     upd["id"] = sid
-    await db.suppliers.update_one({"id": sid, "owner_id": user["id"]}, {"$set": upd})
+    await db.suppliers.update_one({"id": sid, "owner_id": {"$in": user["_scope"]}}, {"$set": upd})
     return clean({**upd})
 
 
 @api_router.delete("/suppliers/{sid}")
 async def delete_supplier(sid: str, user: dict = Depends(get_current_user)):
-    await db.suppliers.delete_one({"id": sid, "owner_id": user["id"]})
+    await db.suppliers.delete_one({"id": sid, "owner_id": {"$in": user["_scope"]}})
     return {"ok": True}
 
 
@@ -381,7 +410,7 @@ async def list_products(user: dict = Depends(get_current_user),
                         warehouse_id: Optional[str] = None,
                         category_id: Optional[str] = None,
                         search: Optional[str] = None):
-    q = {"owner_id": user["id"]}
+    q = {"owner_id": {"$in": user["_scope"]}}
     if warehouse_id:
         q[f"stock.{warehouse_id}"] = {"$exists": True}
     if category_id:
@@ -403,7 +432,7 @@ async def list_products(user: dict = Depends(get_current_user),
 
 @api_router.get("/products/by-barcode/{barcode}")
 async def product_by_barcode(barcode: str, user: dict = Depends(get_current_user)):
-    item = await db.products.find_one({"owner_id": user["id"], "barcode": barcode})
+    item = await db.products.find_one({"owner_id": {"$in": user["_scope"]}, "barcode": barcode})
     if not item:
         raise HTTPException(status_code=404, detail="Not found")
     c = clean(item)
@@ -414,7 +443,7 @@ async def product_by_barcode(barcode: str, user: dict = Depends(get_current_user
 
 @api_router.get("/products/{pid}")
 async def get_product(pid: str, user: dict = Depends(get_current_user)):
-    item = await db.products.find_one({"id": pid, "owner_id": user["id"]})
+    item = await db.products.find_one({"id": pid, "owner_id": {"$in": user["_scope"]}})
     if not item:
         raise HTTPException(status_code=404, detail="Not found")
     c = clean(item)
@@ -441,7 +470,7 @@ async def create_product(body: ProductIn, user: dict = Depends(get_current_user)
 
 @api_router.put("/products/{pid}")
 async def update_product(pid: str, body: ProductIn, user: dict = Depends(get_current_user)):
-    existing = await db.products.find_one({"id": pid, "owner_id": user["id"]})
+    existing = await db.products.find_one({"id": pid, "owner_id": {"$in": user["_scope"]}})
     if not existing:
         raise HTTPException(status_code=404, detail="Not found")
     upd = body.dict()
@@ -453,8 +482,8 @@ async def update_product(pid: str, body: ProductIn, user: dict = Depends(get_cur
     upd["stock"] = stock
     upd["quantity"] = sum(int(v) for v in stock.values()) if stock else qty
     upd["updated_at"] = now_iso()
-    await db.products.update_one({"id": pid, "owner_id": user["id"]}, {"$set": upd})
-    item = await db.products.find_one({"id": pid, "owner_id": user["id"]})
+    await db.products.update_one({"id": pid, "owner_id": {"$in": user["_scope"]}}, {"$set": upd})
+    item = await db.products.find_one({"id": pid, "owner_id": {"$in": user["_scope"]}})
     await record_snapshot(user["id"])
     c = clean(item); c["stock"] = c.get("stock") or {}; c["quantity"] = product_total(item)
     return c
@@ -462,7 +491,7 @@ async def update_product(pid: str, body: ProductIn, user: dict = Depends(get_cur
 
 @api_router.delete("/products/{pid}")
 async def delete_product(pid: str, user: dict = Depends(get_current_user)):
-    await db.products.delete_one({"id": pid, "owner_id": user["id"]})
+    await db.products.delete_one({"id": pid, "owner_id": {"$in": user["_scope"]}})
     await record_snapshot(user["id"])
     return {"ok": True}
 
@@ -470,7 +499,7 @@ async def delete_product(pid: str, user: dict = Depends(get_current_user)):
 # ---------------- Stock movements ----------------
 @api_router.post("/movements")
 async def create_movement(body: StockMovementIn, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
-    product = await db.products.find_one({"id": body.product_id, "owner_id": user["id"]})
+    product = await db.products.find_one({"id": body.product_id, "owner_id": {"$in": user["_scope"]}})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     threshold = int(product.get("low_stock_threshold", 5))
@@ -494,8 +523,8 @@ async def create_movement(body: StockMovementIn, background_tasks: BackgroundTas
     update = {"stock": stock, "quantity": total, "updated_at": now_iso()}
     if body.best_before_date:
         update["best_before_date"] = body.best_before_date
-    await db.products.update_one({"id": body.product_id, "owner_id": user["id"]}, {"$set": update})
-    wh = await db.warehouses.find_one({"id": wid, "owner_id": user["id"]}) if wid else None
+    await db.products.update_one({"id": body.product_id, "owner_id": {"$in": user["_scope"]}}, {"$set": update})
+    wh = await db.warehouses.find_one({"id": wid, "owner_id": {"$in": user["_scope"]}}) if wid else None
     mv = {"id": str(uuid.uuid4()), "owner_id": user["id"], "product_id": body.product_id,
           "product_name": product.get("name"), "type": body.type, "quantity": body.quantity,
           "warehouse_id": wid, "warehouse_name": wh.get("name") if wh else None,
@@ -512,7 +541,7 @@ async def create_movement(body: StockMovementIn, background_tasks: BackgroundTas
 @api_router.get("/movements")
 async def list_movements(user: dict = Depends(get_current_user), limit: int = 200,
                          warehouse_id: Optional[str] = None, type: Optional[str] = None):
-    q = {"owner_id": user["id"]}
+    q = {"owner_id": {"$in": user["_scope"]}}
     if warehouse_id:
         q["$or"] = [{"warehouse_id": warehouse_id}, {"from_warehouse_id": warehouse_id}]
     if type:
@@ -535,10 +564,10 @@ async def transfer_stock(body: TransferIn, user: dict = Depends(get_current_user
         raise HTTPException(status_code=400, detail="Source and destination must differ")
     if body.quantity <= 0:
         raise HTTPException(status_code=400, detail="Quantity must be positive")
-    product = await db.products.find_one({"id": body.product_id, "owner_id": user["id"]})
+    product = await db.products.find_one({"id": body.product_id, "owner_id": {"$in": user["_scope"]}})
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    wh_ids = {w["id"] for w in await db.warehouses.find({"owner_id": user["id"]}).to_list(1000)}
+    wh_ids = {w["id"] for w in await db.warehouses.find({"owner_id": {"$in": user["_scope"]}}).to_list(1000)}
     if body.from_warehouse_id not in wh_ids or body.to_warehouse_id not in wh_ids:
         raise HTTPException(status_code=404, detail="Warehouse not found")
     stock = dict(product.get("stock") or {})
@@ -548,9 +577,9 @@ async def transfer_stock(body: TransferIn, user: dict = Depends(get_current_user
     stock[body.from_warehouse_id] = from_qty - body.quantity
     stock[body.to_warehouse_id] = int(stock.get(body.to_warehouse_id, 0)) + body.quantity
     total = sum(int(v) for v in stock.values())
-    await db.products.update_one({"id": body.product_id, "owner_id": user["id"]},
+    await db.products.update_one({"id": body.product_id, "owner_id": {"$in": user["_scope"]}},
                                  {"$set": {"stock": stock, "quantity": total, "updated_at": now_iso()}})
-    whs = {w["id"]: w for w in await db.warehouses.find({"owner_id": user["id"]}).to_list(1000)}
+    whs = {w["id"]: w for w in await db.warehouses.find({"owner_id": {"$in": user["_scope"]}}).to_list(1000)}
     fname = whs.get(body.from_warehouse_id, {}).get("name")
     tname = whs.get(body.to_warehouse_id, {}).get("name")
     mv = {"id": str(uuid.uuid4()), "owner_id": user["id"], "product_id": body.product_id,
@@ -585,9 +614,9 @@ async def barcode_lookup(code: str, user: dict = Depends(get_current_user)):
 # ---------------- Dashboard & reports ----------------
 @api_router.get("/dashboard")
 async def dashboard(user: dict = Depends(get_current_user), warehouse_id: Optional[str] = None):
-    products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
+    products = await db.products.find({"owner_id": {"$in": user["_scope"]}}).to_list(5000)
     await record_snapshot(user["id"])
-    warehouses = {w["id"]: w for w in await db.warehouses.find({"owner_id": user["id"]}).to_list(1000)}
+    warehouses = {w["id"]: w for w in await db.warehouses.find({"owner_id": {"$in": user["_scope"]}}).to_list(1000)}
 
     def wh_name(wid):
         w = warehouses.get(wid)
@@ -643,7 +672,7 @@ async def dashboard(user: dict = Depends(get_current_user), warehouse_id: Option
                     expiring.append(row)
             except Exception:
                 pass
-    recent = await db.movements.find({"owner_id": user["id"]}).sort("created_at", -1).to_list(8)
+    recent = await db.movements.find({"owner_id": {"$in": user["_scope"]}}).sort("created_at", -1).to_list(8)
     return {
         "total_products": len(products) if not warehouse_id else len([p for p in products if warehouse_id in (p.get("stock") or {})]),
         "total_units": total_units,
@@ -683,9 +712,9 @@ async def stock_history(user: dict = Depends(get_current_user), warehouse_id: Op
         seq.append(f"{yy:04d}-{mm:02d}")
 
     # Fast path: total value up to today via monthly snapshots.
-    if not warehouse_id and not end and metric != "units":
+    if not warehouse_id and not end and metric != "units" and len(user.get("_scope", [user["id"]])) == 1:
         await record_snapshot(user["id"])
-        snaps = {s["ym"]: s["value"] for s in await db.stock_snapshots.find({"owner_id": user["id"]}).to_list(1000)}
+        snaps = {s["ym"]: s["value"] for s in await db.stock_snapshots.find({"owner_id": {"$in": user["_scope"]}}).to_list(1000)}
         last = 0.0
         result = []
         for ym in seq:
@@ -696,8 +725,8 @@ async def stock_history(user: dict = Depends(get_current_user), warehouse_id: Op
 
     # Reconstruction path (per-warehouse and/or limited to a chosen end date):
     # anchor on current stock and reverse every movement after the cutoff.
-    products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
-    movements = await (db.movements.find({"owner_id": user["id"]})
+    products = await db.products.find({"owner_id": {"$in": user["_scope"]}}).to_list(5000)
+    movements = await (db.movements.find({"owner_id": {"$in": user["_scope"]}})
                        .sort("created_at", 1).to_list(50000))
     mv_by_prod: dict = {}
     for m in movements:
@@ -759,9 +788,9 @@ async def stock_at_date(date: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Invalid date, expected YYYY-MM-DD")
     end = d.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc).isoformat()
 
-    products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
+    products = await db.products.find({"owner_id": {"$in": user["_scope"]}}).to_list(5000)
     # movements AFTER the target date are the ones we need to undo
-    future_mvs = await (db.movements.find({"owner_id": user["id"], "created_at": {"$gt": end}})
+    future_mvs = await (db.movements.find({"owner_id": {"$in": user["_scope"]}, "created_at": {"$gt": end}})
                         .sort("created_at", -1).to_list(50000))
     by_prod: dict = {}
     for m in future_mvs:
@@ -807,8 +836,8 @@ async def stock_at_date(date: str, user: dict = Depends(get_current_user)):
 
 @api_router.get("/reports/reorder-suggestions")
 async def reorder_suggestions(user: dict = Depends(get_current_user)):
-    products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
-    suppliers = {s["id"]: s for s in await db.suppliers.find({"owner_id": user["id"]}).to_list(1000)}
+    products = await db.products.find({"owner_id": {"$in": user["_scope"]}}).to_list(5000)
+    suppliers = {s["id"]: s for s in await db.suppliers.find({"owner_id": {"$in": user["_scope"]}}).to_list(1000)}
     suggestions = []
     for p in products:
         qty = int(p.get("quantity", 0))
@@ -838,7 +867,7 @@ async def ai_insights(user: dict = Depends(get_current_user), lang: Optional[str
     lang_name = {"sv": "Swedish", "en": "English", "da": "Danish", "nl": "Dutch",
                  "fr": "French", "de": "German", "es": "Spanish", "it": "Italian",
                  "pl": "Polish"}.get(lc, "English")
-    products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
+    products = await db.products.find({"owner_id": {"$in": user["_scope"]}}).to_list(5000)
     if not products:
         msg = {
             "en": "No products yet. Add and scan products to get AI-powered restocking insights.",
@@ -896,13 +925,13 @@ class POEmailRequest(BaseModel):
 
 @api_router.post("/reports/po-email")
 async def po_email(body: POEmailRequest, user: dict = Depends(get_current_user)):
-    products = await db.products.find({"id": {"$in": body.product_ids}, "owner_id": user["id"]}).to_list(1000)
+    products = await db.products.find({"id": {"$in": body.product_ids}, "owner_id": {"$in": user["_scope"]}}).to_list(1000)
     supplier = None
     if body.supplier_id:
-        supplier = await db.suppliers.find_one({"id": body.supplier_id, "owner_id": user["id"]})
+        supplier = await db.suppliers.find_one({"id": body.supplier_id, "owner_id": {"$in": user["_scope"]}})
     warehouse = None
     if body.warehouse_id:
-        warehouse = await db.warehouses.find_one({"id": body.warehouse_id, "owner_id": user["id"]})
+        warehouse = await db.warehouses.find_one({"id": body.warehouse_id, "owner_id": {"$in": user["_scope"]}})
     lines = []
     for p in products:
         qty = int(p.get("quantity", 0))
@@ -953,7 +982,7 @@ def _suggest_qty(p: dict) -> int:
 
 
 async def _build_po_doc(user: dict, qty_map: dict, supplier: Optional[dict], warehouse: Optional[dict]):
-    products = await db.products.find({"id": {"$in": list(qty_map.keys())}, "owner_id": user["id"]}).to_list(1000)
+    products = await db.products.find({"id": {"$in": list(qty_map.keys())}, "owner_id": {"$in": user["_scope"]}}).to_list(1000)
     items, total, lines = [], 0.0, []
     for p in products:
         q = int(qty_map.get(p["id"], 0))
@@ -983,14 +1012,14 @@ async def _build_po_doc(user: dict, qty_map: dict, supplier: Optional[dict], war
 
 @api_router.post("/purchase-orders")
 async def create_purchase_order(body: POCreate, user: dict = Depends(get_current_user)):
-    supplier = await db.suppliers.find_one({"id": body.supplier_id, "owner_id": user["id"]}) if body.supplier_id else None
-    warehouse = await db.warehouses.find_one({"id": body.warehouse_id, "owner_id": user["id"]}) if body.warehouse_id else None
+    supplier = await db.suppliers.find_one({"id": body.supplier_id, "owner_id": {"$in": user["_scope"]}}) if body.supplier_id else None
+    warehouse = await db.warehouses.find_one({"id": body.warehouse_id, "owner_id": {"$in": user["_scope"]}}) if body.warehouse_id else None
     qty_map = {}
     if body.items:
         qty_map = {it.product_id: it.qty for it in body.items}
     else:
         ids = body.product_ids or []
-        prods = await db.products.find({"id": {"$in": ids}, "owner_id": user["id"]}).to_list(1000)
+        prods = await db.products.find({"id": {"$in": ids}, "owner_id": {"$in": user["_scope"]}}).to_list(1000)
         qty_map = {p["id"]: _suggest_qty(p) for p in prods}
     po = await _build_po_doc(user, qty_map, supplier, warehouse)
     await db.purchase_orders.insert_one(dict(po))
@@ -999,11 +1028,11 @@ async def create_purchase_order(body: POCreate, user: dict = Depends(get_current
 
 @api_router.post("/purchase-orders/auto")
 async def auto_purchase_orders(user: dict = Depends(get_current_user)):
-    products = await db.products.find({"owner_id": user["id"]}).to_list(5000)
+    products = await db.products.find({"owner_id": {"$in": user["_scope"]}}).to_list(5000)
     low = [p for p in products if product_total(p) <= int(p.get("low_stock_threshold", 5))]
     if not low:
         return {"created": [], "count": 0}
-    suppliers = {s["id"]: s for s in await db.suppliers.find({"owner_id": user["id"]}).to_list(1000)}
+    suppliers = {s["id"]: s for s in await db.suppliers.find({"owner_id": {"$in": user["_scope"]}}).to_list(1000)}
     groups: dict = {}
     for p in low:
         sid = p.get("supplier_id") or "__none__"
@@ -1019,39 +1048,39 @@ async def auto_purchase_orders(user: dict = Depends(get_current_user)):
 
 @api_router.get("/purchase-orders")
 async def list_purchase_orders(user: dict = Depends(get_current_user)):
-    items = await db.purchase_orders.find({"owner_id": user["id"]}).sort("created_at", -1).to_list(200)
+    items = await db.purchase_orders.find({"owner_id": {"$in": user["_scope"]}}).sort("created_at", -1).to_list(200)
     return [clean(i) for i in items]
 
 
 @api_router.put("/purchase-orders/{po_id}")
 async def update_purchase_order(po_id: str, body: POUpdate, user: dict = Depends(get_current_user)):
-    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": user["id"]})
+    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": {"$in": user["_scope"]}})
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
-    supplier = await db.suppliers.find_one({"id": po.get("supplier_id"), "owner_id": user["id"]}) if po.get("supplier_id") else None
-    warehouse = await db.warehouses.find_one({"id": po.get("warehouse_id"), "owner_id": user["id"]}) if po.get("warehouse_id") else None
+    supplier = await db.suppliers.find_one({"id": po.get("supplier_id"), "owner_id": {"$in": user["_scope"]}}) if po.get("supplier_id") else None
+    warehouse = await db.warehouses.find_one({"id": po.get("warehouse_id"), "owner_id": {"$in": user["_scope"]}}) if po.get("warehouse_id") else None
     qty_map = {it.product_id: it.qty for it in body.items if it.qty > 0}
     rebuilt = await _build_po_doc(user, qty_map, supplier, warehouse)
     upd = {"items": rebuilt["items"], "total": rebuilt["total"], "email_body": rebuilt["email_body"]}
-    await db.purchase_orders.update_one({"id": po_id, "owner_id": user["id"]}, {"$set": upd})
-    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": user["id"]})
+    await db.purchase_orders.update_one({"id": po_id, "owner_id": {"$in": user["_scope"]}}, {"$set": upd})
+    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": {"$in": user["_scope"]}})
     return clean(po)
 
 
 @api_router.put("/purchase-orders/{po_id}/sent")
 async def mark_po_sent(po_id: str, user: dict = Depends(get_current_user)):
     res = await db.purchase_orders.update_one(
-        {"id": po_id, "owner_id": user["id"]},
+        {"id": po_id, "owner_id": {"$in": user["_scope"]}},
         {"$set": {"status": "sent", "sent_at": now_iso()}})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Purchase order not found")
-    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": user["id"]})
+    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": {"$in": user["_scope"]}})
     return clean(po)
 
 
 @api_router.delete("/purchase-orders/{po_id}")
 async def delete_po(po_id: str, user: dict = Depends(get_current_user)):
-    await db.purchase_orders.delete_one({"id": po_id, "owner_id": user["id"]})
+    await db.purchase_orders.delete_one({"id": po_id, "owner_id": {"$in": user["_scope"]}})
     return {"ok": True}
 
 
@@ -1138,6 +1167,150 @@ async def billing_status(session_id: str, user: dict = Depends(get_current_user)
     fresh = await db.users.find_one({"id": user["id"]})
     plan = "pro" if _pro_active(fresh) else "free"
     return {"payment_status": st.payment_status, "status": st.status, "plan": plan}
+
+
+# ---------------- Company sharing (PRO) ----------------
+MAX_COMPANY_MEMBERS = 50
+MAX_ASSIGNED_MASTERS = 2  # in addition to the owner
+
+
+def _norm_code(code: str) -> str:
+    return re.sub(r"\s+", "", (code or "")).upper()
+
+
+async def _company_members(cid: str):
+    return await db.users.find({"company_id": cid}).to_list(MAX_COMPANY_MEMBERS + 10)
+
+
+def _member_public(u: dict, owner_id: str) -> dict:
+    return {"id": u["id"], "name": u.get("name") or u.get("email"), "email": u["email"],
+            "is_master": bool(u.get("is_company_master")), "is_owner": u["id"] == owner_id}
+
+
+@api_router.get("/company")
+async def get_company(user: dict = Depends(get_current_user)):
+    cid = user.get("company_id")
+    if not cid:
+        return {"connected": False, "is_pro": _pro_active(user)}
+    comp = await db.companies.find_one({"id": cid})
+    owner_id = comp.get("owner_user_id") if comp else None
+    members = await _company_members(cid)
+    is_master = bool(user.get("is_company_master"))
+    out = {"connected": True, "code": user.get("company_code") or (comp or {}).get("code"),
+           "is_owner": user["id"] == owner_id, "is_master": is_master,
+           "member_count": len(members), "max_members": MAX_COMPANY_MEMBERS, "members": []}
+    if is_master:
+        ms = [_member_public(m, owner_id) for m in members]
+        ms.sort(key=lambda x: (x["name"] or "").lower())
+        out["members"] = ms
+    return out
+
+
+@api_router.post("/company/create")
+async def create_company(body: CompanyCreate, user: dict = Depends(get_current_user)):
+    if not _pro_active(user):
+        raise HTTPException(status_code=403, detail="pro_required")
+    if user.get("company_id"):
+        raise HTTPException(status_code=400, detail="already_in_company")
+    code = _norm_code(body.code)
+    if len(code) < 4:
+        raise HTTPException(status_code=400, detail="code_too_short")
+    if await db.companies.find_one({"code": code}):
+        raise HTTPException(status_code=409, detail="code_taken")
+    cid = str(uuid.uuid4())
+    await db.companies.insert_one({"id": cid, "code": code, "owner_user_id": user["id"], "created_at": now_iso()})
+    await db.users.update_one({"id": user["id"]}, {"$set": {
+        "company_id": cid, "company_code": code, "is_company_master": True, "is_company_owner": True}})
+    return {"ok": True, "code": code}
+
+
+@api_router.post("/company/join")
+async def join_company(body: CompanyJoin, user: dict = Depends(get_current_user)):
+    if not _pro_active(user):
+        raise HTTPException(status_code=403, detail="pro_required")
+    if user.get("company_id"):
+        raise HTTPException(status_code=400, detail="already_in_company")
+    code = _norm_code(body.code)
+    comp = await db.companies.find_one({"code": code})
+    if not comp:
+        raise HTTPException(status_code=404, detail="company_not_found")
+    members = await _company_members(comp["id"])
+    if len(members) >= MAX_COMPANY_MEMBERS:
+        raise HTTPException(status_code=403, detail="company_full")
+    await db.users.update_one({"id": user["id"]}, {"$set": {
+        "company_id": comp["id"], "company_code": code, "is_company_master": False, "is_company_owner": False}})
+    return {"ok": True, "code": code}
+
+
+@api_router.post("/company/leave")
+async def leave_company(user: dict = Depends(get_current_user)):
+    cid = user.get("company_id")
+    if not cid:
+        return {"ok": True}
+    comp = await db.companies.find_one({"id": cid})
+    if comp and comp.get("owner_user_id") == user["id"]:
+        await db.users.update_many({"company_id": cid}, {"$set": {
+            "company_id": None, "company_code": None, "is_company_master": False, "is_company_owner": False}})
+        await db.companies.delete_one({"id": cid})
+        return {"ok": True, "dissolved": True}
+    await db.users.update_one({"id": user["id"]}, {"$set": {
+        "company_id": None, "company_code": None, "is_company_master": False, "is_company_owner": False}})
+    return {"ok": True}
+
+
+@api_router.put("/company/members/{uid}")
+async def update_member(uid: str, body: MemberUpdate, user: dict = Depends(get_current_user)):
+    cid = user.get("company_id")
+    if not cid or not user.get("is_company_master"):
+        raise HTTPException(status_code=403, detail="master_required")
+    comp = await db.companies.find_one({"id": cid})
+    owner_id = comp.get("owner_user_id") if comp else None
+    target = await db.users.find_one({"id": uid, "company_id": cid})
+    if not target:
+        raise HTTPException(status_code=404, detail="member_not_found")
+    updates = {}
+    if body.name is not None:
+        updates["name"] = body.name.strip() or target.get("name")
+    if body.email is not None:
+        new_email = str(body.email).lower()
+        if new_email != target["email"]:
+            if await db.users.find_one({"email": new_email}):
+                raise HTTPException(status_code=409, detail="email_taken")
+            updates["email"] = new_email
+    if body.is_master is not None:
+        if uid == owner_id:
+            raise HTTPException(status_code=400, detail="owner_is_always_master")
+        if body.is_master and not target.get("is_company_master"):
+            assigned = [m for m in await _company_members(cid)
+                        if m.get("is_company_master") and m["id"] != owner_id]
+            if len(assigned) >= MAX_ASSIGNED_MASTERS:
+                raise HTTPException(status_code=403, detail="master_limit")
+        updates["is_company_master"] = bool(body.is_master)
+    if updates:
+        await db.users.update_one({"id": uid}, {"$set": updates})
+    return {"ok": True}
+
+
+@api_router.delete("/company/members/{uid}")
+async def remove_member(uid: str, user: dict = Depends(get_current_user)):
+    cid = user.get("company_id")
+    if not cid or not user.get("is_company_master"):
+        raise HTTPException(status_code=403, detail="master_required")
+    comp = await db.companies.find_one({"id": cid})
+    if comp and comp.get("owner_user_id") == uid:
+        raise HTTPException(status_code=400, detail="cannot_remove_owner")
+    if uid == user["id"]:
+        raise HTTPException(status_code=400, detail="use_leave_instead")
+    await db.users.update_one({"id": uid, "company_id": cid}, {"$set": {
+        "company_id": None, "company_code": None, "is_company_master": False, "is_company_owner": False}})
+    return {"ok": True}
+
+
+@api_router.post("/billing/activate-test")
+async def activate_test_pro(user: dict = Depends(get_current_user)):
+    expires = (datetime.now(timezone.utc) + timedelta(days=365)).isoformat()
+    await db.users.update_one({"id": user["id"]}, {"$set": {"plan": "pro", "plan_expires_at": expires}})
+    return {"ok": True, "plan": "pro"}
 
 
 app.include_router(api_router)

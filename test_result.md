@@ -136,3 +136,50 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "Please test FRONTEND only. Login warehouse@test.com / test123. (1) From Dashboard tap the 'Stock Value' KPI box -> verify overview opens with the graph, an 'Export filters' card containing a date input (YYYY-MM-DD), a 'Today' button, and 'Export PDF' + 'Export CSV' buttons. Tapping export buttons should not crash (on web CSV downloads, PDF opens print). (2) Verify the Orders tab no longer shows any stock-value graph/date/export UI (only AI insight, reorder suggestions, PO history). (3) Sign out from Settings -> verify it navigates to the login screen."
+
+## Test Cycle 2 (Product sort + Company sharing / Master users)
+
+backend:
+  - task: "Company sharing API (create/join/leave, members, PRO gating, merged data scope)"
+    file: "/app/backend/server.py"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New endpoints: GET/POST /api/company, /company/create, /company/join, /company/leave, PUT+DELETE /api/company/members/{id}, POST /api/billing/activate-test. Data scoping changed: all reads/updates/deletes now use owner_id IN scope (all company member ids) so connected members share & co-manage warehouses/products/stock (merge). Inserts keep owner_id=self. PRO required to create or join. Max 50 members, max 2 assigned masters (+owner). Owner cannot be demoted/removed; owner leaving dissolves company. Verified via curl already."
+
+frontend:
+  - task: "Products drill-down sort toggle (A-Z / Stock low->high / high->low)"
+    file: "/app/frontend/app/warehouse-overview.tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added a 3-way sort toggle (sort-az, sort-low, sort-high testIDs) in the Products drill-down (mode=products). Sorts the product rows alphabetically, by stock ascending, or descending."
+
+  - task: "Company management UI (Settings card + /company screen)"
+    file: "/app/frontend/app/company.tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Settings has a Company card (company-card) -> /company screen. Not connected: code input + Create/Join (PRO gated banner). Connected: shows code + role + member count + Disconnect. Masters see a sorted member list; tap a member to edit name/email and toggle master (checkbox), or remove. Settings plan card has 'Activate PRO (test)' button (activate-pro-test-btn)."
+
+metadata:
+  created_by: "main_agent"
+  test_sequence: 2
+
+test_plan:
+  current_focus:
+    - "Company sharing API (create/join/leave, members, PRO gating, merged data scope)"
+    - "Products drill-down sort toggle (A-Z / Stock low->high / high->low)"
+    - "Company management UI (Settings card + /company screen)"
+  stuck_tasks: []
+  test_all: false
+
+agent_communication:
+  - agent: "main"
+    message: "Test BOTH backend and frontend. Credentials in test_credentials.md (warehouse@test.com/test123, bob@test.com/test123). BACKEND: verify PRO gating (create/join fail with 403 pro_required before activation; POST /billing/activate-test makes the user PRO), company create/join, GET /company member list (masters only, sorted alpha), assign master (max 2 extra), member email/name edit, remove member, owner-leave dissolves company, and that two connected members see the SAME products/warehouses/dashboard (merged data scope). FRONTEND: (1) Dashboard -> Products box -> verify sort toggle A-Z/Stock up/Stock down reorders rows. (2) Settings -> 'Activate PRO (test)' -> Company card -> /company -> create company 'ACME01' -> verify connected state, code & role show -> Disconnect. Note: store purchase flow is a placeholder (test activation used instead)."
