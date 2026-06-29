@@ -156,6 +156,10 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Saved sales order detail has a "Scan to pick" button: scanning a product barcode that matches an order line opens a popup showing the Demanded quantity and a picked-amount input; saving stores `picked` per item.
 - Item rows show "Picked: X/Y" (green when fully picked). `picked` persists through PUT and status changes. Verified: backend 3/3 pytest + frontend UI. NOTE: live camera barcode scan is device-only (not testable in Expo Go/web).
 
+## Completed (2026-06-29) — Sales tab layout polish
+- "Scan to pick" moved into the order detail just above the product lines (below the ship-from warehouse selector).
+- Sales Orders tab now shows the order content inline (status graph, search, status filters) — the separate "Orders" navigation button was removed. The list shows the 10 most recent orders with a "Show more" button that reveals 25 more at a time; pagination resets when status/search/sort changes. (Send-to-supplier remains only under Purchase Orders.) Verified by testing agent (iteration_15).
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker
 - Native App Store / Google Play PRO subscriptions (requires native build to QA)
