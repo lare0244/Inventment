@@ -1,0 +1,22 @@
+{
+  "summary": "Frontend-only test of (1) Settings -> Company -> Generate code button and (2) Swedish translations in Settings & /company. Both features verified end-to-end via Playwright on the public Expo web preview as warehouse@test.com (PRO). Generate code produces a 9-char code with exactly 5 digits + 4 uppercase letters in random order (two consecutive taps produced different codes: '0TJ2W2M14' and 'R8T1G2W48'). Create company with the generated code succeeded (became Owner, code persisted on the connected screen). Language switch to Svenska renders Settings sections in Swedish ('Företag', 'Ordrar', Swedish hint text under custom order fields) and /company screen in Swedish ('Företagskod', 'Generera kod', 'Skapa företag', 'Anslut till företag', 'Företag' header). 'Aktivera PRO (test)' button text is hidden when the account is already PRO (expected) — the translation key is verified in i18n.ts. Regression: company-card navigation, leave (disconnect) and create flows continue to work. No issues found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "i18n.ts: keys 'sortBy' and 'save2' appear declared twice within several language dicts (en, sv, da, nl, fr, de, es, it). Not a runtime bug (later value wins) but flagged for cleanup."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only test)", "frontend": "100%"},
+  "seed_data_creation": "Created/used company with codes 0TJ2W2M14 then R8T1G2W48 on warehouse@test.com. The account ended the run disconnected (left after Swedish verification). Per task note, leaving connected is also fine.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Generate-code logic in /app/frontend/app/company.tsx (genCode) builds 5 digits + 4 uppercase letters then Fisher-Yates shuffles them — verified random and 9 chars. Backend accepts via /company/create (the run successfully became Owner with code R8T1G2W48). For Swedish, all required keys exist in sv dict in /app/frontend/src/i18n.ts (company='Företag', generateCode='Generera kod', createCompany='Skapa företag', companyCode='Företagskod', orderSettings='Ordrar', activateProTest='Aktivera PRO (test)'). The 'Aktivera PRO (test)' Pressable is only rendered for non-PRO users (settings.tsx line ~171), so it does not appear for warehouse@test.com once PRO is active — this is expected.",
+  "rca_of_issue": "N/A — features verified working."
+}

@@ -59,6 +59,14 @@ export default function CompanyScreen() {
     try { await api("/company/join", { method: "POST", body: { code } }); setCode(""); await refreshUser(); await load(); }
     catch (e: any) { notify(mapError(String(e?.message || ""))); } finally { setBusy(false); }
   }
+  function genCode() {
+    const digits = "0123456789", letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const picks: string[] = [];
+    for (let i = 0; i < 5; i++) picks.push(digits[Math.floor(Math.random() * 10)]);
+    for (let i = 0; i < 4; i++) picks.push(letters[Math.floor(Math.random() * 26)]);
+    for (let i = picks.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [picks[i], picks[j]] = [picks[j], picks[i]]; }
+    setCode(picks.join(""));
+  }
   async function doLeave() {
     const run = async () => {
       setBusy(true);
@@ -114,6 +122,7 @@ export default function CompanyScreen() {
                 )}
                 <TextInput testID="company-code-input" value={code} onChangeText={setCode} placeholder={t("enterCompanyCode")}
                   placeholderTextColor={C.onSurfaceTertiary} autoCapitalize="characters" style={styles.input} />
+                <Btn testID="company-generate-code" title={t("generateCode")} icon="dice-multiple-outline" variant="secondary" style={{ marginBottom: S.sm }} onPress={genCode} />
                 <Btn testID="company-create-btn" title={t("createCompany")} icon="domain-plus" loading={busy} onPress={doCreate} />
                 <Btn testID="company-join-btn" title={t("joinCompany")} icon="account-multiple-plus-outline" variant="secondary" style={{ marginTop: S.sm }} loading={busy} onPress={doJoin} />
               </Card>
