@@ -102,6 +102,8 @@ const en: Dict = {
   fieldLabelHint: "Name the 2 custom fields shown on sales orders (max 12 characters).",
   errLockedAfterShipped: "Shipped orders can no longer be edited.", statusFlow: "Saved → Picked → Shipped → Returned",
   deleteOrder: "Delete order", orderItems: "Order items", emptyItems: "No products added.",
+  pickingList: "Picking List", packingSlip: "Packing Slip", printPickingList: "Print picking list", printPackingSlip: "Print packing slip",
+  chooseReturnWarehouse: "Choose the warehouse to restock the returned items into.",
   stockValueDate: "Stock value date", asOf: "As of", today: "Today", currentToday: "Current (today)",
   dateHint: "Leave blank for today's value, or enter a past date.", asOfNote: "Quantities reconstructed from stock movements; valued at current cost.", invalidDate: "Use format YYYY-MM-DD",
   adjustBtn: "Adjust", transferBtn: "Transfer", adjustStock: "Adjust stock",

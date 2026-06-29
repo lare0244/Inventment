@@ -1,14 +1,17 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, Platform } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, Platform, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { useColors, useT } from "@/src/appsettings";
 import { F, S, R, Palette } from "@/src/theme";
 import { Card, Btn } from "@/src/components/ui";
 import { SalesOrderEditor, SOValue } from "@/src/components/SalesOrderEditor";
+import { LOGO_DATA_URI } from "@/src/logoBase64";
 
 const STATUSES = ["saved", "picked", "shipped", "returned"] as const;
 const ALLOWED: Record<string, string[]> = { saved: ["picked", "shipped"], picked: ["shipped"], shipped: ["returned"], returned: [] };
@@ -28,6 +31,8 @@ export default function SalesOrderDetail() {
   const [value, setValue] = useState<SOValue | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [returnModal, setReturnModal] = useState(false);
+  const [returnWh, setReturnWh] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -52,6 +57,7 @@ export default function SalesOrderDetail() {
   }
 
   function changeStatus(target: string) {
+    if (target === "returned") { setReturnWh(order?.warehouse_id || warehouses[0]?.id || null); setReturnModal(true); return; }
     const confirmMsg = target === "picked" ? t("confirmPicked") : target === "shipped" ? t("confirmShipped") : t("confirmReturned");
     const run = async () => {
       try { await api(`/sales-orders/${id}/status`, { method: "POST", body: { status: target } }); await load(); } catch {}
@@ -68,6 +74,49 @@ export default function SalesOrderDetail() {
   }
 
   const curIdx = order ? STATUSES.indexOf(order.status) : 0;
+
+  async function confirmReturn() {
+    try { await api(`/sales-orders/${id}/status`, { method: "POST", body: { status: "returned", warehouse_id: returnWh } }); setReturnModal(false); await load(); } catch {}
+  }
+
+  async function buildSoPdf(kind: "pick" | "pack") {
+    if (!order) return;
+    const whName = (warehouses.find((w) => w.id === order.warehouse_id) || {}).name || "-";
+    const pmap: Record<string, any> = Object.fromEntries(products.map((p) => [p.id, p]));
+    const label1 = user?.so_field1_label || "Field 1";
+    const label2 = user?.so_field2_label || "Field 2";
+    const rows = (order.items || []).map((it: any, idx: number) => {
+      const p = pmap[it.product_id] || {};
+      const ref = p.sku || p.barcode || "-";
+      const checkCol = kind === "pick" ? `<td style="width:40px;text-align:center;font-size:18px">&#9744;</td>` : "";
+      return `<tr><td>${idx + 1}</td><td>${it.name}</td><td>${ref}</td><td style="text-align:right">${it.quantity}</td>${checkCol}</tr>`;
+    }).join("");
+    const title = kind === "pick" ? t("pickingList") : t("packingSlip");
+    const comp: any = user?.company || {};
+    const compBlock = comp.company_name ? `<div style="font-size:16px;font-weight:700">${comp.company_name}</div><div class="sub">${[comp.street1, comp.street2, comp.postcode, comp.city, comp.state, comp.county].filter(Boolean).join(", ")}</div>` : "";
+    const extra = kind === "pack"
+      ? `<div class="sub">${label2}: ${order.field2 || "-"}</div><div class="sub">${t("shippingRef")}: ${order.shipping_ref || "-"}</div>${order.comment ? `<div class="sub">${t("comment")}: ${order.comment}</div>` : ""}`
+      : "";
+    const checkHead = kind === "pick" ? `<th style="width:40px">&#10003;</th>` : "";
+    const html = `<html><head><meta name="viewport" content="width=device-width, initial-scale=1"/>
+      <style>body{font-family:-apple-system,Helvetica,Arial;padding:24px;color:#111}h1{color:#E64A19;margin-bottom:0}
+      .sub{color:#555;margin-top:3px;font-size:13px}table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
+      th,td{border-bottom:1px solid #ddd;padding:8px;text-align:left}th{background:#f4f4f4}</style></head><body>
+      <h1>${title}</h1>
+      <div class="sub" style="font-size:16px;color:#111;font-weight:700">${order.order_number}</div>
+      ${compBlock}
+      <div class="sub">${t("orderDate")}: ${order.order_date}</div>
+      <div class="sub">${label1}: ${order.field1 || "-"}</div>
+      <div class="sub">${t("shipFrom")}: ${whName}</div>
+      ${extra}
+      <table><tr><th>#</th><th>${t("productName")}</th><th>${t("sku")}</th><th style="text-align:right">${t("quantity")}</th>${checkHead}</tr>${rows}</table>
+      <div style="text-align:center;margin-top:40px;border-top:1px solid #eee;padding-top:14px"><img src="${LOGO_DATA_URI}" style="height:54px"/></div>
+      </body></html>`;
+    try {
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: title });
+    } catch {}
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: C.surface }}>
@@ -104,6 +153,17 @@ export default function SalesOrderDetail() {
             })}
           </Card>
 
+          {(order.status === "saved" || order.status === "shipped") && (
+            <Card style={{ marginBottom: S.md }}>
+              {order.status === "saved" && (
+                <Btn testID="so-pdf-pick" title={t("printPickingList")} icon="clipboard-check-outline" variant="secondary" onPress={() => buildSoPdf("pick")} />
+              )}
+              {order.status === "shipped" && (
+                <Btn testID="so-pdf-pack" title={t("printPackingSlip")} icon="file-document-outline" variant="secondary" onPress={() => buildSoPdf("pack")} />
+              )}
+            </Card>
+          )}
+
           <SalesOrderEditor value={value} onChange={setValue} products={products} warehouses={warehouses}
             label1={user?.so_field1_label || "Field 1"} label2={user?.so_field2_label || "Field 2"} editable={!!editable} />
 
@@ -114,6 +174,26 @@ export default function SalesOrderDetail() {
           )}
         </ScrollView>
       )}
+
+      <Modal visible={returnModal} transparent animationType="fade" onRequestClose={() => setReturnModal(false)}>
+        <View style={styles.modalBg}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t("stReturned")}</Text>
+            <Text style={styles.modalHint}>{t("chooseReturnWarehouse")}</Text>
+            <View style={styles.whWrap}>
+              {warehouses.map((w) => (
+                <Pressable key={w.id} testID={`return-wh-${w.id}`} onPress={() => setReturnWh(w.id)} style={[styles.whChip, returnWh === w.id && styles.whChipActive]}>
+                  <Text style={[styles.whTxt, returnWh === w.id && { color: C.onBrand }]}>{w.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Btn testID="return-confirm" title={t("moveToReturned")} icon="keyboard-return" onPress={confirmReturn} />
+            <Pressable onPress={() => setReturnModal(false)} style={{ alignItems: "center", paddingVertical: S.md }}>
+              <Text style={{ color: C.onSurfaceTertiary, fontFamily: F.textBold }}>{t("cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -129,4 +209,12 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   curPill: { backgroundColor: C.brand, borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: 2 },
   curPillTxt: { color: C.onBrand, fontFamily: F.textBold, fontSize: 10, letterSpacing: 0.5 },
   locked: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13, textAlign: "center", marginTop: S.md },
+  modalBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", padding: S.xl },
+  modalCard: { backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.lg, padding: S.lg },
+  modalTitle: { color: C.onSurface, fontFamily: F.display, fontSize: 20, marginBottom: S.xs },
+  modalHint: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13, marginBottom: S.md },
+  whWrap: { flexDirection: "row", flexWrap: "wrap", gap: S.sm, marginBottom: S.md },
+  whChip: { paddingHorizontal: S.md, height: 38, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", backgroundColor: C.surface },
+  whChipActive: { backgroundColor: C.brand, borderColor: C.brand },
+  whTxt: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 13 },
 });

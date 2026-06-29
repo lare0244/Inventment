@@ -1,0 +1,28 @@
+{
+  "summary": "Sales Orders v13 additions tested end-to-end (backend + frontend). BACKEND: 4/4 pytest in /app/backend/tests/test_so_return_warehouse.py pass — (a) ship-from A drops A by qty on shipped; (b) return with warehouse_id=B restocks B and persists order.return_warehouse_id=B (total stock conserved A:15 + B:5 = 20); (c) return without warehouse_id falls back to order's ship-from; (d) status flow remains forward-only and no double stock movement (re-issuing shipped returns 400 invalid_transition with no extra deduct, picked→shipped only deducts once). FRONTEND (mobile 390x844, warehouse@test.com / test123): /sales-order/new shows ship-from chips (so-wh-*) — 2 chips for the 2 existing warehouses (Main Warehouse, Gothenburg DC), one is preselected so save is gated by an actual chip choice; creating an order saves successfully (order 2606A000019). On Saved detail: so-pdf-pick visible, so-pdf-pack hidden; tapping so-pdf-pick does not crash (expo-print opens print window on web). Advancing saved→picked (confirm dialog) → picked→shipped (confirm dialog) makes so-pdf-pack appear and so-pdf-pick disappear; tapping so-pdf-pack does not crash. On shipped, tapping so-status-returned opens a modal with both return-wh-* chips and return-confirm; selecting the OTHER warehouse and tapping return-confirm transitions the order to Returned (Returned row is now checked, others now disabled — flow-locked). No deprecated expo packages detected in the touched code (expo-print / expo-sharing in use).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_so_return_warehouse.py",
+    "/app/test_reports/pytest/pytest_so_return_warehouse.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "POST /api/sales-orders accepts warehouse_id=None (Optional). Frontend always sends one via the auto-selected chip, but the backend does not enforce it. If business rules require strict ship-from, add a 400 when body.warehouse_id is missing/invalid (non-blocking; current UX still effectively requires a chip).",
+    "/api/sales-orders/{oid}/status with status='returned' does not validate that body.warehouse_id (when supplied) belongs to the user's scope — invalid ids silently fall back via _apply_so_stock's `next(iter(stock), None)`. Consider validating return warehouse_id against owner's warehouses for a clearer 400 (low priority)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_so_return_warehouse.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Backend tests register an isolated TEST_sowh_* user, create up to 2 TEST_WH_* warehouses if needed, and TEST_SOWH_* products. Frontend run reused warehouse@test.com and created 1 sales order (2606A000019) that ended in Returned status.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Re-run /app/backend/tests/test_so_return_warehouse.py to verify return-warehouse math. Frontend smoke flow: login → Orders → Sales tab → so-create-btn → pick a so-wh-* chip → so-add-product → so-pick-* → so-save → tap the new so-row-* → expect so-pdf-pick (saved). Advance via so-status-picked then so-status-shipped (web confirm dialogs auto-accept needed). Then so-status-returned opens modal with return-wh-* and return-confirm. PDF buttons rely on expo-print; on web, window.print may pop — override `window.print` in the test to a no-op to avoid blocking.",
+  "rca_of_issue": "n/a - no defects found."
+}

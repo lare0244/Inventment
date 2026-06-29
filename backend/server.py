@@ -1347,6 +1347,7 @@ class SalesOrderIn(BaseModel):
 
 class SOStatusUpdate(BaseModel):
     status: str
+    warehouse_id: Optional[str] = None
 
 
 def _so_counter_key(user: dict) -> str:
@@ -1488,13 +1489,16 @@ async def set_sales_order_status(oid: str, body: SOStatusUpdate, user: dict = De
         raise HTTPException(status_code=400, detail="invalid_transition")
     items = o.get("items") or []
     wid = o.get("warehouse_id")
+    extra = {}
     if new == "shipped":
         await _apply_so_stock(user, items, wid, -1, f"Sales order {o.get('order_number')} shipped")
     elif new == "returned":
-        await _apply_so_stock(user, items, wid, +1, f"Sales order {o.get('order_number')} returned")
+        ret_wid = body.warehouse_id or wid
+        extra["return_warehouse_id"] = ret_wid
+        await _apply_so_stock(user, items, ret_wid, +1, f"Sales order {o.get('order_number')} returned")
     await db.sales_orders.update_one({"id": oid, "owner_id": {"$in": user["_scope"]}},
-                                     {"$set": {"status": new, "updated_at": now_iso()}})
-    return clean({**o, "status": new})
+                                     {"$set": {"status": new, "updated_at": now_iso(), **extra}})
+    return clean({**o, "status": new, **extra})
 
 
 @api_router.delete("/sales-orders/{oid}")

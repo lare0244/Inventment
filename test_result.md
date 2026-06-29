@@ -238,3 +238,26 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "Test BOTH. Login warehouse@test.com/test123 (PRO). BACKEND focus: order number format YYMM+letter+6digits, forward-only status transitions (reject backward with 400), stock deduct on shipped & restock on returned, 15-month chart shape {months:[15], series:{saved,picked,shipped,returned:[15]}}, PUT locked after shipped, settings so_field labels persist via PUT /api/settings & GET /api/auth/me. FRONTEND: Orders tab -> toggle to Sales -> Create sales order (add a product with qty, pick ship-from warehouse, save) -> appears under Saved in /sales-orders -> open it -> tick Picked (confirm) -> tick Shipped (confirm, stock should drop) -> tick Returned (confirm). Verify search + the 4 sort filters, and that Settings 'Orders' card renames the 2 fields and the names appear as field labels + sort chips. Confirm Purchase Orders tab still shows the old reorder/PO content. Note: status chart may show flat lines when there is little data - that's fine."
+
+## Test Cycle 4 (Sales order PDFs + return warehouse)
+backend:
+  - task: "Return status accepts chosen warehouse for restock"
+    file: "/app/backend/server.py"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/sales-orders/{id}/status now accepts optional warehouse_id; when status=returned it restocks into that warehouse (saved as return_warehouse_id). Curl-verified: ship from WA (20->15), return to WB (WB +5, total 20)."
+frontend:
+  - task: "Picking list PDF (saved) + Packing slip PDF (shipped) + return warehouse picker"
+    file: "/app/frontend/app/sales-order/[id].tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Detail screen: when status=saved shows 'Print picking list' (so-pdf-pick); when status=shipped shows 'Print packing slip' (so-pdf-pack) - both build a PDF via expo-print/Sharing (logo + company info + items). Ticking Returned opens a modal (return-wh-* chips, return-confirm) to choose restock warehouse. Create form Save guarded so a warehouse must be selected."
+agent_communication:
+  - agent: "main"
+    message: "Test the NEW additions only (Sales Orders core already passed in cycle 3). Login warehouse@test.com/test123 (PRO). BACKEND: POST /api/sales-orders/{id}/status {status:'returned', warehouse_id: <otherWh>} restocks into that warehouse (check GET /api/products/{id} stock map) and persists return_warehouse_id. FRONTEND: create an order with an item + ship-from warehouse; on the Saved order detail confirm 'so-pdf-pick' button exists and tapping it doesn't crash (web opens print). Advance to Shipped; confirm 'so-pdf-pack' button appears. Tap the Returned status box -> a warehouse-picker modal appears (return-wh-*), pick one and confirm (return-confirm) -> order becomes returned. PDFs are client-side print; just verify buttons render per status and no crash."
