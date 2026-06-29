@@ -1,0 +1,23 @@
+{
+  "summary": "Frontend-only regression for the two Sales-Orders UX changes. PASS on all 6 review items. Mobile viewport 390x844, warehouse@test.com/test123. (1) Orders -> Sales Orders segment renders inline: so-create-btn, 'Orders by status' line chart with Saved/Picked/Shipped/Returned legend, status tabs so-tab-saved/picked/shipped/returned, so-search, sort chips so-sort-date/order_number/field1/field2, and the orders list - NO so-orders-btn in DOM (count=0). (2) Pagination: Saved tab initially shows 10 rows with so-show-more visible; tapping so-show-more increased rows from 10 -> 12 and the button disappeared (12 saved orders total <= 10+25). (3) State reset: typing 'ZZNOMATCH' in so-search filtered list to 0; tapping so-sort-order_number reorders; switching to so-tab-shipped (0 rows) then back to so-tab-saved shows rows=10 with so-show-more reappearing (pagination reset to 10). (4) Purchase tab unaffected: tab-purchase renders 'PURCHASE ORDERS' header, AI Insight card, Suggested Reorders, auto-po-btn, Order History with DRAFT/SENT statuses; so-create-btn does NOT leak (count=0). (5) Scan bar placement on Saved order 2606A000032: absolute Y positions captured via DOM = so-pdf-pick: 401 (in top actions card near header), so-wh (Ship-from chip 'Main Warehouse'): 991, so-scan-pick: 1058, so-add-product (Order items header): 1122. So so-scan-pick is BELOW the ship-from selector and ABOVE the Order items list, AND no longer in the top actions card (which still contains only so-pdf-pick). (6) Create flow: so-create-btn navigates to /sales-order/new; tapping so-save returns to /orders with the Sales segment active and so-create-btn re-rendered, list reloads via useFocusEffect.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SalesOrdersPanel.tsx pagination uses both useFocusEffect AND useEffect on loadList - on focus, two loads fire back-to-back. Harmless but redundant; useEffect alone (with loadList in deps) plus a single useFocusEffect for chart would suffice.",
+    "SalesOrdersPanel useEffect resets visible to INITIAL on status/q/sort change (good), but does NOT reset when the orders array shrinks below current visible after a refresh - minor: if total drops to e.g. 5, visible stays at e.g. 35 which still works because slice clamps, but show-more correctly hides. Acceptable.",
+    "sales-order/new.tsx: save() does not validate non-empty items - an empty order can be created. Probably intended to allow drafts; flag if business rule requires >=1 item."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "seed_data_creation": "Used existing seed: 12 Saved sales orders. One new empty Saved order was created via the create flow test (no items); no other data created.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 6 review items verified on web preview. Reproduce with: login warehouse@test.com/test123 -> Orders tab -> Sales Orders segment. Look for testIDs so-create-btn, so-tab-*, so-search, so-sort-*, so-show-more. To re-verify scan placement, open any so-row-* whose order has status 'saved' AND at least one item; compute getBoundingClientRect().top+scrollY for so-pdf-pick, so-wh, so-scan-pick, so-add-product and assert wh < scan < add-product, pdf < scan."
+}

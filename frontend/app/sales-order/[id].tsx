@@ -198,9 +198,6 @@ export default function SalesOrderDetail() {
               {order.status === "saved" && (
                 <Btn testID="so-pdf-pick" title={t("printPickingList")} icon="clipboard-check-outline" variant="secondary" onPress={() => buildSoPdf("pick")} />
               )}
-              {order.status === "saved" && (
-                <Btn testID="so-scan-pick" title={t("scanToPick")} icon="barcode-scan" style={{ marginTop: S.sm }} onPress={openScanner} />
-              )}
               {order.status === "shipped" && (
                 <Btn testID="so-pdf-pack" title={t("printPackingSlip")} icon="file-document-outline" variant="secondary" onPress={() => buildSoPdf("pack")} />
               )}
@@ -208,7 +205,10 @@ export default function SalesOrderDetail() {
           )}
 
           <SalesOrderEditor value={value} onChange={setValue} products={products} warehouses={warehouses}
-            label1={user?.so_field1_label || "Field 1"} label2={user?.so_field2_label || "Field 2"} editable={!!editable} />
+            label1={user?.so_field1_label || "Field 1"} label2={user?.so_field2_label || "Field 2"} editable={!!editable}
+            aboveItems={order.status === "saved" ? (
+              <Btn testID="so-scan-pick" title={t("scanToPick")} icon="barcode-scan" style={{ marginBottom: S.md }} onPress={openScanner} />
+            ) : null} />
 
           {editable ? (
             <Btn testID="so-save-edits" title={t("save")} icon="content-save-outline" loading={saving} onPress={saveEdits} style={{ marginTop: S.md }} />

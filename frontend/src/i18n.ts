@@ -101,7 +101,7 @@ const en: Dict = {
   saveSalesOrder: "Save order", orderSettings: "Orders", orderFieldLabels: "Custom order fields",
   fieldLabelHint: "Name the 2 custom fields shown on sales orders (max 12 characters).",
   errLockedAfterShipped: "Shipped orders can no longer be edited.", statusFlow: "Saved → Picked → Shipped → Returned",
-  deleteOrder: "Delete order", orderItems: "Order items", emptyItems: "No products added.",
+  deleteOrder: "Delete order", orderItems: "Order items", emptyItems: "No products added.", showMore: "Show more",
   pickingList: "Picking List", packingSlip: "Packing Slip", printPickingList: "Print picking list", printPackingSlip: "Print packing slip",
   chooseReturnWarehouse: "Choose the warehouse to restock the returned items into.",
   scanToPick: "Scan to pick", notInOrder: "That product is not in this order.", demanded: "Demanded", pickedAmount: "Picked amount", picked: "Picked",

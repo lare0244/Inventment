@@ -10,6 +10,7 @@ import { useColors, useT, useApp } from "@/src/appsettings";
 import { money } from "@/src/currency";
 import { F, S, R, Palette } from "@/src/theme";
 import { Card, Btn } from "@/src/components/ui";
+import { SalesOrdersPanel } from "@/src/components/SalesOrdersPanel";
 
 export default function Orders() {
   const insets = useSafeAreaInsets();
@@ -149,8 +150,8 @@ export default function Orders() {
 
       {tab === "sales" ? (
         <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 120 }}>
-          <Btn testID="so-create-btn" title={t("createSalesOrder")} icon="plus-circle-outline" onPress={() => router.push("/sales-order/new")} />
-          <Btn testID="so-orders-btn" title={t("orders")} icon="format-list-bulleted" variant="secondary" style={{ marginTop: S.md }} onPress={() => router.push("/sales-orders")} />
+          <Btn testID="so-create-btn" title={t("createSalesOrder")} icon="plus-circle-outline" style={{ marginBottom: S.lg }} onPress={() => router.push("/sales-order/new")} />
+          <SalesOrdersPanel />
         </ScrollView>
       ) : loading ? (
         <ActivityIndicator color={C.brand} style={{ marginTop: 40 }} />

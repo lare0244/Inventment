@@ -40,7 +40,7 @@ export default function NewSalesOrder() {
     setSaving(true);
     try {
       await api("/sales-orders", { method: "POST", body: { ...value, items: value.items.map((i) => ({ product_id: i.product_id, name: i.name, quantity: i.quantity })) } });
-      router.replace("/sales-orders");
+      router.back();
     } catch {} finally { setSaving(false); }
   }
 

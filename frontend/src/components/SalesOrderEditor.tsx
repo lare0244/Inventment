@@ -10,9 +10,9 @@ export type SOValue = {
   order_date: string; warehouse_id: string | null; items: { product_id: string; name: string; quantity: number; picked?: number }[];
 };
 
-export function SalesOrderEditor({ value, onChange, products, warehouses, label1, label2, editable = true }: {
+export function SalesOrderEditor({ value, onChange, products, warehouses, label1, label2, editable = true, aboveItems }: {
   value: SOValue; onChange: (v: SOValue) => void;
-  products: any[]; warehouses: any[]; label1: string; label2: string; editable?: boolean;
+  products: any[]; warehouses: any[]; label1: string; label2: string; editable?: boolean; aboveItems?: React.ReactNode;
 }) {
   const C = useColors();
   const t = useT();
@@ -68,6 +68,8 @@ export function SalesOrderEditor({ value, onChange, products, warehouses, label1
           ))}
         </ScrollView>
       </Card>
+
+      {aboveItems}
 
       <View style={styles.itemHead}>
         <Text style={styles.section}>{t("orderItems")} · {value.items.length}</Text>
