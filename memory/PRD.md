@@ -152,6 +152,10 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Ship-from warehouse is required on create (backend rejects missing/invalid with 400 warehouse_required); shipping deducts from it.
 - Return transition opens a warehouse picker so returned items restock into the chosen (possibly different) warehouse; return warehouse validated against the company's warehouses, persisted as return_warehouse_id. Verified: backend 4/4 pytest + frontend flows.
 
+## Completed (2026-06-29) — Scan-to-pick on saved orders
+- Saved sales order detail has a "Scan to pick" button: scanning a product barcode that matches an order line opens a popup showing the Demanded quantity and a picked-amount input; saving stores `picked` per item.
+- Item rows show "Picked: X/Y" (green when fully picked). `picked` persists through PUT and status changes. Verified: backend 3/3 pytest + frontend UI. NOTE: live camera barcode scan is device-only (not testable in Expo Go/web).
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker
 - Native App Store / Google Play PRO subscriptions (requires native build to QA)
