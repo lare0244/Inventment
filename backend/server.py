@@ -1399,6 +1399,8 @@ async def _apply_so_stock(user: dict, items: list, warehouse_id: Optional[str], 
 
 @api_router.post("/sales-orders")
 async def create_sales_order(body: SalesOrderIn, user: dict = Depends(get_current_user)):
+    if not body.warehouse_id or not await db.warehouses.find_one({"id": body.warehouse_id, "owner_id": {"$in": user["_scope"]}}):
+        raise HTTPException(status_code=400, detail="warehouse_required")
     num = await _gen_order_number(user)
     order_date = body.order_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     doc = {"id": str(uuid.uuid4()), "owner_id": user["id"], "order_number": num,
@@ -1494,6 +1496,8 @@ async def set_sales_order_status(oid: str, body: SOStatusUpdate, user: dict = De
         await _apply_so_stock(user, items, wid, -1, f"Sales order {o.get('order_number')} shipped")
     elif new == "returned":
         ret_wid = body.warehouse_id or wid
+        if ret_wid and not await db.warehouses.find_one({"id": ret_wid, "owner_id": {"$in": user["_scope"]}}):
+            ret_wid = wid
         extra["return_warehouse_id"] = ret_wid
         await _apply_so_stock(user, items, ret_wid, +1, f"Sales order {o.get('order_number')} returned")
     await db.sales_orders.update_one({"id": oid, "owner_id": {"$in": user["_scope"]}},

@@ -147,6 +147,11 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Auto order number YYMM + letter + 6 digits (e.g. 2606A000001), company-scoped counter. Fields: order number, 2 user-named custom fields (Settings → Orders, max 12 chars), comment, shipping reference, date (with Today).
 - Orders list per status: scrollable, sorted date→order number, with search bar + sort filters (date, order number, the 2 custom fields). Verified: backend 15/15 pytest + frontend flows.
 
+## Completed (2026-06-29) — Sales order PDFs + return warehouse
+- Picking List PDF on Saved orders; Packing Slip PDF on Shipped orders (expo-print, with company info + logo + items).
+- Ship-from warehouse is required on create (backend rejects missing/invalid with 400 warehouse_required); shipping deducts from it.
+- Return transition opens a warehouse picker so returned items restock into the chosen (possibly different) warehouse; return warehouse validated against the company's warehouses, persisted as return_warehouse_id. Verified: backend 4/4 pytest + frontend flows.
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker
 - Native App Store / Google Play PRO subscriptions (requires native build to QA)
