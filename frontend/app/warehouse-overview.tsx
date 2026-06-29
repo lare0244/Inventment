@@ -39,6 +39,7 @@ export default function WarehouseOverview() {
   const [filterCat, setFilterCat] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [sortBy, setSortBy] = useState<"az" | "low" | "high">("az");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -183,6 +184,16 @@ export default function WarehouseOverview() {
   const chartW = width - S.lg * 2 - S.lg * 2;
   const fmtAxis = (v: number) => (v >= 1000 ? `${+(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `${Math.round(v)}`);
   const list = mode === "low" ? lowProducts : visibleProducts;
+  const sortedList = useMemo(() => {
+    if (mode !== "products") return list;
+    const arr = [...list];
+    arr.sort((a, b) =>
+      sortBy === "az" ? (a.name || "").localeCompare(b.name || "")
+        : sortBy === "low" ? (a.whQty || 0) - (b.whQty || 0)
+          : (b.whQty || 0) - (a.whQty || 0)
+    );
+    return arr;
+  }, [list, sortBy, mode]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.surface }}>
@@ -310,11 +321,28 @@ export default function WarehouseOverview() {
           {/* Product rows (everything except value mode) */}
           {mode !== "value" && (
             <>
-              <Text style={styles.section}>{mode === "low" ? t("lowStockAlerts") : `${t("allProducts")} · ${list.length}`}</Text>
-              {list.length === 0 ? (
+              {mode === "products" ? (
+                <View style={styles.catHeaderRow}>
+                  <Text style={[styles.section, { marginBottom: 0 }]}>{`${t("allProducts")} · ${sortedList.length}`}</Text>
+                  <View style={styles.toggle}>
+                    <Pressable testID="sort-az" onPress={() => setSortBy("az")} style={[styles.toggleBtn, sortBy === "az" && styles.toggleBtnActive]}>
+                      <Text style={[styles.toggleTxt, sortBy === "az" && { color: C.onBrand }]}>{t("sortAZ")}</Text>
+                    </Pressable>
+                    <Pressable testID="sort-low" onPress={() => setSortBy("low")} style={[styles.toggleBtn, sortBy === "low" && styles.toggleBtnActive]}>
+                      <Text style={[styles.toggleTxt, sortBy === "low" && { color: C.onBrand }]}>{t("sortLowHigh")}</Text>
+                    </Pressable>
+                    <Pressable testID="sort-high" onPress={() => setSortBy("high")} style={[styles.toggleBtn, sortBy === "high" && styles.toggleBtnActive]}>
+                      <Text style={[styles.toggleTxt, sortBy === "high" && { color: C.onBrand }]}>{t("sortHighLow")}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Text style={styles.section}>{mode === "low" ? t("lowStockAlerts") : `${t("allProducts")} · ${sortedList.length}`}</Text>
+              )}
+              {sortedList.length === 0 ? (
                 <Card><Text style={styles.empty}>{mode === "low" ? t("allHealthy") : t("noProducts")}</Text></Card>
               ) : (
-                list.map((p) => (
+                sortedList.map((p) => (
                   <Pressable key={p.id} testID={`wo-product-${p.id}`} onPress={() => router.push(`/product/${p.id}`)}>
                     <Card style={styles.row}>
                       <View style={[styles.dot, { backgroundColor: stockColor(p.whQty, p.low_stock_threshold, C) }]} />
