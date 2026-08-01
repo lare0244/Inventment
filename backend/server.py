@@ -15,6 +15,7 @@ from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from passlib.context import CryptContext
 from jose import JWTError, jwt
+import jwt as pyjwt
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -27,6 +28,12 @@ JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
+
+# Social auth config
+EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
+APPLE_AUDIENCES = [a.strip() for a in os.environ.get('APPLE_AUDIENCES', '').split(',') if a.strip()]
+APPLE_ISSUER = "https://appleid.apple.com"
+_apple_jwks = pyjwt.PyJWKClient("https://appleid.apple.com/auth/keys")
 
 from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
@@ -63,6 +70,16 @@ class LoginRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class SessionRequest(BaseModel):
+    session_id: str
+
+
+class AppleAuthRequest(BaseModel):
+    identity_token: str
+    name: Optional[str] = None
+    email: Optional[str] = None
 
 
 class UserPublic(BaseModel):
@@ -250,9 +267,83 @@ async def register(body: UserCreate):
 @api_router.post("/auth/login", response_model=Token)
 async def login(body: LoginRequest):
     user = await db.users.find_one({"email": body.email.lower()})
-    if not user or not pwd_context.verify(body.password, user["hashed_password"]):
+    if not user or not user.get("hashed_password") or not pwd_context.verify(body.password, user["hashed_password"]):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     return Token(access_token=create_access_token(user["id"]))
+
+
+async def _upsert_social_user(email: Optional[str], name: Optional[str], *, provider: str, match: dict) -> str:
+    """Find or create a user for a social login. Returns the app user id."""
+    user = await db.users.find_one(match)
+    if not user and email:
+        user = await db.users.find_one({"email": email})
+    if user:
+        # Persist provider identifiers / name if we learned them this time.
+        patch = {k: v for k, v in match.items() if v and not user.get(k)}
+        if name and not user.get("name"):
+            patch["name"] = name
+        if email and not user.get("email"):
+            patch["email"] = email
+        if patch:
+            await db.users.update_one({"id": user["id"]}, {"$set": patch})
+        return user["id"]
+    uid = str(uuid.uuid4())
+    doc = {
+        "id": uid,
+        "email": (email or f"{uid}@{provider}.local").lower(),
+        "name": name or (email.split("@")[0] if email else provider.capitalize() + " User"),
+        "hashed_password": None,
+        "auth_provider": provider,
+        "currency": "SEK",
+        "plan": "free",
+        "created_at": now_iso(),
+        **match,
+    }
+    await db.users.insert_one(doc)
+    await db.warehouses.insert_one({**Warehouse(name="Main Warehouse", location="Default").dict(), "owner_id": uid})
+    return uid
+
+
+@api_router.post("/auth/session", response_model=Token)
+async def google_session(body: SessionRequest):
+    """Emergent-managed Google login: exchange one-time session_id for an app token."""
+    try:
+        async with httpx.AsyncClient(timeout=15) as http:
+            r = await http.get(EMERGENT_SESSION_URL, headers={"X-Session-ID": body.session_id})
+    except Exception:
+        raise HTTPException(status_code=401, detail="Could not verify session")
+    if r.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    data = r.json()
+    email = (data.get("email") or "").lower()
+    if not email:
+        raise HTTPException(status_code=401, detail="No email returned from provider")
+    uid = await _upsert_social_user(email, data.get("name"), provider="google", match={"email": email})
+    return Token(access_token=create_access_token(uid))
+
+
+@api_router.post("/auth/apple", response_model=Token)
+async def apple_auth(body: AppleAuthRequest):
+    """Sign in with Apple (iOS): verify identity token against Apple JWKS."""
+    if not APPLE_AUDIENCES:
+        raise HTTPException(status_code=500, detail="Apple sign-in not configured")
+    try:
+        signing_key = _apple_jwks.get_signing_key_from_jwt(body.identity_token)
+        claims = pyjwt.decode(
+            body.identity_token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=APPLE_AUDIENCES,
+            issuer=APPLE_ISSUER,
+        )
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Apple identity token")
+    apple_sub = claims.get("sub")
+    if not apple_sub:
+        raise HTTPException(status_code=401, detail="Invalid Apple identity token")
+    email = (body.email or claims.get("email") or "").lower() or None
+    uid = await _upsert_social_user(email, body.name, provider="apple", match={"apple_sub": apple_sub})
+    return Token(access_token=create_access_token(uid))
 
 
 def _public_user(user: dict) -> UserPublic:

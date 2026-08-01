@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/src/auth";
 import { useColors, useT } from "@/src/appsettings";
 import { Btn, Field } from "@/src/components/ui";
+import { SocialAuth } from "@/src/components/SocialAuth";
 import { F, S, Palette } from "@/src/theme";
 
 export default function Register() {
@@ -45,6 +46,7 @@ export default function Register() {
         <Field label={t("password")} testID="reg-password" value={password} onChangeText={setPassword} secureTextEntry placeholder="Min 6" />
         {!!err && <Text testID="reg-error" style={styles.err}>{err}</Text>}
         <Btn testID="reg-submit" title={t("createAccountBtn")} onPress={submit} loading={loading} icon="account-plus" />
+        <SocialAuth />
         <View style={styles.row}>
           <Text style={styles.muted}>{t("haveAccount")}</Text>
           <Link href="/(auth)/login" style={styles.link} testID="go-login">{t("signInLink")}</Link>

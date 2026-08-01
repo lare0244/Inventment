@@ -12,6 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.inventment.app",
       "buildNumber": "1",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Scan product barcodes to manage stock",
         "ITSAppUsesNonExemptEncryption": false
@@ -25,7 +26,8 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA"
-      ]
+      ],
+      "package": "com.emergent.warehousetracker.ak8xlw"
     },
     "web": {
       "bundler": "metro",
@@ -35,6 +37,7 @@
     "plugins": [
       "expo-router",
       "expo-camera",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
