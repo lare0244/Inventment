@@ -64,6 +64,27 @@ export default function Catalog() {
     return catName(a.category_id).localeCompare(catName(b.category_id)) || (a.name || "").localeCompare(b.name || "");
   });
 
+  // When grouping by category, inject a header row before each category group.
+  const listData = useMemo(() => {
+    if (sortMode !== "category") return filtered;
+    const counts: Record<string, number> = {};
+    filtered.forEach((p) => {
+      const label = catName(p.category_id) || t("uncategorized");
+      counts[label] = (counts[label] || 0) + 1;
+    });
+    const out: any[] = [];
+    let currentLabel: string | null = null;
+    filtered.forEach((p) => {
+      const label = catName(p.category_id) || t("uncategorized");
+      if (label !== currentLabel) {
+        currentLabel = label;
+        out.push({ __header: true, id: `hdr-${label}`, name: label, count: counts[label] });
+      }
+      out.push(p);
+    });
+    return out;
+  }, [filtered, sortMode, cats, t]);
+
   return (
     <View style={{ flex: 1, backgroundColor: C.surface }}>
       <View style={[styles.header, { paddingTop: insets.top + S.md }]}>
@@ -129,7 +150,7 @@ export default function Catalog() {
       </View>
 
       <FlatList
-        data={filtered}
+        data={listData}
         keyExtractor={(i) => i.id}
         contentContainerStyle={{ padding: S.lg, paddingBottom: 40 }}
         ListEmptyComponent={
@@ -140,6 +161,16 @@ export default function Catalog() {
           </View>
         }
         renderItem={({ item }) => {
+          if (item.__header) {
+            return (
+              <View testID={`cat-header-${item.name}`} style={styles.catHeader}>
+                <Text style={styles.catHeaderTxt} numberOfLines={1}>{item.name}</Text>
+                <View style={styles.catHeaderBadge}>
+                  <Text style={styles.catHeaderCount}>{item.count}</Text>
+                </View>
+              </View>
+            );
+          }
           const low = item.quantity <= item.low_stock_threshold;
           return (
             <Pressable
@@ -218,6 +249,10 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   pSku: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
   qtyWrap: { alignItems: "center", gap: 2, marginRight: S.xs },
   qty: { color: C.onSurface, fontFamily: F.display, fontSize: 18 },
+  catHeader: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.md, marginBottom: S.sm },
+  catHeaderTxt: { color: C.brand, fontFamily: F.display, fontSize: 15, letterSpacing: 1, textTransform: "uppercase", flexShrink: 1 },
+  catHeaderBadge: { minWidth: 22, height: 20, paddingHorizontal: 6, borderRadius: R.pill, backgroundColor: C.surfaceTertiary, alignItems: "center", justifyContent: "center" },
+  catHeaderCount: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 11 },
   emptyWrap: { alignItems: "center", marginTop: 80, gap: S.sm },
   emptyTxt: { color: C.onSurface, fontFamily: F.textBold, fontSize: 16 },
   emptySub: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13 },
