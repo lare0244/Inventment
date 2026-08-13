@@ -5,6 +5,7 @@ import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { api, setToken, clearToken, getToken } from "@/src/api";
+import { configurePurchases, logOutPurchases } from "@/src/purchases";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -83,8 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  async function exchangeSession(sessionId: string) {
-    if (processedSessionIds.has(sessionId)) return;
+  useEffect(() => {
+    if (user?.id) configurePurchases(String(user.id));
+  }, [user?.id]);
+
+  async function exchangeSession(sessionId: string) {    if (processedSessionIds.has(sessionId)) return;
     processedSessionIds.add(sessionId);
     const r = await api<{ access_token: string }>("/auth/session", {
       method: "POST",
@@ -119,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    await logOutPurchases();
     await clearToken();
     setUser(null);
     router.replace("/(auth)/login");

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, BackgroundTasks
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, BackgroundTasks, Query, Request
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
@@ -1216,7 +1216,7 @@ async def billing_plan(user: dict = Depends(get_current_user)):
         "warehouses": await db.warehouses.count_documents({"owner_id": user["id"]}),
         "suppliers": await db.suppliers.count_documents({"owner_id": user["id"]}),
     }
-    return {"plan": plan, "limits": lim, "usage": usage,
+    return {"plan": plan, "limits": lim, "pro_limits": PRO_LIMITS, "usage": usage,
             "plan_expires_at": user.get("plan_expires_at"),
             "price": {"amount": PRO_PRICE_AMOUNT, "currency": PRO_PRICE_CURRENCY.upper(), "interval": "month"}}
 
@@ -1226,7 +1226,6 @@ async def billing_checkout(body: CheckoutRequest, user: dict = Depends(get_curre
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=503, detail="Billing not configured")
     origin = body.origin_url.rstrip("/")
-    host_url = str(api_router.prefix)  # unused; webhook url not required for polling
     sc = StripeCheckout(api_key=STRIPE_API_KEY)
     req = CheckoutSessionRequest(
         amount=PRO_PRICE_AMOUNT,
@@ -1415,6 +1414,82 @@ async def activate_test_pro(user: dict = Depends(get_current_user)):
     return {"ok": True, "plan": "pro"}
 
 
+# ---------------- RevenueCat native IAP ----------------
+REVENUECAT_SECRET_KEY = os.environ.get("REVENUECAT_SECRET_KEY", "")
+REVENUECAT_WEBHOOK_SECRET = os.environ.get("REVENUECAT_WEBHOOK_SECRET", "")
+RC_ENTITLEMENT = os.environ.get("RC_ENTITLEMENT", "pro")
+RC_BASE = "https://api.revenuecat.com/v1"
+
+
+async def _rc_fetch_subscriber(app_user_id: str) -> Optional[dict]:
+    if not REVENUECAT_SECRET_KEY:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=15) as http:
+            r = await http.get(f"{RC_BASE}/subscribers/{app_user_id}",
+                               headers={"Authorization": f"Bearer {REVENUECAT_SECRET_KEY}"})
+    except Exception as e:
+        logger.warning(f"RevenueCat fetch failed: {e}")
+        return None
+    if r.status_code != 200:
+        return None
+    return r.json().get("subscriber")
+
+
+def _rc_entitlement_patch(subscriber: dict) -> dict:
+    ent = (subscriber.get("entitlements") or {}).get(RC_ENTITLEMENT)
+    if not ent:
+        return {"plan": "free", "plan_expires_at": None, "billing_provider": "revenuecat"}
+    expires = ent.get("expires_date")
+    active = True
+    if expires:
+        try:
+            d = datetime.fromisoformat(expires.replace("Z", "+00:00"))
+            active = d > datetime.now(timezone.utc)
+        except Exception:
+            active = True
+    return {"plan": "pro" if active else "free", "plan_expires_at": expires, "billing_provider": "revenuecat"}
+
+
+async def _rc_sync_user(user_id: str) -> dict:
+    sub = await _rc_fetch_subscriber(user_id)
+    if sub is None:
+        u = await db.users.find_one({"id": user_id})
+        return {"plan": "pro" if _pro_active(u or {}) else "free"}
+    patch = _rc_entitlement_patch(sub)
+    patch["billing_synced_at"] = now_iso()
+    await db.users.update_one({"id": user_id}, {"$set": patch})
+    return {"plan": patch["plan"], "plan_expires_at": patch.get("plan_expires_at")}
+
+
+@api_router.post("/billing/revenuecat/sync")
+async def revenuecat_sync(user: dict = Depends(get_current_user)):
+    """Called by the app right after a successful purchase to verify server-side."""
+    return await _rc_sync_user(user["id"])
+
+
+@api_router.post("/billing/revenuecat/webhook")
+async def revenuecat_webhook(request: Request):
+    """RevenueCat -> our backend. Authorized via the shared Authorization header
+    configured in the RevenueCat dashboard. Idempotent on event id."""
+    auth = request.headers.get("Authorization", "")
+    if REVENUECAT_WEBHOOK_SECRET and auth != f"Bearer {REVENUECAT_WEBHOOK_SECRET}":
+        raise HTTPException(status_code=401, detail="invalid signature")
+    payload = await request.json()
+    event = payload.get("event") or {}
+    event_id = event.get("id")
+    app_user_id = event.get("app_user_id")
+    if event_id:
+        res = await db.billing_events.update_one(
+            {"event_id": event_id},
+            {"$setOnInsert": {"event_id": event_id, "received_at": now_iso()}}, upsert=True)
+        if res.upserted_id is None:
+            return {"ok": True, "duplicate": True}
+    if app_user_id:
+        await _rc_sync_user(app_user_id)
+    return {"ok": True}
+
+
 # ---------------- Sales Orders ----------------
 SO_STATUSES = ["saved", "picked", "shipped", "returned"]
 SO_ALLOWED = {"saved": {"picked", "shipped"}, "picked": {"shipped"}, "shipped": {"returned"}, "returned": set()}
@@ -1527,11 +1602,11 @@ async def sales_orders_chart(user: dict = Depends(get_current_user)):
 
 
 @api_router.get("/sales-orders")
-async def list_sales_orders(user: dict = Depends(get_current_user), status: Optional[str] = None,
+async def list_sales_orders(user: dict = Depends(get_current_user), status_filter: Optional[str] = Query(None, alias="status"),
                             q: Optional[str] = None, sort: str = "date"):
     query = {"owner_id": {"$in": user["_scope"]}}
-    if status:
-        query["status"] = status
+    if status_filter:
+        query["status"] = status_filter
     if q:
         rx = {"$regex": re.escape(q), "$options": "i"}
         query["$or"] = [{"order_number": rx}, {"field1": rx}, {"field2": rx},
@@ -1629,6 +1704,10 @@ async def migrate_stock():
         logger.info("Stock migration complete")
     except Exception as e:
         logger.warning(f"Stock migration skipped: {e}")
+    try:
+        await db.billing_events.create_index("event_id", unique=True)
+    except Exception as e:
+        logger.warning(f"billing_events index skipped: {e}")
 
 
 @app.on_event("shutdown")

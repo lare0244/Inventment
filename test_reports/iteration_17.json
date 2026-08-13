@@ -1,0 +1,28 @@
+{
+  "summary": "Backend-only test run for new session features: Emergent Google sign-in (/api/auth/session), Apple sign-in (/api/auth/apple), RevenueCat billing (sync + webhook), billing/plan shape (pro_limits), and regression for renamed sales-orders status query param. Created /app/backend/tests/test_social_and_revenuecat.py with 11 pytest tests grouped by feature. All 11 tests PASSED against the public Expo backend URL. Key verifications: (1) email/password login still works for warehouse@test.com and returns 401 on wrong password / unknown user (also naturally blocks social/password-less users because server.py L270 requires hashed_password); (2) POST /api/auth/session with bogus session_id returns 401 (Emergent GET fails with non-200 -> HTTPException 401, no 500); (3) POST /api/auth/apple with bogus identity_token returns 401 (Apple JWKS verify raises -> caught -> 401, no 500) — APPLE_AUDIENCES is populated so the 500 guard path is not hit; (4) GET /api/billing/plan (auth) returns plan, limits, pro_limits EXACTLY {products:9999, categories:99, warehouses:19, suppliers:9999}, usage counters, price; unauth returns 401/403; (5) POST /api/billing/revenuecat/sync without RevenueCat secret returns 200 {plan: 'pro'|'free'} gracefully (falls through to _rc_fetch_subscriber returning None -> reads user plan); unauth returns 401; (6) POST /api/billing/revenuecat/webhook (no signature required) accepts {event:{id, app_user_id}} -> 200 {ok:true}; identical event id -> 200 {ok:true, duplicate:true} confirming billing_events unique index idempotency; (7) GET /api/sales-orders?status=saved (auth) returns 200 list and every item has status='saved'. No 500s observed on any endpoint. No mocked APIs used.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_social_and_revenuecat.py",
+    "/app/test_reports/pytest/pytest_social_rc.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py: /api/auth/apple returns 500 only when APPLE_AUDIENCES is empty (unconfigured). Currently APPLE_AUDIENCES is set in .env, so bogus tokens correctly return 401. If the .env value is ever cleared in production, bogus tokens would surface as 500 instead of 401 — consider returning 401 or 503 rather than 500 for missing config.",
+    "server.py L270 login guard `not user.get('hashed_password')` correctly blocks social users from password login (no dedicated test needed since it maps to the standard 401 path)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_social_and_revenuecat.py (new)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "N/A (backend-only per request)"},
+  "seed_data_creation": "None. Webhook idempotency test inserts one billing_events doc per run with a unique event_id like 'evt_test_<uuid12>' — harmless. No users, products, or orders created.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 4 new endpoints verified: POST /api/auth/session, POST /api/auth/apple, POST /api/billing/revenuecat/sync, POST /api/billing/revenuecat/webhook. Reusable pytest file at /app/backend/tests/test_social_and_revenuecat.py. Real Google/Apple OAuth cannot be exercised without live credentials — only 401 path tested per the review request. RevenueCat webhook auth guard: REVENUECAT_WEBHOOK_SECRET is empty in current env, so no Authorization header is required; when the secret is set later, add `Authorization: Bearer <secret>` to webhook tests. billing_events collection has a unique index on event_id (server.py L1708) which powers idempotency.",
+  "rca_of_issue": "N/A — all features working as specified."
+}

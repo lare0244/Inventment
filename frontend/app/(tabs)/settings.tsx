@@ -54,9 +54,7 @@ export default function Settings() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   function upgrade() {
-    const msg = t("storeUpgradeHint");
-    if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg);
-    else Alert.alert(t("upgradeToPro"), msg);
+    router.push("/pro");
   }
 
   async function activateTestPro() {
@@ -167,8 +165,10 @@ export default function Settings() {
           {plan !== "pro" ? (
             <>
               <Text style={styles.planPitch}>{t("proPitch")}</Text>
-              <Btn testID="upgrade-btn" title={`${t("upgradeViaStore")} · ${billing ? `${billing.price.amount} ${billing.price.currency}/${t("month")}` : "6.99 EUR/mo"}`} icon="crown" onPress={upgrade} />
-              <Btn testID="activate-pro-test-btn" title={t("activateProTest")} variant="ghost" icon="flask-outline" style={{ marginTop: S.sm }} onPress={activateTestPro} />
+              <Btn testID="upgrade-btn" title={t("upgradeToPro")} icon="crown" onPress={upgrade} />
+              {__DEV__ && (
+                <Btn testID="activate-pro-test-btn" title={t("activateProTest")} variant="ghost" icon="flask-outline" style={{ marginTop: S.sm }} onPress={activateTestPro} />
+              )}
             </>
           ) : (
             <Text style={styles.planUsage}>{t("proActive")}{billing?.plan_expires_at ? ` · ${t("renews")} ${String(billing.plan_expires_at).slice(0, 10)}` : ""}</Text>
