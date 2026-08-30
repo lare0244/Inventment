@@ -9,6 +9,7 @@ import { currencySymbol } from "@/src/currency";
 import { useAuth } from "@/src/auth";
 import { F, S, R, Palette } from "@/src/theme";
 import { Field, Btn, Dropdown } from "@/src/components/ui";
+import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
 
 const MEASURE_UNITS = ["ml", "litre", "g", "kilo", "mm", "meter"];
 
@@ -32,6 +33,7 @@ export function ProductEditor({
   const router = useRouter();
   const C = useColors();
   const t = useT();
+  const { showUpgrade } = useUpgradePrompt();
   const { currency } = useAuth();
   const sym = currencySymbol(currency);
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -83,7 +85,8 @@ export function ProductEditor({
       });
       router.back();
     } catch (e: any) {
-      setErr(e.message?.includes("limit_reached") ? t("limitFreeHint") : (e.message || t("saveFailed")));
+      if (e.message?.includes("limit_reached")) showUpgrade({ kind: "products" });
+      else setErr(e.message || t("saveFailed"));
     } finally {
       setSaving(false);
     }

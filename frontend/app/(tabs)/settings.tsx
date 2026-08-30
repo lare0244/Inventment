@@ -10,6 +10,7 @@ import { CURRENCIES } from "@/src/currency";
 import { LANGUAGES } from "@/src/i18n";
 import { F, S, R, Palette } from "@/src/theme";
 import { Card, Btn, Dropdown } from "@/src/components/ui";
+import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
 
 type Kind = "warehouses" | "categories" | "suppliers";
 
@@ -20,6 +21,7 @@ export default function Settings() {
   const { themeName, setThemeName, lang, setLang } = useApp();
   const C = useColors();
   const t = useT();
+  const { showUpgrade } = useUpgradePrompt();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -83,9 +85,8 @@ export default function Settings() {
     } catch (err: any) {
       const msg = String(err?.message || "");
       if (msg.includes("limit_reached")) {
-        const m = `${t("limitFreeHint")}\n\n${t("storeUpgradeHint")}`;
-        if (Platform.OS === "web" && typeof window !== "undefined") window.alert(m);
-        else Alert.alert(t("proRequired"), m);
+        setModal(null);
+        showUpgrade({ kind: modal || undefined });
       } else if (Platform.OS === "web" && typeof window !== "undefined") {
         window.alert(`${t("saveFailed")}: ${msg}`);
       } else {

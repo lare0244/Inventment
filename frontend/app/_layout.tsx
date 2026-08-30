@@ -10,6 +10,7 @@ import { useFonts } from "expo-font";
 import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { AuthProvider } from "@/src/auth";
 import { AppSettingsProvider, useColors } from "@/src/appsettings";
+import { UpgradePromptProvider } from "@/src/components/UpgradePrompt";
 
 LogBox.ignoreAllLogs(true);
 SplashScreen.preventAutoHideAsync();
@@ -46,7 +47,9 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AppSettingsProvider>
           <AuthProvider>
-            <ThemedRoot />
+            <UpgradePromptProvider>
+              <ThemedRoot />
+            </UpgradePromptProvider>
           </AuthProvider>
         </AppSettingsProvider>
       </SafeAreaProvider>
