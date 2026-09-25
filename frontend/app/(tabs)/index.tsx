@@ -7,12 +7,14 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { useColors, useT } from "@/src/appsettings";
 import { money } from "@/src/currency";
+import { useResponsive } from "@/src/hooks/useResponsive";
 import { F, S, R, stockColor, Palette } from "@/src/theme";
 import { Card, StatusDot } from "@/src/components/ui";
 
 export default function Dashboard() {
   const insets = useSafeAreaInsets();
   const { user, currency } = useAuth();
+  const { isDesktop } = useResponsive();
   const C = useColors();
   const t = useT();
   const router = useRouter();
@@ -82,7 +84,7 @@ export default function Dashboard() {
               <Pressable
                 key={s.label}
                 testID={`stat-${s.icon}`}
-                style={styles.statCard}
+                style={[styles.statCard, isDesktop && styles.statCardDesktop]}
                 onPress={() => {
                   const w = activeWh ? `&warehouse_id=${activeWh}` : "";
                   router.push(`/warehouse-overview?mode=${s.mode}${w}`);
@@ -162,6 +164,7 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   warnBtnTxt: { color: C.onBrand, fontFamily: F.textBold, fontSize: 13 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: S.md },
   statCard: { width: "47.5%", gap: S.xs },
+  statCardDesktop: { width: "23%" },
   statVal: { color: C.onSurface, fontFamily: F.display, fontSize: 28 },
   statLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, textTransform: "uppercase" },
   section: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 13, letterSpacing: 1, marginTop: S.xl, marginBottom: S.sm },

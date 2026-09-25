@@ -21,6 +21,7 @@ export function SalesOrdersPanel() {
   const C = useColors();
   const t = useT();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const isDesktop = width >= 900;
   const [chart, setChart] = useState<{ months: string[]; series: Record<string, number[]> } | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [status, setStatus] = useState<typeof STATUSES[number]>("saved");
@@ -50,11 +51,26 @@ export function SalesOrdersPanel() {
   const series = chart ? STATUSES.map((s) => ({ key: s, label: statusLabel[s], color: STATUS_COLORS[s], data: chart.series[s] || [] })) : [];
   const shown = orders.slice(0, visible);
 
+  const SortTh = ({ label, k, flex }: { label: string; k: string; flex: number }) => {
+    const active = sort === k;
+    return (
+      <Pressable testID={`so-col-${k}`} onPress={() => setSort(k as any)} style={{ flex, flexDirection: "row", alignItems: "center", gap: 2 }}>
+        <Text style={[styles.th, active && { color: C.brand }]} numberOfLines={1}>{label}</Text>
+        {active && <MaterialCommunityIcons name="menu-down" size={16} color={C.brand} />}
+      </Pressable>
+    );
+  };
+
+  const showMore = orders.length > visible ? (
+    <Btn testID="so-show-more" title={`${t("showMore")} (${Math.min(PAGE, orders.length - visible)})`} variant="secondary"
+      icon="chevron-down" style={{ marginTop: S.sm }} onPress={() => setVisible((v) => v + PAGE)} />
+  ) : null;
+
   return (
     <View>
       <Text style={styles.section}>{t("ordersByStatus")}</Text>
       <Card style={{ marginBottom: S.lg }}>
-        {chart ? <StatusLineChart months={chart.months} series={series} width={width - 4 * S.lg} /> : <ActivityIndicator color={C.brand} />}
+        {chart ? <StatusLineChart months={chart.months} series={series} width={(isDesktop ? Math.min(width - 248, 1160) : width) - 4 * S.lg} /> : <ActivityIndicator color={C.brand} />}
       </Card>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRow}>
@@ -72,19 +88,49 @@ export function SalesOrdersPanel() {
         {q.length > 0 && <Pressable onPress={() => setQ("")}><MaterialCommunityIcons name="close-circle" size={18} color={C.onSurfaceTertiary} /></Pressable>}
       </View>
 
-      <Text style={styles.sortLabel}>{t("sortLabel")}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortRow}>
-        {[{ k: "date", l: t("sortByDate") }, { k: "order_number", l: t("sortByNumber") }, { k: "field1", l: label1 }, { k: "field2", l: label2 }].map((o) => (
-          <Pressable key={o.k} testID={`so-sort-${o.k}`} onPress={() => setSort(o.k as any)} style={[styles.sortChip, sort === o.k && styles.sortChipActive]}>
-            <Text style={[styles.sortTxt, sort === o.k && { color: C.onBrand }]}>{o.l}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      {!isDesktop && (
+        <>
+          <Text style={styles.sortLabel}>{t("sortLabel")}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortRow}>
+            {[{ k: "date", l: t("sortByDate") }, { k: "order_number", l: t("sortByNumber") }, { k: "field1", l: label1 }, { k: "field2", l: label2 }].map((o) => (
+              <Pressable key={o.k} testID={`so-sort-${o.k}`} onPress={() => setSort(o.k as any)} style={[styles.sortChip, sort === o.k && styles.sortChipActive]}>
+                <Text style={[styles.sortTxt, sort === o.k && { color: C.onBrand }]}>{o.l}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </>
+      )}
 
       {loading ? (
         <ActivityIndicator color={C.brand} style={{ marginTop: 24 }} />
       ) : orders.length === 0 ? (
         <Card><Text style={styles.empty}>{t("noOrders")}</Text></Card>
+      ) : isDesktop ? (
+        <>
+          <View style={styles.thead}>
+            <Text style={[styles.th, { width: 120 }]}>{t("status")}</Text>
+            <SortTh label={t("sortByNumber")} k="order_number" flex={2} />
+            <SortTh label={t("sortByDate")} k="date" flex={1.5} />
+            <SortTh label={label1} k="field1" flex={2} />
+            <SortTh label={label2} k="field2" flex={2} />
+            <View style={{ width: 28 }} />
+          </View>
+          {shown.map((o, i) => (
+            <Pressable key={o.id} testID={`so-row-${o.id}`} onPress={() => router.push(`/sales-order/${o.id}`)}
+              style={[styles.trow, i % 2 === 1 && { backgroundColor: C.surfaceSecondary }]}>
+              <View style={{ width: 120, flexDirection: "row", alignItems: "center", gap: S.sm }}>
+                <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[o.status] }]} />
+                <Text style={styles.tcellMuted} numberOfLines={1}>{statusLabel[o.status]}</Text>
+              </View>
+              <Text style={[styles.tcellBold, { flex: 2 }]} numberOfLines={1}>{o.order_number}</Text>
+              <Text style={[styles.tcell, { flex: 1.5 }]} numberOfLines={1}>{o.order_date}</Text>
+              <Text style={[styles.tcell, { flex: 2 }]} numberOfLines={1}>{o.field1 || "—"}</Text>
+              <Text style={[styles.tcell, { flex: 2 }]} numberOfLines={1}>{o.field2 || o.shipping_ref || "—"}</Text>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={C.onSurfaceTertiary} style={{ width: 28, textAlign: "right" }} />
+            </Pressable>
+          ))}
+          {showMore}
+        </>
       ) : (
         <>
           {shown.map((o) => (
@@ -101,10 +147,7 @@ export function SalesOrdersPanel() {
               </Card>
             </Pressable>
           ))}
-          {orders.length > visible && (
-            <Btn testID="so-show-more" title={`${t("showMore")} (${Math.min(PAGE, orders.length - visible)})`} variant="secondary"
-              icon="chevron-down" style={{ marginTop: S.sm }} onPress={() => setVisible((v) => v + PAGE)} />
-          )}
+          {showMore}
         </>
       )}
     </View>
@@ -126,6 +169,12 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   empty: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 14, textAlign: "center", paddingVertical: S.md },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, marginBottom: S.sm, paddingVertical: S.md },
   statusDot: { width: 12, height: 12, borderRadius: 6 },
+  thead: { flexDirection: "row", alignItems: "center", gap: S.md, paddingVertical: S.sm, paddingHorizontal: S.md, borderBottomWidth: 2, borderBottomColor: C.border },
+  th: { color: C.onSurfaceTertiary, fontFamily: F.textBold, fontSize: 12, letterSpacing: 0.5, textTransform: "uppercase" },
+  trow: { flexDirection: "row", alignItems: "center", gap: S.md, paddingVertical: S.md, paddingHorizontal: S.md, borderRadius: R.sm },
+  tcell: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 14 },
+  tcellBold: { color: C.onSurface, fontFamily: F.textBold, fontSize: 14 },
+  tcellMuted: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 13, flexShrink: 1 },
   orderNo: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
   meta: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
 });
