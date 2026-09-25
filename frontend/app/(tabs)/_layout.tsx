@@ -55,7 +55,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: t("dashboard"), tabBarIcon: tabIcon("view-dashboard", "view-dashboard-outline") }} />
       <Tabs.Screen name="catalog" options={{ title: t("catalog"), tabBarIcon: tabIcon("package-variant", "package-variant-closed") }} />
       <Tabs.Screen name="scan" options={{ title: t("scan"), tabBarIcon: tabIcon("barcode-scan", "barcode-scan") }} />
-      <Tabs.Screen name="orders" options={{ title: t("orders"), tabBarIcon: tabIcon("clipboard-list", "clipboard-list-outline") }} />
+      <Tabs.Screen name="orders" options={{ title: t("tools"), tabBarIcon: tabIcon("toolbox", "toolbox-outline") }} />
       <Tabs.Screen name="settings" options={{ title: t("settings"), tabBarIcon: tabIcon("cog", "cog-outline") }} />
     </Tabs>
   );

@@ -330,3 +330,20 @@ frontend:
 agent_communication:
   - agent: "main"
     message: "Test login warehouse@test.com/test123 (PRO). NEW feature: product photos. BACKEND: POST /api/upload with a small image (multipart 'file') returns {path}; GET /api/files/{path}?token=<jwt> returns the image bytes (200, image/*); missing token -> 401; a path whose owner segment is not in the caller's scope -> 403. FRONTEND (web): open /product/new, the photo section shows Take photo / Choose photo; 'Choose photo' opens a file chooser, after selecting an image the preview thumbnail renders and 'Remove photo' appears; fill a product name and Save -> product persists with image; the Catalog list shows the thumbnail for that product. Stocktake detail rows show a small product thumbnail when the product has an image. NOTE: 'Take photo' uses the device camera (native only) - on web just confirm no crash; do NOT fail for lack of a hardware camera. Main agent already curl-verified the backend and screenshot-verified the web upload+preview."
+
+## Test Cycle 8 (Tools hub + Stock Movement + Production Orders + BOM)
+backend:
+  - task: "Production orders CRUD + complete (BOM stock apply) & product BOM fields"
+    file: "/app/backend/server.py"
+    implemented: true
+    working: true
+    comment: "ProductIn gained is_production_unit(bool)+bom(list of {product_id,qty}). New /api/production-orders: POST create (warehouse+items, auto number PRD<yymm><seq>, status draft), GET list/get, PUT (draft only, rebuild items), POST /{id}/complete (adds finished units + to warehouse, deducts each BOM part qty*produced -, records receive/remove movements incl batch note, allows negative with warnings[]), DELETE. Curl-verified full flow: unit 37->40, part 46->40 (qty3 x2), warnings [], status completed; reverted."
+frontend:
+  - task: "Tools hub tab + Stock Movement + Production Orders screens + BOM editor"
+    file: "/app/frontend/app/(tabs)/orders.tsx, orders-manage.tsx, stock-movement.tsx, production-orders/index.tsx, production-orders/[id].tsx, src/components/ProductPicker.tsx, src/components/ProductEditor.tsx"
+    implemented: true
+    working: true
+    comment: "Orders tab renamed to Tools (toolbox icon) = hub listing Sales Orders, Purchase Orders, Production Orders, Stocktaking, Stock Movement. Sales/Purchase moved to /orders-manage?tab=. Stock Movement uses POST /transfers with product picker + from/to + qty + recent transfers list. Production Orders list+detail (add production-unit products via ProductPicker productionOnly, qty stepper, per-line batch number + best-before, autosave PUT, Complete with confirm+warnings, delete). ProductEditor: Production unit toggle + BOM parts (search other products, qty per unit). Dashboard stocktaking button removed. Verified Tools hub render + nav via screenshot; production flow via curl."
+agent_communication:
+  - agent: "main"
+    message: "Test login warehouse@test.com/test123. NEW large feature. BACKEND: (1) product is_production_unit+bom persist on POST/PUT /products; (2) /api/production-orders full lifecycle - create draft {warehouse_id,items:[{product_id,quantity,batch_number,best_before_date}]}, PUT edits draft, POST /{id}/complete adds finished (+) and deducts BOM parts (qty*produced, -) in the SAME warehouse, records movements, returns warnings[] for parts going negative (allowed), marks completed; DELETE; company-scoped. (3) POST /transfers already existed - used by Stock Movement. FRONTEND (web): Tools tab (toolbox) is a hub with 5 rows (testIDs tool-sales/purchase/production/stocktake/movement); Sales/Purchase open /orders-manage?tab=; Stock Movement (/stock-movement) transfers stock and lists recent transfers; Production Orders (/production-orders) create->detail, add production-unit products, set qty/batch/best-before, Complete; Product editor has 'Production unit' toggle (testID f-production-unit) revealing a BOM parts list (bom-add). NOTE: only products with is_production_unit=true appear in the production ProductPicker. Please regression test backend endpoints and the web flows. Barcode/camera is device-only - N/A here."

@@ -1,0 +1,38 @@
+{
+  "summary": "Full regression of the new Tools hub + Production Orders + Stock Movement + BOM feature set. Backend: 8/8 pytest passed in test_production_orders.py — covering (a) ProductIn is_production_unit/bom persistence via POST and PUT (and round-trip GET), (b) POST /api/production-orders creates a draft with number 'PRDyymm####' and status='draft', (c) GET list is company-scoped newest-first and single GET works, (d) PUT updates items on draft, (e) POST /production-orders/{id}/complete adds finished stock (+q) and deducts BOM parts (-q*bom.qty) in the SAME warehouse, records movements, returns warnings[] naming parts that went negative (partB 5 -> -1), marks status='completed', (f) PUT on completed returns 400 not_draft, (g) a 2nd complete returns 400 already_completed, (h) DELETE returns 200 and subsequent GET returns 404, (i) POST /api/transfers still moves stock, records a transfer movement, and returns 400 for same source/destination. Frontend web (390x844, warehouse@test.com): Tools tab renders 5 rows (tool-sales/purchase/production/stocktake/movement) and each navigates correctly — tool-sales -> /orders-manage?tab=sales, tool-purchase -> /orders-manage?tab=purchase, tool-production -> /production-orders, tool-stocktake -> /stocktakes, tool-movement -> /stock-movement. Stock Movement: product picker + from/to warehouse dropdowns (sm-from-opt-* / sm-to-opt-*) + qty + sm-transfer succeeds and appears in Recent movements ('Steel Bolts M8 · Main Warehouse → Gothenburg DC · 1' at top); selecting the same warehouse in both dropdowns shows the exact error 'Source and destination must differ.'. Production Orders: /production-orders loads, po-new-btn opens modal, po-create creates a draft and navigates to /production-orders/{id}; on the detail screen pod-add opens the ProductPicker with productionOnly=true and correctly shows 'No production units found' when no production-unit products exist. Product Editor (/product/new reached via Catalog add-product-btn): f-production-unit Switch is off by default; toggling it ON reveals the 'PRODUCTION PARTS' section with bom-add; bom-add opens the ProductPicker (5 products listed), selecting a part inserts a bom row with bom-plus-0/bom-minus-0 steppers; incrementing qty and saving persists {is_production_unit:true, bom:[{product_id, qty:2}]} on the product (verified via API GET). All test data (TEST_* warehouses, products, production orders) cleaned up after run.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_production_orders.py",
+    "/app/test_reports/pytest/pytest_production_orders.xml"
+  ],
+  "action_items": [
+    "OPTIONAL / dev-preview only: navigating directly to /product/new (deep-link) shows an Expo dev-only console warning: \"The action 'GO_BACK' was not handled by any navigator\" when the ProductEditor mounts without a router stack. It's a dev-only overlay (does not appear in production builds) and does not affect the real user flow (Catalog -> add-product-btn -> /product/new works normally, tested end-to-end). No production impact — safe to ignore or optionally guard router.back() with router.canGoBack().",
+    "OPTIONAL: while writing UI tests we found that Playwright's normal .click() sometimes does not reach the bom-add Btn's onPress in web preview and dispatch_event('click') is needed. This is a Playwright/RN-Web interaction quirk, not a functional bug for real touch users — the same button is tappable in the manual flow."
+  ],
+  "critical_code_review_comments": [
+    "server.py Production Orders section (lines 1980-2127) is clean and well-scoped: ProdOrderCreate/ProdOrderUpdate/ProdItemIn Pydantic models; _gen_production_number uses per-company period counter atomically via find_one_and_update+upsert; _build_prod_items validates each product against user._scope; complete flow calls _mutate_stock for both the finished product (+q) and each BOM part (-q*qty) in the same warehouse, correctly records 'receive'/'remove' movements, appends part.name to warnings[] when resulting_qty goes negative, marks status='completed' and returns cleaned production_order.",
+    "PUT /production-orders/{oid} correctly gates on status=='draft' and returns 400 not_draft otherwise. Second /complete correctly returns 400 already_completed.",
+    "ProductIn model already declares is_production_unit: bool = False and bom: List[dict] = [] — creates/updates persist and round-trip cleanly.",
+    "/api/transfers unchanged and continues to work for Stock Movement (400 on same-warehouse, 200 with stock+movement recorded on success).",
+    "Frontend Tools hub (/app/frontend/app/(tabs)/orders.tsx) is a clean 60-line component with proper testIDs tool-{key} and correct route params for sales/purchase sub-tabs.",
+    "stock-movement.tsx and production-orders/[id].tsx use Alert on native and window.alert on web with a shared warn() helper — appropriate.",
+    "ProductEditor BOM section conditionally renders on form.is_production_unit and uses stable idx-based testIDs (bom-plus-0/-minus-0/-remove-0). BOM excludeIds correctly filters the current product + already-added parts.",
+    "server.py is now ~2225 lines. The earlier suggestion to split into feature routers is still standing but non-blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_production_orders.py (new)",
+    "/app/test_reports/pytest/pytest_production_orders.xml (new)"
+  ],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% of listed web flows"},
+  "seed_data_creation": "All test data created during the run has been cleaned up. Backend pytest fixture teardown removes TEST_wh_prod_*, TEST_partA/B_*, TEST_finished_* products/warehouses and every created production_order. UI walkthrough created 6 temporary products (TEST_UI_bom_flow, _flow2, _flow3, _flow4, TEST_UI_prod_unit_bom, TEST_UI_bom_final) and 1 dangling draft production order — all deleted via API before finishing.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New regression suite at /app/backend/tests/test_production_orders.py covers Production Orders end-to-end (CRUD, complete with stock deltas + warnings, not_draft/already_completed guards) and /api/transfers. Frontend Tools hub testIDs: tool-sales/purchase/production/stocktake/movement. Stock Movement testIDs: sm-pick-product, sm-from (Dropdown with sm-from-opt-<id> options), sm-to (sm-to-opt-<id>), sm-qty, sm-transfer, sm-back. Production Orders index: po-new-btn, po-wh-dd (dropdown po-wh-dd-opt-<id>), po-create, po-row-<id>, po-back. Detail: pod-add, pod-back, pod-delete, pod-plus-<pid>, pod-minus-<pid>, pod-batch-<pid>, pod-bb-<pid>, pod-remove-<pid>, pod-complete. ProductEditor: f-production-unit (Switch), bom-add, bom-plus-<idx>, bom-minus-<idx>, bom-remove-<idx>. ProductPicker: pp-close, pp-search, pp-item-<id> (with productionOnly prop that filters to is_production_unit=true only). When Playwright's normal .click() fails to trigger a RN-Web Btn/Pressable, use dispatch_event('click') as a fallback. Login flow works: warehouse@test.com / test123 (PRO account, in company scope).",
+  "rca_of_issue": "N/A - no defects found. All listed backend endpoints and frontend flows pass."
+}

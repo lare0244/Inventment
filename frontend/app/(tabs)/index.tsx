@@ -98,12 +98,6 @@ export default function Dashboard() {
             ))}
           </View>
 
-          <Pressable testID="stocktaking-btn" onPress={() => router.push("/stocktakes")} style={styles.actionBtn}>
-            <MaterialCommunityIcons name="clipboard-list-outline" size={20} color={C.onBrand} />
-            <Text style={styles.actionTxt}>{t("stocktaking")}</Text>
-            <MaterialCommunityIcons name="chevron-right" size={22} color={C.onBrand} />
-          </Pressable>
-
           <Text style={styles.section}>{t("lowStockAlerts")}</Text>
           {data.low_stock_items.length === 0 ? (
             <Card><Text style={styles.empty}>{t("allHealthy")}</Text></Card>

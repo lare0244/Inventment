@@ -33,6 +33,7 @@ type AuthCtx = {
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   setCurrency: (currency: string) => Promise<void>;
   saveSettings: (patch: SettingsPatch) => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -129,6 +130,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.replace("/(auth)/login");
   }
 
+  async function deleteAccount() {
+    await api("/account", { method: "DELETE" });
+    await logOutPurchases();
+    await clearToken();
+    setUser(null);
+    router.replace("/(auth)/login");
+  }
+
   async function signInWithGoogle() {
     if (Platform.OS === "web") {
       const redirectUrl = window.location.origin + "/";
@@ -184,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await saveSettings({ currency });
   }
 
-  return <Ctx.Provider value={{ user, loading, currency: user?.currency || "SEK", plan: user?.plan || "free", alertEmail: user?.low_stock_alert_email || "", company: user?.company || {}, signIn, signUp, signOut, setCurrency, saveSettings, refreshUser }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, loading, currency: user?.currency || "SEK", plan: user?.plan || "free", alertEmail: user?.low_stock_alert_email || "", company: user?.company || {}, signIn, signUp, signOut, deleteAccount, setCurrency, saveSettings, refreshUser }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {

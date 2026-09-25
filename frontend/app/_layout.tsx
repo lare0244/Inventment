@@ -28,10 +28,10 @@ function ThemedRoot() {
 export default function RootLayout() {
   const [iconsLoaded, iconErr] = useIconFonts();
   const [fontsLoaded] = useFonts({
-    "Rajdhani-Bold": "https://cdn.jsdelivr.net/fontsource/fonts/rajdhani@latest/latin-700-normal.ttf",
-    "Rajdhani-Med": "https://cdn.jsdelivr.net/fontsource/fonts/rajdhani@latest/latin-600-normal.ttf",
-    "PlexSans": "https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-sans@latest/latin-400-normal.ttf",
-    "PlexSans-Bold": "https://cdn.jsdelivr.net/fontsource/fonts/ibm-plex-sans@latest/latin-600-normal.ttf",
+    "Rajdhani-Bold": require("../assets/fonts/Rajdhani-Bold.ttf"),
+    "Rajdhani-Med": require("../assets/fonts/Rajdhani-Med.ttf"),
+    "PlexSans": require("../assets/fonts/PlexSans.ttf"),
+    "PlexSans-Bold": require("../assets/fonts/PlexSans-Bold.ttf"),
   });
 
   const ready = (iconsLoaded || iconErr) && fontsLoaded;

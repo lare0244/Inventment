@@ -17,7 +17,7 @@ type Kind = "warehouses" | "categories" | "suppliers";
 export default function Settings() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, signOut, currency, setCurrency, plan, refreshUser, company, saveSettings } = useAuth();
+  const { user, signOut, deleteAccount, currency, setCurrency, plan, refreshUser, company, saveSettings } = useAuth();
   const { themeName, setThemeName, lang, setLang } = useApp();
   const C = useColors();
   const t = useT();
@@ -61,6 +61,24 @@ export default function Settings() {
 
   async function activateTestPro() {
     try { await api("/billing/activate-test", { method: "POST" }); await refreshUser(); load(); } catch {}
+  }
+
+  async function confirmDeleteAccount() {
+    try { await deleteAccount(); } catch (e: any) {
+      const msg = String(e?.message || t("saveFailed"));
+      if (Platform.OS === "web") window.alert(msg); else Alert.alert(t("saveFailed"), msg);
+    }
+  }
+
+  function onDeleteAccount() {
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined" && window.confirm(`${t("deleteAccount")}\n\n${t("deleteAccountMsg")}`)) confirmDeleteAccount();
+    } else {
+      Alert.alert(t("deleteAccount"), t("deleteAccountMsg"), [
+        { text: t("cancel"), style: "cancel" },
+        { text: t("deleteAccountBtn"), style: "destructive", onPress: confirmDeleteAccount },
+      ]);
+    }
   }
 
   function openModal(kind: Kind, item?: any) {
@@ -256,6 +274,10 @@ export default function Settings() {
         <Section kind="categories" title={t("categories")} icon="shape-outline" items={categories} />
         <Section kind="suppliers" title={t("suppliers")} icon="truck-outline" items={suppliers} sub="email" />
         <Btn testID="logout-btn" title={t("signOut")} variant="ghost" icon="logout" onPress={signOut} />
+        <Pressable testID="delete-account-btn" onPress={onDeleteAccount} style={styles.deleteAccountRow}>
+          <MaterialCommunityIcons name="delete-forever-outline" size={18} color={C.error} />
+          <Text style={styles.deleteAccountTxt}>{t("deleteAccount")}</Text>
+        </Pressable>
       </ScrollView>
 
       <Modal visible={!!modal} transparent animationType="fade" onRequestClose={() => setModal(null)}>
@@ -332,4 +354,6 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   modalCard: { backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.lg, padding: S.lg },
   modalTitle: { color: C.onSurface, fontFamily: F.display, fontSize: 22, marginBottom: S.lg },
   input: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: R.md, paddingHorizontal: S.md, height: 50, color: C.onSurface, fontFamily: F.text, fontSize: 15, marginBottom: S.md },
+  deleteAccountRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, paddingVertical: S.md, marginTop: S.xs },
+  deleteAccountTxt: { color: C.error, fontFamily: F.textBold, fontSize: 14 },
 });

@@ -26,7 +26,8 @@
       "permissions": [
         "android.permission.CAMERA"
       ],
-      "package": "com.emergent.warehousetracker.ak8xlw"
+      "package": "com.inventment.app",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",

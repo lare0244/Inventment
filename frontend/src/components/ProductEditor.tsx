@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable, ActivityIndicator, Linking, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable, ActivityIndicator, Linking, Alert, Switch } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
@@ -11,6 +11,7 @@ import { useAuth } from "@/src/auth";
 import { F, S, R, Palette } from "@/src/theme";
 import { Field, Btn, Dropdown } from "@/src/components/ui";
 import { ProductImage } from "@/src/components/ProductImage";
+import { ProductPicker } from "@/src/components/ProductPicker";
 import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
 
 const MEASURE_UNITS = ["ml", "litre", "g", "kilo", "mm", "meter"];
@@ -22,6 +23,7 @@ export type ProductForm = {
   purchase_date: string; best_before_date: string; notes: string;
   measure_value: string; measure_unit: string | null; headline: string; description: string;
   location: string;
+  is_production_unit: boolean; bom: { product_id: string; name?: string; qty: number }[];
 };
 
 export function ProductEditor({
@@ -44,7 +46,8 @@ export function ProductEditor({
     name: "", barcode: "", sku: "", brand: "", image: "", price: "0", cost: "0",
     quantity: "0", low_stock_threshold: "5", category_id: null, warehouse_id: null,
     supplier_id: null, purchase_date: "", best_before_date: "", notes: "",
-    measure_value: "", measure_unit: null, headline: "", description: "", location: "", ...initial,
+    measure_value: "", measure_unit: null, headline: "", description: "", location: "",
+    is_production_unit: false, bom: [], ...initial,
   } as ProductForm);
   const stock: Record<string, number> = (initial as any)?.stock || {};
   const [cats, setCats] = useState<any[]>([]);
@@ -53,6 +56,7 @@ export function ProductEditor({
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [bomPicker, setBomPicker] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -63,6 +67,20 @@ export function ProductEditor({
         const q = wid && wid in stock ? String(stock[wid]) : f.quantity;
         return { ...f, warehouse_id: wid, quantity: q };
       });
+    })();
+  }, []);
+
+  // Resolve BOM part names for an existing production-unit product.
+  useEffect(() => {
+    const bom = form.bom || [];
+    if (!bom.length || bom.every((b) => b.name)) return;
+    (async () => {
+      try {
+        const prods = await api<any[]>("/products");
+        const map: Record<string, string> = {};
+        prods.forEach((p) => { map[p.id] = p.name; });
+        setForm((f) => ({ ...f, bom: f.bom.map((b) => ({ ...b, name: b.name || map[b.product_id] })) }));
+      } catch {}
     })();
   }, []);
 
@@ -101,8 +119,17 @@ export function ProductEditor({
     }
   }
 
-  async function save() {
-    if (!form.name.trim()) { setErr(t("nameRequired")); return; }
+  function addPart(p: any) {
+    setForm((f) => f.bom.some((b) => b.product_id === p.id) ? f : { ...f, bom: [...f.bom, { product_id: p.id, name: p.name, qty: 1 }] });
+  }
+  function removePart(pid: string) {
+    setForm((f) => ({ ...f, bom: f.bom.filter((b) => b.product_id !== pid) }));
+  }
+  function setBomQty(pid: string, delta: number) {
+    setForm((f) => ({ ...f, bom: f.bom.map((b) => b.product_id === pid ? { ...b, qty: Math.max(1, (parseInt(String(b.qty), 10) || 1) + delta) } : b) }));
+  }
+
+  async function save() {    if (!form.name.trim()) { setErr(t("nameRequired")); return; }
     setErr(""); setSaving(true);
     try {
       await onSave({
@@ -116,6 +143,8 @@ export function ProductEditor({
         measure_unit: form.measure_unit || null,
         headline: form.headline || null, description: form.description || null,
         notes: form.notes || null, location: form.location || null,
+        is_production_unit: !!form.is_production_unit,
+        bom: form.is_production_unit ? (form.bom || []).map((b) => ({ product_id: b.product_id, qty: Math.max(1, parseInt(String(b.qty), 10) || 1) })) : [],
       });
       router.back();
     } catch (e: any) {
@@ -209,8 +238,48 @@ export function ProductEditor({
         <Picker label={t("category")} items={cats} value={form.category_id} onSelect={(v: any) => set("category_id", v)} />
         <Picker label={t("supplier")} items={suppliers} value={form.supplier_id} onSelect={(v: any) => set("supplier_id", v)} />
         <Field label={t("notes")} testID="f-notes" value={form.notes} onChangeText={(v) => set("notes", v)} placeholder={t("optionalNotes")} multiline />
+
+        <View style={styles.bomToggleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.bomToggleTitle}>{t("productionUnit")}</Text>
+            <Text style={styles.bomToggleSub}>{t("productionUnitHint")}</Text>
+          </View>
+          <Switch testID="f-production-unit" value={!!form.is_production_unit}
+            onValueChange={(v) => set("is_production_unit", v as any)}
+            trackColor={{ true: C.brand, false: C.surfaceTertiary }} thumbColor="#fff" />
+        </View>
+
+        {form.is_production_unit && (
+          <View style={styles.bomBox}>
+            <Text style={styles.bomHead}>{t("productionParts")}</Text>
+            {(form.bom || []).length === 0 ? (
+              <Text style={styles.bomEmpty}>{t("noParts")}</Text>
+            ) : (
+              (form.bom || []).map((part, idx) => (
+                <View key={part.product_id} style={styles.partRow}>
+                  <Text style={styles.partName} numberOfLines={1}>{part.name || part.product_id}</Text>
+                  <View style={styles.partStepper}>
+                    <Pressable testID={`bom-minus-${idx}`} onPress={() => setBomQty(part.product_id, -1)} style={styles.partStepBtn}><MaterialCommunityIcons name="minus" size={15} color={C.onSurface} /></Pressable>
+                    <Text style={styles.partQty}>{part.qty}</Text>
+                    <Pressable testID={`bom-plus-${idx}`} onPress={() => setBomQty(part.product_id, 1)} style={styles.partStepBtn}><MaterialCommunityIcons name="plus" size={15} color={C.onSurface} /></Pressable>
+                  </View>
+                  <Pressable testID={`bom-remove-${idx}`} onPress={() => removePart(part.product_id)} hitSlop={6}>
+                    <MaterialCommunityIcons name="close" size={18} color={C.error} />
+                  </Pressable>
+                </View>
+              ))
+            )}
+            <Text style={styles.bomQtyHint}>{t("qtyPerUnit")}</Text>
+            <Btn testID="bom-add" title={t("addPart")} icon="plus" variant="secondary" onPress={() => setBomPicker(true)} style={{ marginTop: S.sm }} />
+          </View>
+        )}
+
         {!!err && <Text style={styles.err}>{err}</Text>}
       </ScrollView>
+
+      <ProductPicker visible={bomPicker} onClose={() => setBomPicker(false)} title={t("addPart")}
+        excludeIds={[...(form.bom || []).map((b) => b.product_id), (initial as any)?.id].filter(Boolean)}
+        onSelect={(p) => { addPart(p); setBomPicker(false); }} />
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + S.sm }]}>
         <Btn testID="save-product-btn" title={t("saveChanges")} icon="content-save" loading={saving} onPress={save} />
@@ -228,6 +297,18 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   photoBox: { width: 90, height: 90, borderRadius: R.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   photoImg: { width: 90, height: 90 },
   removePhoto: { color: C.error, fontFamily: F.textBold, fontSize: 13 },
+  bomToggleRow: { flexDirection: "row", alignItems: "center", gap: S.md, marginTop: S.lg, paddingVertical: S.sm },
+  bomToggleTitle: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
+  bomToggleSub: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
+  bomBox: { backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.md, padding: S.md, marginTop: S.sm },
+  bomHead: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 12, letterSpacing: 1, textTransform: "uppercase", marginBottom: S.sm },
+  bomEmpty: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 13 },
+  bomQtyHint: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, marginTop: S.sm },
+  partRow: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingVertical: S.sm, borderBottomWidth: 1, borderBottomColor: C.divider },
+  partName: { flex: 1, color: C.onSurface, fontFamily: F.text, fontSize: 14 },
+  partStepper: { flexDirection: "row", alignItems: "center", gap: S.xs },
+  partStepBtn: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", backgroundColor: C.surface },
+  partQty: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15, minWidth: 26, textAlign: "center" },
   label: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 13, marginBottom: S.sm, textTransform: "uppercase", letterSpacing: 0.5 },
   chip: { height: 36, paddingHorizontal: S.lg, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: C.surfaceSecondary },
   chipActive: { backgroundColor: C.brand, borderColor: C.brand },

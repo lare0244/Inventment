@@ -22,7 +22,7 @@ export function Sidebar() {
     { key: "index", route: "/(tabs)", label: t("dashboard"), icon: "view-dashboard" },
     { key: "catalog", route: "/(tabs)/catalog", label: t("catalog"), icon: "package-variant" },
     { key: "scan", route: "/(tabs)/scan", label: t("scan"), icon: "barcode-scan" },
-    { key: "orders", route: "/(tabs)/orders", label: t("orders"), icon: "clipboard-list" },
+    { key: "orders", route: "/(tabs)/orders", label: t("tools"), icon: "toolbox" },
     { key: "settings", route: "/(tabs)/settings", label: t("settings"), icon: "cog" },
   ];
 

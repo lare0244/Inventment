@@ -224,6 +224,8 @@ class ProductIn(BaseModel):
     description: Optional[str] = None
     notes: Optional[str] = None
     location: Optional[str] = None
+    is_production_unit: bool = False
+    bom: List[dict] = []
 
 
 class StockMovementIn(BaseModel):
@@ -1522,6 +1524,28 @@ async def remove_member(uid: str, user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+@api_router.delete("/account")
+async def delete_account(user: dict = Depends(get_current_user)):
+    uid = user["id"]
+    cid = user.get("company_id")
+    # If part of a company: owner dissolves it, member just detaches (handled by user deletion)
+    if cid:
+        comp = await db.companies.find_one({"id": cid})
+        if comp and comp.get("owner_user_id") == uid:
+            await db.users.update_many({"company_id": cid}, {"$set": {
+                "company_id": None, "company_code": None, "is_company_master": False, "is_company_owner": False}})
+            await db.companies.delete_one({"id": cid})
+    # Delete all data owned by this user
+    for coll in ("warehouses", "categories", "suppliers", "products", "movements",
+                 "purchase_orders", "sales_orders", "stocktakes", "production_orders", "stock_snapshots"):
+        await db[coll].delete_many({"owner_id": uid})
+    await db.so_counters.delete_many({"key": uid})
+    # Finally delete the user account itself
+    await db.users.delete_one({"id": uid})
+    return {"ok": True, "deleted": True}
+
+
+
 @api_router.post("/billing/activate-test")
 async def activate_test_pro(user: dict = Depends(get_current_user)):
     expires = (datetime.now(timezone.utc) + timedelta(days=365)).isoformat()
@@ -1972,6 +1996,157 @@ async def assign_stocktake_item(sid: str, body: StockTakeAssign, user: dict = De
     await db.stocktakes.update_one({"id": sid, "owner_id": {"$in": user["_scope"]}},
                                    {"$set": {"items": items, "updated_at": now_iso()}})
     return clean({**s, "items": items})
+
+
+# ---------------- Production Orders ----------------
+class ProdItemIn(BaseModel):
+    product_id: str
+    quantity: int = 1
+    batch_number: Optional[str] = None
+    best_before_date: Optional[str] = None
+
+
+class ProdOrderCreate(BaseModel):
+    warehouse_id: str
+    items: List[ProdItemIn] = []
+
+
+class ProdOrderUpdate(BaseModel):
+    warehouse_id: Optional[str] = None
+    items: Optional[List[ProdItemIn]] = None
+
+
+async def _gen_production_number(user: dict) -> str:
+    period = datetime.now(timezone.utc).strftime("%y%m")
+    doc = await db.production_order_counters.find_one_and_update(
+        {"key": _so_counter_key(user), "period": period},
+        {"$inc": {"seq": 1}}, upsert=True, return_document=ReturnDocument.AFTER)
+    return f"PRD{period}{int(doc['seq']):04d}"
+
+
+async def _build_prod_items(user: dict, items: List[ProdItemIn]) -> List[dict]:
+    out = []
+    for it in items:
+        p = await db.products.find_one({"id": it.product_id, "owner_id": {"$in": user["_scope"]}})
+        if not p:
+            continue
+        out.append({
+            "product_id": it.product_id, "name": p.get("name"),
+            "quantity": max(1, int(it.quantity)),
+            "batch_number": it.batch_number or "",
+            "best_before_date": it.best_before_date or "",
+        })
+    return out
+
+
+@api_router.post("/production-orders")
+async def create_production_order(body: ProdOrderCreate, user: dict = Depends(get_current_user)):
+    wh = await db.warehouses.find_one({"id": body.warehouse_id, "owner_id": {"$in": user["_scope"]}})
+    if not wh:
+        raise HTTPException(status_code=400, detail="warehouse_required")
+    items = await _build_prod_items(user, body.items)
+    num = await _gen_production_number(user)
+    doc = {"id": str(uuid.uuid4()), "owner_id": user["id"], "number": num,
+           "warehouse_id": body.warehouse_id, "warehouse_name": wh.get("name"),
+           "status": "draft", "items": items,
+           "created_at": now_iso(), "updated_at": now_iso()}
+    await db.production_orders.insert_one(dict(doc))
+    return clean(dict(doc))
+
+
+@api_router.get("/production-orders")
+async def list_production_orders(user: dict = Depends(get_current_user)):
+    items = await db.production_orders.find({"owner_id": {"$in": user["_scope"]}}).sort("created_at", -1).to_list(2000)
+    return [clean(i) for i in items]
+
+
+@api_router.get("/production-orders/{oid}")
+async def get_production_order(oid: str, user: dict = Depends(get_current_user)):
+    o = await db.production_orders.find_one({"id": oid, "owner_id": {"$in": user["_scope"]}})
+    if not o:
+        raise HTTPException(status_code=404, detail="Not found")
+    return clean(o)
+
+
+@api_router.put("/production-orders/{oid}")
+async def update_production_order(oid: str, body: ProdOrderUpdate, user: dict = Depends(get_current_user)):
+    o = await db.production_orders.find_one({"id": oid, "owner_id": {"$in": user["_scope"]}})
+    if not o:
+        raise HTTPException(status_code=404, detail="Not found")
+    if o.get("status") != "draft":
+        raise HTTPException(status_code=400, detail="not_draft")
+    upd = {"updated_at": now_iso()}
+    if body.warehouse_id:
+        wh = await db.warehouses.find_one({"id": body.warehouse_id, "owner_id": {"$in": user["_scope"]}})
+        if not wh:
+            raise HTTPException(status_code=400, detail="warehouse_required")
+        upd["warehouse_id"] = body.warehouse_id
+        upd["warehouse_name"] = wh.get("name")
+    if body.items is not None:
+        upd["items"] = await _build_prod_items(user, body.items)
+    await db.production_orders.update_one({"id": oid, "owner_id": {"$in": user["_scope"]}}, {"$set": upd})
+    return clean({**o, **upd})
+
+
+async def _mutate_stock(user: dict, product: dict, wid: str, delta: int, mtype: str, note: str, best_before: str = None):
+    stock = dict(product.get("stock") or {})
+    prev = int(stock.get(wid, 0))
+    newv = prev + delta
+    stock[wid] = newv
+    total = sum(int(v) for v in stock.values())
+    setv = {"stock": stock, "quantity": total, "updated_at": now_iso()}
+    if best_before:
+        setv["best_before_date"] = best_before
+    await db.products.update_one({"id": product["id"], "owner_id": {"$in": user["_scope"]}}, {"$set": setv})
+    mv = {"id": str(uuid.uuid4()), "owner_id": user["id"], "product_id": product["id"],
+          "product_name": product.get("name"), "type": mtype, "quantity": abs(delta),
+          "warehouse_id": wid, "warehouse_name": None,
+          "prev_qty": prev, "resulting_qty": newv, "resulting_total": total,
+          "note": note, "created_at": now_iso()}
+    await db.movements.insert_one(dict(mv))
+    return newv
+
+
+@api_router.post("/production-orders/{oid}/complete")
+async def complete_production_order(oid: str, user: dict = Depends(get_current_user)):
+    o = await db.production_orders.find_one({"id": oid, "owner_id": {"$in": user["_scope"]}})
+    if not o:
+        raise HTTPException(status_code=404, detail="Not found")
+    if o.get("status") == "completed":
+        raise HTTPException(status_code=400, detail="already_completed")
+    wid = o.get("warehouse_id")
+    warnings = []
+    for it in (o.get("items") or []):
+        prod = await db.products.find_one({"id": it["product_id"], "owner_id": {"$in": user["_scope"]}})
+        if not prod:
+            continue
+        q = int(it.get("quantity", 0))
+        batch = it.get("batch_number") or ""
+        note = f"Production {o.get('number')}" + (f" · {batch}" if batch else "")
+        # produce finished units (+)
+        await _mutate_stock(user, prod, wid, q, "receive", note, it.get("best_before_date") or None)
+        # consume parts (-)
+        for part in (prod.get("bom") or []):
+            pp = await db.products.find_one({"id": part.get("product_id"), "owner_id": {"$in": user["_scope"]}})
+            if not pp:
+                continue
+            need = q * int(part.get("qty", 0) or 0)
+            if need <= 0:
+                continue
+            newv = await _mutate_stock(user, pp, wid, -need, "remove", note)
+            if newv < 0:
+                warnings.append(pp.get("name"))
+    await db.production_orders.update_one({"id": oid, "owner_id": {"$in": user["_scope"]}},
+                                          {"$set": {"status": "completed", "completed_at": now_iso(), "updated_at": now_iso()}})
+    await record_snapshot(user["id"])
+    o = await db.production_orders.find_one({"id": oid, "owner_id": {"$in": user["_scope"]}})
+    return {"ok": True, "warnings": warnings, "production_order": clean(o)}
+
+
+@api_router.delete("/production-orders/{oid}")
+async def delete_production_order(oid: str, user: dict = Depends(get_current_user)):
+    await db.production_orders.delete_one({"id": oid, "owner_id": {"$in": user["_scope"]}})
+    return {"ok": True}
 
 
 # ---------------- File upload / serving (product photos) ----------------

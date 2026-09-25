@@ -202,8 +202,23 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Catalog search now matches name, category, SKU, barcode, and location — so typing a bin (e.g. "A-12") filters to products stored there.
 - Verified on web: location shows on the row and searching by location filters correctly. Test data restored.
 
+## Completed (2026-06-29) — Tools hub, Stock Movement, Production Orders, BOM
+- Renamed the Orders tab to **Tools** (toolbox icon) — a hub linking Sales Orders, Purchase Orders, Production Orders, Stocktaking, Stock Movement. Sales/Purchase moved to /orders-manage?tab=. Stocktaking button removed from Dashboard.
+- **Stock Movement** (/stock-movement): transfer a product between warehouses (uses POST /transfers) with a recent-transfers history.
+- **Production Orders** (/production-orders): create draft (target warehouse), add production-unit products with qty + per-line batch number + optional best-before, autosave (PUT); Complete adds finished units (+) and deducts BOM parts (qty×produced, −) in the same warehouse, allows negative with warnings; company-shared; auto number PRD<yymm><seq>.
+- **Product BOM**: ProductEditor 'Production unit' toggle reveals a parts list (search products via ProductPicker, qty per unit). Persisted as product.is_production_unit + bom[{product_id,qty}].
+- Verified: backend 8/8 pytest (create/list/get/put-not_draft/complete-with-warnings/delete/transfers) + full web flows (testing agent iteration_21). Test data cleaned up.
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker  <!-- DONE above -->
 
+## Completed (2026-06 — Publish readiness)
+- Android store config: app.json `package` set to `com.inventment.app` (aligned with iOS bundle) + `versionCode: 1` added (Play Store requirement). iOS bundleIdentifier/buildNumber already set.
+- Fonts bundled locally (assets/fonts/Rajdhani-Bold/Med, PlexSans/-Bold ttf) and loaded via require() in _layout.tsx — removes the CDN startup dependency that could hang native release builds offline.
+- Account deletion (Apple App Store requirement): DELETE /api/account removes the user, all owner_id-scoped data (products, warehouses, categories, suppliers, movements, purchase/sales orders, stocktakes, production orders, snapshots) and dissolves the company if the user is its owner. Settings → "Delete Account" (destructive, confirm dialog) calls deleteAccount() in auth.tsx which clears token and returns to login. i18n added to all 9 languages. Curl-verified (account+data gone, subsequent auth 401); web-verified button renders.
+- Quoted METRO_CACHE_ROOT in frontend/.env (env-parsing safety).
+- Note: react-native-purchases 10.7.1 has NO Expo config plugin (autolinks); adding one to app.json breaks the dev server — left out. RevenueCat SDK keys still empty placeholders pending user setup.
+
 - Native App Store / Google Play PRO subscriptions (requires native build to QA)
+
 - Android store config in app.json (package, versionCode, splash/icon)

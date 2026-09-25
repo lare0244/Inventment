@@ -51,7 +51,7 @@ const en: Dict = {
   // settings
   currency: "Currency", appearance: "Appearance", dark: "Dark", light: "Light",
   language: "Language", english: "English", swedish: "Swedish",
-  warehouses: "Warehouses", categories: "Categories", suppliers: "Suppliers", signOut: "Sign Out",
+  warehouses: "Warehouses", categories: "Categories", suppliers: "Suppliers", signOut: "Sign Out", deleteAccount: "Delete Account", deleteAccountMsg: "This permanently deletes your account and all your data (products, warehouses, orders, stocktakes). This cannot be undone.", deleteAccountBtn: "Delete my account",
   noneYet: "None yet", add: "Add", name: "Name", address: "Address", email: "Email",
   save: "Save", cancel: "Cancel",
   // product editor
@@ -151,6 +151,16 @@ const en: Dict = {
   reviewChanges: "Review changes", willUpdate: "to update", unchanged: "unchanged", confirmAndFinish: "Confirm & finish",
   setAllZero: "Set all to zero", confirmZero: "Set every product's count to 0?", flaggedForRecount: "flagged for recount",
   binLocation: "Bin / Shelf", binLocationHint: "e.g. A-12", flaggedOnly: "Flagged only", assign: "Assign", assignRecount: "Assign recount", unassign: "Unassign",
+  tools: "Tools", stockMovement: "Stock movement", stockMovementSub: "Move stock between warehouses",
+  salesOrdersSub: "Create and track customer orders", purchaseOrdersSub: "Reorder stock from suppliers",
+  productionOrders: "Production orders", productionOrdersSub: "Assemble finished goods from parts", stocktakingSub: "Count and reconcile stock",
+  fromWarehouse: "From warehouse", toWarehouse: "To warehouse", selectProduct: "Select product", doTransfer: "Transfer",
+  recentMovements: "Recent movements", noMovements: "No movements yet", transferDone: "Stock transferred", sameWarehouse: "Source and destination must differ.",
+  newProductionOrder: "New production order", noProductionOrders: "No production orders yet", batchNumber: "Batch number", produceQty: "Quantity to produce",
+  completeProduction: "Complete production", confirmCompleteProduction: "Complete this production? Finished units are added and parts are deducted from stock.",
+  productionComplete: "Production completed", negativeStockWarn: "Some parts went below zero:", onlyProductionUnits: "Add production-unit products to produce.",
+  productionUnit: "Production unit", productionUnitHint: "Made from other products (parts)", productionParts: "Production parts", addPart: "Add part", qtyPerUnit: "Quantity of each part needed per unit", noParts: "No parts added yet",
+  addProduct: "Add product", noProductionUnits: "No production units found", noResults: "No results", create: "Create", confirmDelete: "Delete this? This can't be undone.", delete: "Delete",
 };
 
 const sv: Dict = {
@@ -183,7 +193,7 @@ const sv: Dict = {
   items: "artikel(ar)", statusSent: "SKICKAD", statusDraft: "UTKAST", statusDelivered: "LEVERERAD", statusCancelled: "AVBRUTEN", markDelivered: "Markera som levererad", cancelOrder: "Avbryt order", editItems: "Redigera artiklar", selectWarehouse: "Välj mottagande lager", deliveredTo: "Levererad till", confirmDeliver: "Markera denna order som levererad? Alla artiklar läggs till i valt lager.", confirmCancel: "Avbryta denna order? Detta kan inte ångras.", orderTotal: "Ordertotal", itemsLabel: "Artiklar",
   currency: "Valuta", appearance: "Utseende", dark: "Mörkt", light: "Ljust",
   language: "Språk", english: "Engelska", swedish: "Svenska",
-  warehouses: "Lager", categories: "Kategorier", suppliers: "Leverantörer", signOut: "Logga ut",
+  warehouses: "Lager", categories: "Kategorier", suppliers: "Leverantörer", signOut: "Logga ut", deleteAccount: "Radera konto", deleteAccountMsg: "Detta raderar permanent ditt konto och all din data (produkter, lager, ordrar, inventeringar). Detta kan inte ångras.", deleteAccountBtn: "Radera mitt konto",
   noneYet: "Inga än", add: "Lägg till", name: "Namn", address: "Adress", email: "E-post",
   save: "Spara", cancel: "Avbryt",
   newProductTitle: "Ny produkt", productName: "Produktnamn", sku: "SKU", price: "Pris", cost: "Kostnad",
@@ -280,6 +290,16 @@ const sv: Dict = {
   reviewChanges: "Granska ändringar", willUpdate: "uppdateras", unchanged: "oförändrade", confirmAndFinish: "Bekräfta och avsluta",
   setAllZero: "Nollställ allt", confirmZero: "Sätt varje artikels räkning till 0?", flaggedForRecount: "markerade för omräkning",
   binLocation: "Lagerplats", binLocationHint: "t.ex. A-12", flaggedOnly: "Endast märkta", assign: "Tilldela", assignRecount: "Tilldela omräkning", unassign: "Ta bort tilldelning",
+  tools: "Verktyg", stockMovement: "Lagerflytt", stockMovementSub: "Flytta lager mellan lagerplatser",
+  salesOrdersSub: "Skapa och följ kundordrar", purchaseOrdersSub: "Beställ lager från leverantörer",
+  productionOrders: "Produktionsordrar", productionOrdersSub: "Tillverka färdiga varor av delar", stocktakingSub: "Räkna och stäm av lager",
+  fromWarehouse: "Från lager", toWarehouse: "Till lager", selectProduct: "Välj produkt", doTransfer: "Flytta",
+  recentMovements: "Senaste flyttar", noMovements: "Inga flyttar än", transferDone: "Lager flyttat", sameWarehouse: "Källa och mål måste vara olika.",
+  newProductionOrder: "Ny produktionsorder", noProductionOrders: "Inga produktionsordrar än", batchNumber: "Batchnummer", produceQty: "Antal att tillverka",
+  completeProduction: "Slutför produktion", confirmCompleteProduction: "Slutföra produktionen? Färdiga enheter läggs till och delar dras från lagret.",
+  productionComplete: "Produktion slutförd", negativeStockWarn: "Vissa delar gick under noll:", onlyProductionUnits: "Lägg till produktionsenheter att tillverka.",
+  productionUnit: "Produktionsenhet", productionUnitHint: "Tillverkas av andra produkter (delar)", productionParts: "Produktionsdelar", addPart: "Lägg till del", qtyPerUnit: "Antal av varje del som behövs per enhet", noParts: "Inga delar tillagda än",
+  addProduct: "Lägg till produkt", noProductionUnits: "Inga produktionsenheter hittades", noResults: "Inga resultat", create: "Skapa", confirmDelete: "Ta bort detta? Kan inte ångras.", delete: "Ta bort",
 };
 
 const da: Dict = {
@@ -312,7 +332,7 @@ const da: Dict = {
   items: "vare(r)", statusSent: "SENDT", statusDraft: "KLADDE", statusDelivered: "LEVERET", statusCancelled: "ANNULLERET", markDelivered: "Markér som leveret", cancelOrder: "Annullér ordre", editItems: "Redigér varer", selectWarehouse: "Vælg modtagende lager", deliveredTo: "Leveret til", confirmDeliver: "Markér denne ordre som leveret? Alle varer lægges til det valgte lager.", confirmCancel: "Annullér denne ordre? Dette kan ikke fortrydes.", orderTotal: "Ordretotal", itemsLabel: "Varer",
   currency: "Valuta", appearance: "Udseende", dark: "Mørk", light: "Lys",
   language: "Sprog", english: "Engelsk", swedish: "Svensk",
-  warehouses: "Lagre", categories: "Kategorier", suppliers: "Leverandører", signOut: "Log ud",
+  warehouses: "Lagre", categories: "Kategorier", suppliers: "Leverandører", signOut: "Log ud", deleteAccount: "Slet konto", deleteAccountMsg: "Dette sletter permanent din konto og alle dine data (produkter, lagre, ordrer, optællinger). Dette kan ikke fortrydes.", deleteAccountBtn: "Slet min konto",
   noneYet: "Ingen endnu", add: "Tilføj", name: "Navn", address: "Adresse", email: "E-mail",
   save: "Gem", cancel: "Annullér",
   newProductTitle: "Nyt produkt", productName: "Produktnavn", sku: "SKU", price: "Pris", cost: "Kostpris",
@@ -380,6 +400,16 @@ const da: Dict = {
   reviewChanges: "Gennemgå ændringer", willUpdate: "opdateres", unchanged: "uændrede", confirmAndFinish: "Bekræft og afslut",
   setAllZero: "Sæt alt til 0", confirmZero: "Sæt hver vares optælling til 0?", flaggedForRecount: "markeret til genoptælling",
   binLocation: "Placering", binLocationHint: "f.eks. A-12", flaggedOnly: "Kun markerede", assign: "Tildel", assignRecount: "Tildel genoptælling", unassign: "Fjern tildeling",
+  tools: "Værktøjer", stockMovement: "Lagerflytning", stockMovementSub: "Flyt lager mellem lagre",
+  salesOrdersSub: "Opret og følg kundeordrer", purchaseOrdersSub: "Genbestil lager fra leverandører",
+  productionOrders: "Produktionsordrer", productionOrdersSub: "Saml færdigvarer af dele", stocktakingSub: "Tæl og afstem lager",
+  fromWarehouse: "Fra lager", toWarehouse: "Til lager", selectProduct: "Vælg produkt", doTransfer: "Flyt",
+  recentMovements: "Seneste bevægelser", noMovements: "Ingen bevægelser endnu", transferDone: "Lager flyttet", sameWarehouse: "Kilde og mål skal være forskellige.",
+  newProductionOrder: "Ny produktionsordre", noProductionOrders: "Ingen produktionsordrer endnu", batchNumber: "Batchnummer", produceQty: "Antal at producere",
+  completeProduction: "Afslut produktion", confirmCompleteProduction: "Afslut produktionen? Færdige enheder tilføjes og dele trækkes fra lageret.",
+  productionComplete: "Produktion afsluttet", negativeStockWarn: "Nogle dele gik under nul:", onlyProductionUnits: "Tilføj produktionsenheder at producere.",
+  productionUnit: "Produktionsenhed", productionUnitHint: "Fremstillet af andre produkter (dele)", productionParts: "Produktionsdele", addPart: "Tilføj del", qtyPerUnit: "Antal af hver del pr. enhed", noParts: "Ingen dele tilføjet endnu",
+  addProduct: "Tilføj produkt", noProductionUnits: "Ingen produktionsenheder fundet", noResults: "Ingen resultater", create: "Opret", confirmDelete: "Slet dette? Kan ikke fortrydes.", delete: "Slet",
 };
 
 const nl: Dict = {
@@ -412,7 +442,7 @@ const nl: Dict = {
   items: "artikel(en)", statusSent: "VERZONDEN", statusDraft: "CONCEPT", statusDelivered: "GELEVERD", statusCancelled: "GEANNULEERD", markDelivered: "Markeer als geleverd", cancelOrder: "Bestelling annuleren", editItems: "Artikelen bewerken", selectWarehouse: "Kies ontvangend magazijn", deliveredTo: "Geleverd aan", confirmDeliver: "Deze bestelling als geleverd markeren? Alle artikelen worden aan de gekozen magazijnvoorraad toegevoegd.", confirmCancel: "Deze bestelling annuleren? Dit kan niet ongedaan worden gemaakt.", orderTotal: "Besteltotaal", itemsLabel: "Artikelen",
   currency: "Valuta", appearance: "Weergave", dark: "Donker", light: "Licht",
   language: "Taal", english: "Engels", swedish: "Zweeds",
-  warehouses: "Magazijnen", categories: "Categorieën", suppliers: "Leveranciers", signOut: "Uitloggen",
+  warehouses: "Magazijnen", categories: "Categorieën", suppliers: "Leveranciers", signOut: "Uitloggen", deleteAccount: "Account verwijderen", deleteAccountMsg: "Hiermee worden je account en al je gegevens (producten, magazijnen, orders, tellingen) permanent verwijderd. Dit kan niet ongedaan worden gemaakt.", deleteAccountBtn: "Mijn account verwijderen",
   noneYet: "Nog geen", add: "Toevoegen", name: "Naam", address: "Adres", email: "E-mail",
   save: "Opslaan", cancel: "Annuleren",
   newProductTitle: "Nieuw product", productName: "Productnaam", sku: "SKU", price: "Prijs", cost: "Kostprijs",
@@ -480,6 +510,16 @@ const nl: Dict = {
   reviewChanges: "Wijzigingen bekijken", willUpdate: "worden bijgewerkt", unchanged: "ongewijzigd", confirmAndFinish: "Bevestigen en afronden",
   setAllZero: "Alles op 0 zetten", confirmZero: "De telling van elk product op 0 zetten?", flaggedForRecount: "gemarkeerd om te hertellen",
   binLocation: "Locatie", binLocationHint: "bijv. A-12", flaggedOnly: "Alleen gemarkeerd", assign: "Toewijzen", assignRecount: "Hertelling toewijzen", unassign: "Toewijzing verwijderen",
+  tools: "Hulpmiddelen", stockMovement: "Voorraadverplaatsing", stockMovementSub: "Verplaats voorraad tussen magazijnen",
+  salesOrdersSub: "Klantorders maken en volgen", purchaseOrdersSub: "Voorraad bijbestellen bij leveranciers",
+  productionOrders: "Productieorders", productionOrdersSub: "Eindproducten samenstellen uit onderdelen", stocktakingSub: "Voorraad tellen en afstemmen",
+  fromWarehouse: "Van magazijn", toWarehouse: "Naar magazijn", selectProduct: "Product kiezen", doTransfer: "Verplaatsen",
+  recentMovements: "Recente bewegingen", noMovements: "Nog geen bewegingen", transferDone: "Voorraad verplaatst", sameWarehouse: "Bron en bestemming moeten verschillen.",
+  newProductionOrder: "Nieuwe productieorder", noProductionOrders: "Nog geen productieorders", batchNumber: "Batchnummer", produceQty: "Aantal te produceren",
+  completeProduction: "Productie voltooien", confirmCompleteProduction: "Productie voltooien? Eindproducten worden toegevoegd en onderdelen afgetrokken van de voorraad.",
+  productionComplete: "Productie voltooid", negativeStockWarn: "Sommige onderdelen kwamen onder nul:", onlyProductionUnits: "Voeg productie-eenheden toe om te produceren.",
+  productionUnit: "Productie-eenheid", productionUnitHint: "Gemaakt van andere producten (onderdelen)", productionParts: "Productieonderdelen", addPart: "Onderdeel toevoegen", qtyPerUnit: "Aantal van elk onderdeel per eenheid", noParts: "Nog geen onderdelen",
+  addProduct: "Product toevoegen", noProductionUnits: "Geen productie-eenheden gevonden", noResults: "Geen resultaten", create: "Aanmaken", confirmDelete: "Dit verwijderen? Kan niet ongedaan.", delete: "Verwijderen",
 };
 
 const fr: Dict = {
@@ -512,7 +552,7 @@ const fr: Dict = {
   items: "article(s)", statusSent: "ENVOYÉ", statusDraft: "BROUILLON", statusDelivered: "LIVRÉE", statusCancelled: "ANNULÉE", markDelivered: "Marquer comme livrée", cancelOrder: "Annuler la commande", editItems: "Modifier les articles", selectWarehouse: "Choisir l'entrepôt de destination", deliveredTo: "Livrée à", confirmDeliver: "Marquer cette commande comme livrée ? Tous les articles seront ajoutés au stock de l'entrepôt choisi.", confirmCancel: "Annuler cette commande ? Cette action est irréversible.", orderTotal: "Total commande", itemsLabel: "Articles",
   currency: "Devise", appearance: "Apparence", dark: "Sombre", light: "Clair",
   language: "Langue", english: "Anglais", swedish: "Suédois",
-  warehouses: "Entrepôts", categories: "Catégories", suppliers: "Fournisseurs", signOut: "Se déconnecter",
+  warehouses: "Entrepôts", categories: "Catégories", suppliers: "Fournisseurs", signOut: "Se déconnecter", deleteAccount: "Supprimer le compte", deleteAccountMsg: "Ceci supprime définitivement votre compte et toutes vos données (produits, entrepôts, commandes, inventaires). Cette action est irréversible.", deleteAccountBtn: "Supprimer mon compte",
   noneYet: "Aucun pour l'instant", add: "Ajouter", name: "Nom", address: "Adresse", email: "E-mail",
   save: "Enregistrer", cancel: "Annuler",
   newProductTitle: "Nouveau produit", productName: "Nom du produit", sku: "SKU", price: "Prix", cost: "Coût",
@@ -580,6 +620,16 @@ const fr: Dict = {
   reviewChanges: "Vérifier les modifications", willUpdate: "à mettre à jour", unchanged: "inchangés", confirmAndFinish: "Confirmer et terminer",
   setAllZero: "Tout mettre à 0", confirmZero: "Mettre à 0 le comptage de chaque produit ?", flaggedForRecount: "à recompter",
   binLocation: "Emplacement", binLocationHint: "ex. A-12", flaggedOnly: "Signalés seulement", assign: "Attribuer", assignRecount: "Attribuer le recomptage", unassign: "Retirer l'attribution",
+  tools: "Outils", stockMovement: "Mouvement de stock", stockMovementSub: "Déplacer le stock entre entrepôts",
+  salesOrdersSub: "Créer et suivre les commandes clients", purchaseOrdersSub: "Réapprovisionner chez les fournisseurs",
+  productionOrders: "Ordres de production", productionOrdersSub: "Assembler des produits finis à partir de pièces", stocktakingSub: "Compter et ajuster le stock",
+  fromWarehouse: "Entrepôt source", toWarehouse: "Entrepôt destination", selectProduct: "Choisir un produit", doTransfer: "Transférer",
+  recentMovements: "Mouvements récents", noMovements: "Aucun mouvement", transferDone: "Stock transféré", sameWarehouse: "La source et la destination doivent différer.",
+  newProductionOrder: "Nouvel ordre de production", noProductionOrders: "Aucun ordre de production", batchNumber: "Numéro de lot", produceQty: "Quantité à produire",
+  completeProduction: "Terminer la production", confirmCompleteProduction: "Terminer cette production ? Les unités finies sont ajoutées et les pièces déduites du stock.",
+  productionComplete: "Production terminée", negativeStockWarn: "Certaines pièces sont passées sous zéro :", onlyProductionUnits: "Ajoutez des unités de production à fabriquer.",
+  productionUnit: "Unité de production", productionUnitHint: "Fabriquée à partir d'autres produits (pièces)", productionParts: "Pièces de production", addPart: "Ajouter une pièce", qtyPerUnit: "Quantité de chaque pièce par unité", noParts: "Aucune pièce ajoutée",
+  addProduct: "Ajouter un produit", noProductionUnits: "Aucune unité de production trouvée", noResults: "Aucun résultat", create: "Créer", confirmDelete: "Supprimer ceci ? Irréversible.", delete: "Supprimer",
 };
 
 const de: Dict = {
@@ -612,7 +662,7 @@ const de: Dict = {
   items: "Artikel", statusSent: "GESENDET", statusDraft: "ENTWURF", statusDelivered: "GELIEFERT", statusCancelled: "STORNIERT", markDelivered: "Als geliefert markieren", cancelOrder: "Bestellung stornieren", editItems: "Artikel bearbeiten", selectWarehouse: "Ziel-Lager wählen", deliveredTo: "Geliefert an", confirmDeliver: "Diese Bestellung als geliefert markieren? Alle Artikel werden dem gewählten Lagerbestand hinzugefügt.", confirmCancel: "Diese Bestellung stornieren? Das kann nicht rückgängig gemacht werden.", orderTotal: "Bestellsumme", itemsLabel: "Artikel",
   currency: "Währung", appearance: "Darstellung", dark: "Dunkel", light: "Hell",
   language: "Sprache", english: "Englisch", swedish: "Schwedisch",
-  warehouses: "Lager", categories: "Kategorien", suppliers: "Lieferanten", signOut: "Abmelden",
+  warehouses: "Lager", categories: "Kategorien", suppliers: "Lieferanten", signOut: "Abmelden", deleteAccount: "Konto löschen", deleteAccountMsg: "Dies löscht dauerhaft Ihr Konto und alle Ihre Daten (Produkte, Lager, Bestellungen, Inventuren). Dies kann nicht rückgängig gemacht werden.", deleteAccountBtn: "Mein Konto löschen",
   noneYet: "Noch keine", add: "Hinzufügen", name: "Name", address: "Adresse", email: "E-Mail",
   save: "Speichern", cancel: "Abbrechen",
   newProductTitle: "Neues Produkt", productName: "Produktname", sku: "SKU", price: "Preis", cost: "Kosten",
@@ -680,6 +730,16 @@ const de: Dict = {
   reviewChanges: "Änderungen prüfen", willUpdate: "werden aktualisiert", unchanged: "unverändert", confirmAndFinish: "Bestätigen & abschließen",
   setAllZero: "Alles auf 0 setzen", confirmZero: "Zählung jedes Produkts auf 0 setzen?", flaggedForRecount: "zur Nachzählung markiert",
   binLocation: "Lagerplatz", binLocationHint: "z. B. A-12", flaggedOnly: "Nur markierte", assign: "Zuweisen", assignRecount: "Nachzählung zuweisen", unassign: "Zuweisung entfernen",
+  tools: "Werkzeuge", stockMovement: "Lagerbewegung", stockMovementSub: "Bestand zwischen Lagern verschieben",
+  salesOrdersSub: "Kundenaufträge erstellen und verfolgen", purchaseOrdersSub: "Bestand bei Lieferanten nachbestellen",
+  productionOrders: "Produktionsaufträge", productionOrdersSub: "Fertigwaren aus Teilen zusammenbauen", stocktakingSub: "Bestand zählen und abgleichen",
+  fromWarehouse: "Von Lager", toWarehouse: "Zu Lager", selectProduct: "Produkt wählen", doTransfer: "Verschieben",
+  recentMovements: "Letzte Bewegungen", noMovements: "Noch keine Bewegungen", transferDone: "Bestand verschoben", sameWarehouse: "Quelle und Ziel müssen sich unterscheiden.",
+  newProductionOrder: "Neuer Produktionsauftrag", noProductionOrders: "Noch keine Produktionsaufträge", batchNumber: "Chargennummer", produceQty: "Zu produzierende Menge",
+  completeProduction: "Produktion abschließen", confirmCompleteProduction: "Produktion abschließen? Fertige Einheiten werden hinzugefügt und Teile vom Bestand abgezogen.",
+  productionComplete: "Produktion abgeschlossen", negativeStockWarn: "Einige Teile fielen unter null:", onlyProductionUnits: "Produktionseinheiten zum Produzieren hinzufügen.",
+  productionUnit: "Produktionseinheit", productionUnitHint: "Aus anderen Produkten (Teilen) hergestellt", productionParts: "Produktionsteile", addPart: "Teil hinzufügen", qtyPerUnit: "Menge jedes Teils pro Einheit", noParts: "Noch keine Teile",
+  addProduct: "Produkt hinzufügen", noProductionUnits: "Keine Produktionseinheiten gefunden", noResults: "Keine Ergebnisse", create: "Erstellen", confirmDelete: "Dies löschen? Nicht rückgängig.", delete: "Löschen",
 };
 
 const es: Dict = {
@@ -712,7 +772,7 @@ const es: Dict = {
   items: "artículo(s)", statusSent: "ENVIADO", statusDraft: "BORRADOR", statusDelivered: "ENTREGADO", statusCancelled: "CANCELADO", markDelivered: "Marcar como entregado", cancelOrder: "Cancelar pedido", editItems: "Editar artículos", selectWarehouse: "Elegir almacén de destino", deliveredTo: "Entregado a", confirmDeliver: "¿Marcar este pedido como entregado? Todos los artículos se añadirán al stock del almacén elegido.", confirmCancel: "¿Cancelar este pedido? No se puede deshacer.", orderTotal: "Total del pedido", itemsLabel: "Artículos",
   currency: "Moneda", appearance: "Apariencia", dark: "Oscuro", light: "Claro",
   language: "Idioma", english: "Inglés", swedish: "Sueco",
-  warehouses: "Almacenes", categories: "Categorías", suppliers: "Proveedores", signOut: "Cerrar sesión",
+  warehouses: "Almacenes", categories: "Categorías", suppliers: "Proveedores", signOut: "Cerrar sesión", deleteAccount: "Eliminar cuenta", deleteAccountMsg: "Esto elimina permanentemente tu cuenta y todos tus datos (productos, almacenes, pedidos, inventarios). No se puede deshacer.", deleteAccountBtn: "Eliminar mi cuenta",
   noneYet: "Ninguno aún", add: "Añadir", name: "Nombre", address: "Dirección", email: "Correo",
   save: "Guardar", cancel: "Cancelar",
   newProductTitle: "Nuevo producto", productName: "Nombre del producto", sku: "SKU", price: "Precio", cost: "Costo",
@@ -780,6 +840,16 @@ const es: Dict = {
   reviewChanges: "Revisar cambios", willUpdate: "por actualizar", unchanged: "sin cambios", confirmAndFinish: "Confirmar y finalizar",
   setAllZero: "Poner todo a 0", confirmZero: "¿Poner a 0 el recuento de cada producto?", flaggedForRecount: "marcados para recontar",
   binLocation: "Ubicación", binLocationHint: "p. ej. A-12", flaggedOnly: "Solo marcados", assign: "Asignar", assignRecount: "Asignar reconteo", unassign: "Quitar asignación",
+  tools: "Herramientas", stockMovement: "Movimiento de stock", stockMovementSub: "Mover stock entre almacenes",
+  salesOrdersSub: "Crear y seguir pedidos de clientes", purchaseOrdersSub: "Reponer stock de proveedores",
+  productionOrders: "Órdenes de producción", productionOrdersSub: "Ensamblar productos terminados a partir de piezas", stocktakingSub: "Contar y ajustar el stock",
+  fromWarehouse: "Desde almacén", toWarehouse: "Hacia almacén", selectProduct: "Seleccionar producto", doTransfer: "Transferir",
+  recentMovements: "Movimientos recientes", noMovements: "Sin movimientos aún", transferDone: "Stock transferido", sameWarehouse: "El origen y el destino deben ser distintos.",
+  newProductionOrder: "Nueva orden de producción", noProductionOrders: "Sin órdenes de producción", batchNumber: "Número de lote", produceQty: "Cantidad a producir",
+  completeProduction: "Completar producción", confirmCompleteProduction: "¿Completar esta producción? Se añaden unidades terminadas y se descuentan piezas del stock.",
+  productionComplete: "Producción completada", negativeStockWarn: "Algunas piezas quedaron por debajo de cero:", onlyProductionUnits: "Añade unidades de producción para fabricar.",
+  productionUnit: "Unidad de producción", productionUnitHint: "Fabricada a partir de otros productos (piezas)", productionParts: "Piezas de producción", addPart: "Añadir pieza", qtyPerUnit: "Cantidad de cada pieza por unidad", noParts: "Sin piezas añadidas",
+  addProduct: "Añadir producto", noProductionUnits: "No se encontraron unidades de producción", noResults: "Sin resultados", create: "Crear", confirmDelete: "¿Eliminar esto? No se puede deshacer.", delete: "Eliminar",
 };
 
 const it: Dict = {
@@ -812,7 +882,7 @@ const it: Dict = {
   items: "articolo/i", statusSent: "INVIATO", statusDraft: "BOZZA", statusDelivered: "CONSEGNATO", statusCancelled: "ANNULLATO", markDelivered: "Segna come consegnato", cancelOrder: "Annulla ordine", editItems: "Modifica articoli", selectWarehouse: "Scegli magazzino di destinazione", deliveredTo: "Consegnato a", confirmDeliver: "Segnare questo ordine come consegnato? Tutti gli articoli verranno aggiunti alla giacenza del magazzino scelto.", confirmCancel: "Annullare questo ordine? Operazione irreversibile.", orderTotal: "Totale ordine", itemsLabel: "Articoli",
   currency: "Valuta", appearance: "Aspetto", dark: "Scuro", light: "Chiaro",
   language: "Lingua", english: "Inglese", swedish: "Svedese",
-  warehouses: "Magazzini", categories: "Categorie", suppliers: "Fornitori", signOut: "Esci",
+  warehouses: "Magazzini", categories: "Categorie", suppliers: "Fornitori", signOut: "Esci", deleteAccount: "Elimina account", deleteAccountMsg: "Questo elimina definitivamente il tuo account e tutti i tuoi dati (prodotti, magazzini, ordini, inventari). Non può essere annullato.", deleteAccountBtn: "Elimina il mio account",
   noneYet: "Ancora nessuno", add: "Aggiungi", name: "Nome", address: "Indirizzo", email: "E-mail",
   save: "Salva", cancel: "Annulla",
   newProductTitle: "Nuovo prodotto", productName: "Nome prodotto", sku: "SKU", price: "Prezzo", cost: "Costo",
@@ -880,6 +950,16 @@ const it: Dict = {
   reviewChanges: "Rivedi modifiche", willUpdate: "da aggiornare", unchanged: "invariati", confirmAndFinish: "Conferma e termina",
   setAllZero: "Azzera tutto", confirmZero: "Impostare a 0 il conteggio di ogni prodotto?", flaggedForRecount: "da ricontrollare",
   binLocation: "Ubicazione", binLocationHint: "es. A-12", flaggedOnly: "Solo segnati", assign: "Assegna", assignRecount: "Assegna ricontrollo", unassign: "Rimuovi assegnazione",
+  tools: "Strumenti", stockMovement: "Movimento di magazzino", stockMovementSub: "Sposta scorte tra magazzini",
+  salesOrdersSub: "Crea e monitora ordini cliente", purchaseOrdersSub: "Riordina scorte dai fornitori",
+  productionOrders: "Ordini di produzione", productionOrdersSub: "Assembla prodotti finiti dai componenti", stocktakingSub: "Conta e concilia le scorte",
+  fromWarehouse: "Da magazzino", toWarehouse: "A magazzino", selectProduct: "Seleziona prodotto", doTransfer: "Trasferisci",
+  recentMovements: "Movimenti recenti", noMovements: "Nessun movimento", transferDone: "Scorte trasferite", sameWarehouse: "Origine e destinazione devono differire.",
+  newProductionOrder: "Nuovo ordine di produzione", noProductionOrders: "Nessun ordine di produzione", batchNumber: "Numero di lotto", produceQty: "Quantità da produrre",
+  completeProduction: "Completa produzione", confirmCompleteProduction: "Completare questa produzione? Le unità finite vengono aggiunte e i componenti scalati dalle scorte.",
+  productionComplete: "Produzione completata", negativeStockWarn: "Alcuni componenti sono andati sotto zero:", onlyProductionUnits: "Aggiungi unità di produzione da produrre.",
+  productionUnit: "Unità di produzione", productionUnitHint: "Realizzata da altri prodotti (componenti)", productionParts: "Componenti di produzione", addPart: "Aggiungi componente", qtyPerUnit: "Quantità di ogni componente per unità", noParts: "Nessun componente aggiunto",
+  addProduct: "Aggiungi prodotto", noProductionUnits: "Nessuna unità di produzione trovata", noResults: "Nessun risultato", create: "Crea", confirmDelete: "Eliminare questo? Irreversibile.", delete: "Elimina",
 };
 
 const pl: Dict = {
@@ -912,7 +992,7 @@ const pl: Dict = {
   items: "pozycja(e)", statusSent: "WYSŁANE", statusDraft: "SZKIC", statusDelivered: "DOSTARCZONE", statusCancelled: "ANULOWANE", markDelivered: "Oznacz jako dostarczone", cancelOrder: "Anuluj zamówienie", editItems: "Edytuj pozycje", selectWarehouse: "Wybierz magazyn docelowy", deliveredTo: "Dostarczono do", confirmDeliver: "Oznaczyć to zamówienie jako dostarczone? Wszystkie pozycje zostaną dodane do stanu wybranego magazynu.", confirmCancel: "Anulować to zamówienie? Tej operacji nie można cofnąć.", orderTotal: "Suma zamówienia", itemsLabel: "Pozycje",
   currency: "Waluta", appearance: "Wygląd", dark: "Ciemny", light: "Jasny",
   language: "Język", english: "Angielski", swedish: "Szwedzki",
-  warehouses: "Magazyny", categories: "Kategorie", suppliers: "Dostawcy", signOut: "Wyloguj",
+  warehouses: "Magazyny", categories: "Kategorie", suppliers: "Dostawcy", signOut: "Wyloguj", deleteAccount: "Usuń konto", deleteAccountMsg: "To trwale usuwa Twoje konto i wszystkie dane (produkty, magazyny, zamówienia, inwentaryzacje). Tej operacji nie można cofnąć.", deleteAccountBtn: "Usuń moje konto",
   noneYet: "Jeszcze brak", add: "Dodaj", name: "Nazwa", address: "Adres", email: "E-mail",
   save: "Zapisz", cancel: "Anuluj",
   newProductTitle: "Nowy produkt", productName: "Nazwa produktu", sku: "SKU", price: "Cena", cost: "Koszt",
@@ -980,6 +1060,16 @@ const pl: Dict = {
   reviewChanges: "Przejrzyj zmiany", willUpdate: "do zmiany", unchanged: "bez zmian", confirmAndFinish: "Potwierdź i zakończ",
   setAllZero: "Ustaw wszystko na 0", confirmZero: "Ustawić liczenie każdego produktu na 0?", flaggedForRecount: "oznaczone do ponownego liczenia",
   binLocation: "Miejsce / półka", binLocationHint: "np. A-12", flaggedOnly: "Tylko oznaczone", assign: "Przypisz", assignRecount: "Przypisz ponowne liczenie", unassign: "Cofnij przypisanie",
+  tools: "Narzędzia", stockMovement: "Ruch magazynowy", stockMovementSub: "Przenoś zapasy między magazynami",
+  salesOrdersSub: "Twórz i śledź zamówienia klientów", purchaseOrdersSub: "Zamawiaj zapasy u dostawców",
+  productionOrders: "Zlecenia produkcji", productionOrdersSub: "Składaj wyroby gotowe z części", stocktakingSub: "Licz i uzgadniaj zapasy",
+  fromWarehouse: "Z magazynu", toWarehouse: "Do magazynu", selectProduct: "Wybierz produkt", doTransfer: "Przenieś",
+  recentMovements: "Ostatnie ruchy", noMovements: "Brak ruchów", transferDone: "Zapas przeniesiony", sameWarehouse: "Źródło i cel muszą się różnić.",
+  newProductionOrder: "Nowe zlecenie produkcji", noProductionOrders: "Brak zleceń produkcji", batchNumber: "Numer partii", produceQty: "Ilość do wyprodukowania",
+  completeProduction: "Zakończ produkcję", confirmCompleteProduction: "Zakończyć tę produkcję? Wyroby gotowe zostaną dodane, a części odjęte od zapasu.",
+  productionComplete: "Produkcja zakończona", negativeStockWarn: "Niektóre części spadły poniżej zera:", onlyProductionUnits: "Dodaj jednostki produkcyjne do wytworzenia.",
+  productionUnit: "Jednostka produkcyjna", productionUnitHint: "Wykonana z innych produktów (części)", productionParts: "Części produkcyjne", addPart: "Dodaj część", qtyPerUnit: "Ilość każdej części na jednostkę", noParts: "Nie dodano części",
+  addProduct: "Dodaj produkt", noProductionUnits: "Nie znaleziono jednostek produkcyjnych", noResults: "Brak wyników", create: "Utwórz", confirmDelete: "Usunąć to? Nie można cofnąć.", delete: "Usuń",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv, da, nl, fr, de, es, it, pl };
