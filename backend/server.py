@@ -1800,12 +1800,14 @@ class StockTakeCreate(BaseModel):
 
 class StockTakeItemUpdate(BaseModel):
     product_id: str
-    counted_qty: int = 0
+    counted_qty: Optional[int] = None
+    needs_recount: Optional[bool] = None
 
 
 class StockTakeUpdate(BaseModel):
     date: Optional[str] = None
     items: List[StockTakeItemUpdate] = []
+    mark_done: bool = True
 
 
 async def _gen_stocktake_number(user: dict) -> str:
@@ -1837,7 +1839,7 @@ async def create_stocktake(body: StockTakeCreate, user: dict = Depends(get_curre
             "product_id": p["id"], "name": p.get("name"),
             "sku": p.get("sku") or "", "barcode": p.get("barcode") or "",
             "image": p.get("image") or "",
-            "system_qty": sys_qty, "counted_qty": sys_qty, "counted_done": False,
+            "system_qty": sys_qty, "counted_qty": sys_qty, "counted_done": False, "needs_recount": False,
         })
     num = await _gen_stocktake_number(user)
     date = body.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -1871,13 +1873,18 @@ async def update_stocktake(sid: str, body: StockTakeUpdate, user: dict = Depends
         raise HTTPException(status_code=404, detail="Not found")
     if s.get("status") == "completed":
         raise HTTPException(status_code=400, detail="stocktake_completed")
-    counts = {i.product_id: int(i.counted_qty) for i in body.items}
+    counts = {i.product_id: i for i in body.items}
     items = []
     for it in (s.get("items") or []):
         it = dict(it)
-        if it["product_id"] in counts:
-            it["counted_qty"] = max(0, counts[it["product_id"]])
-            it["counted_done"] = True
+        upd = counts.get(it["product_id"])
+        if upd:
+            if upd.counted_qty is not None:
+                it["counted_qty"] = max(0, int(upd.counted_qty))
+                if body.mark_done:
+                    it["counted_done"] = True
+            if upd.needs_recount is not None:
+                it["needs_recount"] = bool(upd.needs_recount)
         items.append(it)
     upd = {"items": items, "updated_at": now_iso()}
     if body.date:

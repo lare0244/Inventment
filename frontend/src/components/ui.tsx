@@ -1,7 +1,7 @@
 import React from "react";
 import {
   View, Text, StyleSheet, Pressable, ActivityIndicator, TextInput,
-  TextInputProps, ViewStyle, ScrollView, Modal,
+  TextInputProps, ViewStyle, StyleProp, ScrollView, Modal,
 } from "react-native";
 import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
 import * as Haptics from "expo-haptics";
@@ -61,9 +61,9 @@ export function StatusDot({ color }: { color: string }) {
   return <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color }} />;
 }
 
-export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+export function Card({ children, style, onLayout }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; onLayout?: (e: any) => void }) {
   const C = useColors();
-  return <View style={[{ backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.md, padding: S.lg }, style]}>{children}</View>;
+  return <View onLayout={onLayout} style={[{ backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.md, padding: S.lg }, style]}>{children}</View>;
 }
 
 export function Dropdown({

@@ -149,6 +149,7 @@ const en: Dict = {
   photoPermNeeded: "Allow camera/photos access in Settings.", openSettings: "Open settings", storageQuota: "Out of storage space.",
   progressLabel: "Progress", varianceReport: "Variance report", noVariance: "No discrepancies.",
   reviewChanges: "Review changes", willUpdate: "to update", unchanged: "unchanged", confirmAndFinish: "Confirm & finish",
+  setAllZero: "Set all to zero", confirmZero: "Set every product's count to 0?", flaggedForRecount: "flagged for recount",
 };
 
 const sv: Dict = {
@@ -276,6 +277,7 @@ const sv: Dict = {
   photoPermNeeded: "Tillåt åtkomst till kamera/foton i Inställningar.", openSettings: "Öppna inställningar", storageQuota: "Inget lagringsutrymme kvar.",
   progressLabel: "Förlopp", varianceReport: "Avvikelserapport", noVariance: "Inga avvikelser.",
   reviewChanges: "Granska ändringar", willUpdate: "uppdateras", unchanged: "oförändrade", confirmAndFinish: "Bekräfta och avsluta",
+  setAllZero: "Nollställ allt", confirmZero: "Sätt varje artikels räkning till 0?", flaggedForRecount: "markerade för omräkning",
 };
 
 const da: Dict = {
@@ -374,6 +376,7 @@ const da: Dict = {
   photoPermNeeded: "Tillad adgang til kamera/fotos i Indstillinger.", openSettings: "Åbn indstillinger", storageQuota: "Ingen lagerplads tilbage.",
   progressLabel: "Fremdrift", varianceReport: "Afvigelsesrapport", noVariance: "Ingen afvigelser.",
   reviewChanges: "Gennemgå ændringer", willUpdate: "opdateres", unchanged: "uændrede", confirmAndFinish: "Bekræft og afslut",
+  setAllZero: "Sæt alt til 0", confirmZero: "Sæt hver vares optælling til 0?", flaggedForRecount: "markeret til genoptælling",
 };
 
 const nl: Dict = {
@@ -472,6 +475,7 @@ const nl: Dict = {
   photoPermNeeded: "Geef toegang tot camera/foto's in Instellingen.", openSettings: "Instellingen openen", storageQuota: "Geen opslagruimte meer.",
   progressLabel: "Voortgang", varianceReport: "Verschillenrapport", noVariance: "Geen verschillen.",
   reviewChanges: "Wijzigingen bekijken", willUpdate: "worden bijgewerkt", unchanged: "ongewijzigd", confirmAndFinish: "Bevestigen en afronden",
+  setAllZero: "Alles op 0 zetten", confirmZero: "De telling van elk product op 0 zetten?", flaggedForRecount: "gemarkeerd om te hertellen",
 };
 
 const fr: Dict = {
@@ -570,6 +574,7 @@ const fr: Dict = {
   photoPermNeeded: "Autorisez l'accès à l'appareil photo/photos dans les Réglages.", openSettings: "Ouvrir les réglages", storageQuota: "Espace de stockage plein.",
   progressLabel: "Progression", varianceReport: "Rapport d'écarts", noVariance: "Aucun écart.",
   reviewChanges: "Vérifier les modifications", willUpdate: "à mettre à jour", unchanged: "inchangés", confirmAndFinish: "Confirmer et terminer",
+  setAllZero: "Tout mettre à 0", confirmZero: "Mettre à 0 le comptage de chaque produit ?", flaggedForRecount: "à recompter",
 };
 
 const de: Dict = {
@@ -668,6 +673,7 @@ const de: Dict = {
   photoPermNeeded: "Erlaube Kamera-/Fotozugriff in den Einstellungen.", openSettings: "Einstellungen öffnen", storageQuota: "Kein Speicherplatz mehr.",
   progressLabel: "Fortschritt", varianceReport: "Abweichungsbericht", noVariance: "Keine Abweichungen.",
   reviewChanges: "Änderungen prüfen", willUpdate: "werden aktualisiert", unchanged: "unverändert", confirmAndFinish: "Bestätigen & abschließen",
+  setAllZero: "Alles auf 0 setzen", confirmZero: "Zählung jedes Produkts auf 0 setzen?", flaggedForRecount: "zur Nachzählung markiert",
 };
 
 const es: Dict = {
@@ -766,6 +772,7 @@ const es: Dict = {
   photoPermNeeded: "Permite el acceso a cámara/fotos en Ajustes.", openSettings: "Abrir ajustes", storageQuota: "Sin espacio de almacenamiento.",
   progressLabel: "Progreso", varianceReport: "Informe de diferencias", noVariance: "Sin diferencias.",
   reviewChanges: "Revisar cambios", willUpdate: "por actualizar", unchanged: "sin cambios", confirmAndFinish: "Confirmar y finalizar",
+  setAllZero: "Poner todo a 0", confirmZero: "¿Poner a 0 el recuento de cada producto?", flaggedForRecount: "marcados para recontar",
 };
 
 const it: Dict = {
@@ -864,6 +871,7 @@ const it: Dict = {
   photoPermNeeded: "Consenti l'accesso a fotocamera/foto nelle Impostazioni.", openSettings: "Apri impostazioni", storageQuota: "Spazio di archiviazione esaurito.",
   progressLabel: "Avanzamento", varianceReport: "Report scostamenti", noVariance: "Nessuno scostamento.",
   reviewChanges: "Rivedi modifiche", willUpdate: "da aggiornare", unchanged: "invariati", confirmAndFinish: "Conferma e termina",
+  setAllZero: "Azzera tutto", confirmZero: "Impostare a 0 il conteggio di ogni prodotto?", flaggedForRecount: "da ricontrollare",
 };
 
 const pl: Dict = {
@@ -962,6 +970,7 @@ const pl: Dict = {
   photoPermNeeded: "Zezwól na dostęp do aparatu/zdjęć w Ustawieniach.", openSettings: "Otwórz ustawienia", storageQuota: "Brak miejsca w pamięci.",
   progressLabel: "Postęp", varianceReport: "Raport rozbieżności", noVariance: "Brak rozbieżności.",
   reviewChanges: "Przejrzyj zmiany", willUpdate: "do zmiany", unchanged: "bez zmian", confirmAndFinish: "Potwierdź i zakończ",
+  setAllZero: "Ustaw wszystko na 0", confirmZero: "Ustawić liczenie każdego produktu na 0?", flaggedForRecount: "oznaczone do ponownego liczenia",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv, da, nl, fr, de, es, it, pl };

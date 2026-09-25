@@ -185,6 +185,12 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Finish preview (adjust-only finish): "Finish stocktake" now opens a "Review changes" modal listing every product whose counted qty differs from system (system → counted with +/- diff) plus an "X to update · Y unchanged" summary; "Confirm & finish" then applies the stocktake. Replaces the old one-line confirm.
 - Verified on web: search filters correctly; preview shows exact diffs (e.g. 2 to update · 3 unchanged) and Confirm completes the stocktake. Test data restored.
 
+## Completed (2026-06-29) — Stocktake count aids
+- Recount flag: each count row has a flag toggle to mark a product "needs recount" (persisted via PUT needs_recount, independent of counted_done). The progress card and the finish "Review changes" modal both show "N flagged for recount" as a warning so a colleague can double-check before finishing.
+- Scan to row: scanning a barcode now scrolls to and highlights the matching product row (border + tint for ~3s) instead of a popup. (Camera scan is device-only.)
+- Empty-to-zero: "Set all to zero" button sets every product's counted qty to 0 without marking them done (PUT mark_done=false) so you can count up from empty and progress stays accurate. Confirm dialog first.
+- Backend: StockTakeItemUpdate now optional counted_qty + needs_recount; StockTakeUpdate has mark_done flag. Curl-verified recount-only + zero-with-mark_done=false (counted 0, done false, recount preserved). Web-verified flag toggle, set-all-zero, and finish preview warning. i18n added to all 9 languages.
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker  <!-- DONE above -->
 

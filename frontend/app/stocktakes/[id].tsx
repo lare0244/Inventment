@@ -32,10 +32,11 @@ export default function StocktakeDetail() {
   const [finishOpen, setFinishOpen] = useState(false);
   const [camPerm, requestCamPerm] = useCameraPermissions();
   const [scanOpen, setScanOpen] = useState(false);
-  const [countItem, setCountItem] = useState<{ pid: string; name: string; system: number } | null>(null);
-  const [countVal, setCountVal] = useState("");
   const [zoomImg, setZoomImg] = useState<string | null>(null);
+  const [highlightPid, setHighlightPid] = useState<string | null>(null);
   const scanLock = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const rowY = useRef<Record<string, number>>({});
 
   const load = useCallback(async () => {
     try {
@@ -90,14 +91,31 @@ export default function StocktakeDetail() {
       if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg); else Alert.alert(msg, "");
       return;
     }
-    setCountItem({ pid: it.product_id, name: it.name, system: it.system_qty });
-    setCountVal(counts[it.product_id] ?? String(it.counted_qty));
+    setSearch("");
+    setHighlightPid(it.product_id);
+    setTimeout(() => {
+      const y = rowY.current[it.product_id];
+      if (y != null) scrollRef.current?.scrollTo({ y: Math.max(0, y - 100), animated: true });
+    }, 400);
+    setTimeout(() => setHighlightPid(null), 3000);
   }
 
-  async function saveCount() {
-    if (!countItem) return;
-    await saveOne(countItem.pid, countVal);
-    setCountItem(null);
+  async function toggleRecount(it: any) {
+    const val = !it.needs_recount;
+    setSt((prev: any) => prev ? { ...prev, items: (prev.items || []).map((x: any) => x.product_id === it.product_id ? { ...x, needs_recount: val } : x) } : prev);
+    try { await api(`/stocktakes/${id}`, { method: "PUT", body: { items: [{ product_id: it.product_id, needs_recount: val }] } }); } catch {}
+  }
+
+  function setAllZero() {
+    const run = async () => {
+      const items = (st?.items || []).map((i: any) => ({ product_id: i.product_id, counted_qty: 0 }));
+      setCounts(Object.fromEntries(items.map((i: any) => [i.product_id, "0"])));
+      setSt((prev: any) => prev ? { ...prev, items: (prev.items || []).map((x: any) => ({ ...x, counted_qty: 0 })) } : prev);
+      try { await api(`/stocktakes/${id}`, { method: "PUT", body: { items, mark_done: false } }); } catch {}
+    };
+    const msg = t("confirmZero");
+    if (Platform.OS === "web" && typeof window !== "undefined") { if (window.confirm(msg)) run(); return; }
+    Alert.alert(t("setAllZero"), msg, [{ text: t("cancel"), style: "cancel" }, { text: t("setAllZero"), onPress: run }]);
   }
 
   function doFinish() {
@@ -143,6 +161,7 @@ export default function StocktakeDetail() {
   const doneCount = (st?.items || []).filter((i: any) => i.counted_done).length;
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
   const changedItems = (st?.items || []).filter((i: any) => Number(i.counted_qty) !== Number(i.system_qty));
+  const flaggedCount = (st?.items || []).filter((i: any) => i.needs_recount).length;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.surface }}>
@@ -161,7 +180,7 @@ export default function StocktakeDetail() {
       ) : !st ? (
         <Text style={styles.empty}>{t("notFound")}</Text>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scrollRef} contentContainerStyle={{ padding: S.lg, paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
           <Card style={{ marginBottom: S.md }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: S.sm }}>
               <MaterialCommunityIcons name="warehouse" size={18} color={C.brand} />
@@ -179,11 +198,20 @@ export default function StocktakeDetail() {
               <Text style={styles.progVal}>{doneCount} / {total}</Text>
             </View>
             <View style={styles.progTrack}><View style={[styles.progFill, { width: `${pct}%` }]} /></View>
+            {flaggedCount > 0 && (
+              <View style={styles.flagNote}>
+                <MaterialCommunityIcons name="flag" size={14} color={C.warning} />
+                <Text style={styles.flagNoteTxt}>{flaggedCount} {t("flaggedForRecount")}</Text>
+              </View>
+            )}
             <Btn testID="std-variance" title={t("varianceReport")} icon="file-alert-outline" variant="secondary" onPress={exportVariance} style={{ marginTop: S.md }} />
           </Card>
 
           {open && (
-            <Btn testID="std-scan" title={t("scanToCount")} icon="barcode-scan" variant="secondary" onPress={openScanner} style={{ marginBottom: S.md }} />
+            <View style={{ flexDirection: "row", gap: S.sm, marginBottom: S.md }}>
+              <View style={{ flex: 1 }}><Btn testID="std-scan" title={t("scanToCount")} icon="barcode-scan" variant="secondary" onPress={openScanner} /></View>
+              <View style={{ flex: 1 }}><Btn testID="std-zero" title={t("setAllZero")} icon="numeric-0-box-multiple-outline" variant="ghost" onPress={setAllZero} /></View>
+            </View>
           )}
 
           <TextInput testID="std-search" value={search} onChangeText={setSearch}
@@ -205,7 +233,8 @@ export default function StocktakeDetail() {
               const val = counts[it.product_id] ?? String(it.counted_qty);
               const d = (parseInt(val, 10) || 0) - Number(it.system_qty);
               return (
-                <Card key={it.product_id} style={styles.itemRow}>
+                <Card key={it.product_id} style={[styles.itemRow, it.needs_recount && styles.itemRowFlag, highlightPid === it.product_id && styles.itemRowHi]}
+                  onLayout={(e) => { rowY.current[it.product_id] = e.nativeEvent.layout.y; }}>
                   {it.image ? (
                     <Pressable testID={`std-thumb-${it.product_id}`} onPress={() => setZoomImg(it.image)}>
                       <ProductImage path={it.image} style={styles.thumb} />
@@ -222,11 +251,18 @@ export default function StocktakeDetail() {
                     </Text>
                     <Text style={styles.itemSys}>{t("systemQty")}: {it.system_qty}{d !== 0 ? `   (${d > 0 ? "+" : ""}${d})` : ""}</Text>
                   </View>
-                  <TextInput testID={`std-count-${it.product_id}`} value={val} editable={open}
-                    onChangeText={(x) => setCounts((c) => ({ ...c, [it.product_id]: x }))}
-                    onBlur={() => saveOne(it.product_id, counts[it.product_id] ?? String(it.counted_qty))}
-                    keyboardType="number-pad" placeholderTextColor={C.onSurfaceTertiary}
-                    style={[styles.countInput, !open && { opacity: 0.6 }]} />
+                  <View style={{ alignItems: "center", gap: 6 }}>
+                    <TextInput testID={`std-count-${it.product_id}`} value={val} editable={open}
+                      onChangeText={(x) => setCounts((c) => ({ ...c, [it.product_id]: x }))}
+                      onBlur={() => saveOne(it.product_id, counts[it.product_id] ?? String(it.counted_qty))}
+                      keyboardType="number-pad" placeholderTextColor={C.onSurfaceTertiary}
+                      style={[styles.countInput, !open && { opacity: 0.6 }]} />
+                    {open && (
+                      <Pressable testID={`std-recount-${it.product_id}`} onPress={() => toggleRecount(it)} hitSlop={8}>
+                        <MaterialCommunityIcons name={it.needs_recount ? "flag" : "flag-outline"} size={20} color={it.needs_recount ? C.warning : C.onSurfaceTertiary} />
+                      </Pressable>
+                    )}
+                  </View>
                 </Card>
               );
             })
@@ -255,27 +291,17 @@ export default function StocktakeDetail() {
         </View>
       </Modal>
 
-      <Modal visible={!!countItem} transparent animationType="fade" onRequestClose={() => setCountItem(null)}>
-        <View style={styles.modalBg}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{countItem?.name}</Text>
-            <Text style={styles.demandTxt}>{t("systemQty")}: {countItem?.system}</Text>
-            <Text style={styles.fieldLbl}>{t("countedAmount")}</Text>
-            <TextInput testID="std-count-input" value={countVal} onChangeText={setCountVal} keyboardType="number-pad"
-              placeholderTextColor={C.onSurfaceTertiary} style={styles.pickInput} autoFocus />
-            <Btn testID="std-count-save" title={t("save")} icon="check" onPress={saveCount} />
-            <Pressable onPress={() => setCountItem(null)} style={{ alignItems: "center", paddingVertical: S.md }}>
-              <Text style={{ color: C.onSurfaceTertiary, fontFamily: F.textBold }}>{t("cancel")}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
       <Modal visible={finishOpen} transparent animationType="fade" onRequestClose={() => setFinishOpen(false)}>
         <View style={styles.modalBg}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>{t("reviewChanges")}</Text>
             <Text style={styles.demandTxt}>{changedItems.length} {t("willUpdate")} · {total - changedItems.length} {t("unchanged")}</Text>
+            {flaggedCount > 0 && (
+              <View style={styles.flagWarn}>
+                <MaterialCommunityIcons name="flag" size={16} color={C.warning} />
+                <Text style={styles.flagWarnTxt}>{flaggedCount} {t("flaggedForRecount")}</Text>
+              </View>
+            )}
             <ScrollView style={{ maxHeight: 320 }}>
               {changedItems.length === 0 ? (
                 <Text style={styles.itemMeta}>{t("noVariance")}</Text>
@@ -325,6 +351,8 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   sortChipActive: { backgroundColor: C.brand, borderColor: C.brand },
   sortTxt: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 12 },
   itemRow: { flexDirection: "row", alignItems: "center", gap: S.md, marginBottom: S.sm, paddingVertical: S.md },
+  itemRowFlag: { borderColor: C.warning },
+  itemRowHi: { borderColor: C.brand, borderWidth: 2, backgroundColor: C.isDark ? "rgba(255,87,34,0.10)" : "rgba(255,87,34,0.06)" },
   thumb: { width: 44, height: 44, borderRadius: R.sm },
   thumbPh: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" },
   progHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: S.sm },
@@ -332,6 +360,10 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   progVal: { color: C.onSurface, fontFamily: F.textBold, fontSize: 14 },
   progTrack: { height: 8, borderRadius: 4, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, overflow: "hidden" },
   progFill: { height: "100%", backgroundColor: C.brand },
+  flagNote: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: S.sm },
+  flagNoteTxt: { color: C.warning, fontFamily: F.textBold, fontSize: 12 },
+  flagWarn: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: S.sm, marginTop: -S.xs },
+  flagWarnTxt: { color: C.warning, fontFamily: F.textBold, fontSize: 13 },
   zoomBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.9)", alignItems: "center", justifyContent: "center", padding: S.lg },
   zoomImg: { width: "100%", height: "80%" },
   itemName: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
