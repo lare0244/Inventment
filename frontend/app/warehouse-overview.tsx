@@ -10,6 +10,7 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { useColors, useT } from "@/src/appsettings";
 import { money } from "@/src/currency";
+import { useResponsive } from "@/src/hooks/useResponsive";
 import { LOGO_DATA_URI } from "@/src/logoBase64";
 import { F, S, R, stockColor, Palette } from "@/src/theme";
 import { Card, Btn } from "@/src/components/ui";
@@ -24,6 +25,7 @@ export default function WarehouseOverview() {
   const C = useColors();
   const t = useT();
   const { width } = useWindowDimensions();
+  const { isDesktop } = useResponsive();
   const params = useLocalSearchParams<{ warehouse_id?: string; mode?: string }>();
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -181,7 +183,8 @@ export default function WarehouseOverview() {
     : mode === "products" ? `${data.total_products}`
     : `${data.low_stock_count}`;
 
-  const chartW = width - S.lg * 2 - S.lg * 2;
+  const CONTENT_MAX = 1000;
+  const chartW = (isDesktop ? CONTENT_MAX : width) - S.lg * 2 - S.lg * 2;
   const fmtAxis = (v: number) => (v >= 1000 ? `${+(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `${Math.round(v)}`);
   const list = mode === "low" ? lowProducts : visibleProducts;
   const sortedList = useMemo(() => {
@@ -223,7 +226,8 @@ export default function WarehouseOverview() {
       {loading ? (
         <ActivityIndicator color={C.brand} style={{ marginTop: 40 }} />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 40 }} testID="wo-scroll">
+        <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 40, alignItems: isDesktop ? "center" : "stretch" }} testID="wo-scroll">
+          <View style={{ width: "100%", maxWidth: isDesktop ? CONTENT_MAX : undefined }}>
           {/* Headline total */}
           <Card style={styles.totalCard}>
             <Text style={styles.totalLabel}>{t(titleKey)}</Text>
@@ -342,8 +346,9 @@ export default function WarehouseOverview() {
               {sortedList.length === 0 ? (
                 <Card><Text style={styles.empty}>{mode === "low" ? t("allHealthy") : t("noProducts")}</Text></Card>
               ) : (
-                sortedList.map((p) => (
-                  <Pressable key={p.id} testID={`wo-product-${p.id}`} onPress={() => router.push(`/product/${p.id}`)}>
+                <View style={isDesktop ? styles.grid : undefined}>
+                {sortedList.map((p) => (
+                  <Pressable key={p.id} testID={`wo-product-${p.id}`} onPress={() => router.push(`/product/${p.id}`)} style={isDesktop ? styles.gridItem : undefined}>
                     <Card style={styles.row}>
                       <View style={[styles.dot, { backgroundColor: stockColor(p.whQty, p.low_stock_threshold, C) }]} />
                       <View style={{ flex: 1 }}>
@@ -355,10 +360,12 @@ export default function WarehouseOverview() {
                       <Text style={styles.rowQty}>{p.whQty} {t("left")}</Text>
                     </Card>
                   </Pressable>
-                ))
+                ))}
+                </View>
               )}
             </>
           )}
+          </View>
         </ScrollView>
       )}
     </View>
@@ -400,6 +407,8 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   barFill: { height: 16, borderRadius: R.sm, backgroundColor: C.brand },
   barVal: { width: 28, textAlign: "right", color: C.onSurface, fontFamily: F.textBold, fontSize: 13 },
   row: { flexDirection: "row", alignItems: "center", gap: S.md, marginBottom: S.sm, paddingVertical: S.md },
+  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  gridItem: { width: "49%" },
   dot: { width: 10, height: 10, borderRadius: 5 },
   rowName: { color: C.onSurface, fontFamily: F.text, fontSize: 15 },
   rowMeta: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 2 },

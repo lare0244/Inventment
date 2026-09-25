@@ -27,6 +27,7 @@ export function SalesOrdersPanel() {
   const [status, setStatus] = useState<typeof STATUSES[number]>("saved");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"date" | "order_number" | "field1" | "field2">("date");
+  const [dir, setDir] = useState<"asc" | "desc">("desc");
   const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(INITIAL);
 
@@ -46,17 +47,39 @@ export function SalesOrdersPanel() {
 
   useFocusEffect(useCallback(() => { loadChart(); loadList(); }, [loadChart, loadList]));
   useEffect(() => { loadList(); }, [loadList]);
-  useEffect(() => { setVisible(INITIAL); }, [status, q, sort]);
+  useEffect(() => { setVisible(INITIAL); }, [status, q, sort, dir]);
 
   const series = chart ? STATUSES.map((s) => ({ key: s, label: statusLabel[s], color: STATUS_COLORS[s], data: chart.series[s] || [] })) : [];
-  const shown = orders.slice(0, visible);
+
+  const sortVal = (o: any) => {
+    if (sort === "date") return o.order_date || "";
+    if (sort === "order_number") return o.order_number || "";
+    if (sort === "field1") return (o.field1 || "").toLowerCase();
+    return (o.field2 || "").toLowerCase();
+  };
+  const sortedOrders = useMemo(() => {
+    const a = [...orders];
+    a.sort((x, y) => {
+      const vx = sortVal(x), vy = sortVal(y);
+      const c = vx < vy ? -1 : vx > vy ? 1 : 0;
+      return dir === "asc" ? c : -c;
+    });
+    return a;
+  }, [orders, sort, dir]);
+  const shown = sortedOrders.slice(0, visible);
+
+  const onSort = (k: string) => {
+    if (sort === k) setDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSort(k as any); setDir(k === "date" ? "desc" : "asc"); }
+  };
 
   const SortTh = ({ label, k, flex }: { label: string; k: string; flex: number }) => {
     const active = sort === k;
     return (
-      <Pressable testID={`so-col-${k}`} onPress={() => setSort(k as any)} style={{ flex, flexDirection: "row", alignItems: "center", gap: 2 }}>
+      <Pressable testID={`so-col-${k}`} onPress={() => onSort(k)} style={{ flex, flexDirection: "row", alignItems: "center", gap: 2 }}>
         <Text style={[styles.th, active && { color: C.brand }]} numberOfLines={1}>{label}</Text>
-        {active && <MaterialCommunityIcons name="menu-down" size={16} color={C.brand} />}
+        <MaterialCommunityIcons name={active ? (dir === "asc" ? "menu-up" : "menu-down") : "unfold-more-horizontal"}
+          size={16} color={active ? C.brand : C.onSurfaceTertiary} />
       </Pressable>
     );
   };
@@ -93,8 +116,9 @@ export function SalesOrdersPanel() {
           <Text style={styles.sortLabel}>{t("sortLabel")}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortRow}>
             {[{ k: "date", l: t("sortByDate") }, { k: "order_number", l: t("sortByNumber") }, { k: "field1", l: label1 }, { k: "field2", l: label2 }].map((o) => (
-              <Pressable key={o.k} testID={`so-sort-${o.k}`} onPress={() => setSort(o.k as any)} style={[styles.sortChip, sort === o.k && styles.sortChipActive]}>
+              <Pressable key={o.k} testID={`so-sort-${o.k}`} onPress={() => onSort(o.k)} style={[styles.sortChip, sort === o.k && styles.sortChipActive]}>
                 <Text style={[styles.sortTxt, sort === o.k && { color: C.onBrand }]}>{o.l}</Text>
+                {sort === o.k && <MaterialCommunityIcons name={dir === "asc" ? "menu-up" : "menu-down"} size={15} color={C.onBrand} />}
               </Pressable>
             ))}
           </ScrollView>
@@ -163,7 +187,7 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   searchInput: { flex: 1, color: C.onSurface, fontFamily: F.text, fontSize: 15 },
   sortLabel: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 11, letterSpacing: 0.5, marginBottom: S.xs },
   sortRow: { gap: S.sm, paddingBottom: S.md },
-  sortChip: { height: 32, paddingHorizontal: S.md, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: C.surface },
+  sortChip: { flexDirection: "row", gap: 2, height: 32, paddingHorizontal: S.md, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: C.surface },
   sortChipActive: { backgroundColor: C.brand, borderColor: C.brand },
   sortTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12 },
   empty: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 14, textAlign: "center", paddingVertical: S.md },
