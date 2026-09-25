@@ -1,10 +1,12 @@
 import React from "react";
-import { Tabs, Redirect } from "expo-router";
+import { Tabs, Redirect, Slot } from "expo-router";
 import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { F } from "@/src/theme";
 import { useColors, useT } from "@/src/appsettings";
 import { useAuth } from "@/src/auth";
+import { useResponsive } from "@/src/hooks/useResponsive";
+import { Sidebar } from "@/src/components/Sidebar";
 
 function tabIcon(name: string, nameOutline: string) {
   return ({ focused, color, size }: any) => (
@@ -16,7 +18,24 @@ export default function TabsLayout() {
   const C = useColors();
   const t = useT();
   const { user, loading } = useAuth();
+  const { isDesktop } = useResponsive();
   if (!loading && !user) return <Redirect href="/(auth)/login" />;
+
+  // Desktop web: left sidebar + centered, max-width content area.
+  if (isDesktop) {
+    return (
+      <View style={{ flex: 1, flexDirection: "row", backgroundColor: C.surface }}>
+        <Sidebar />
+        <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, width: "100%", maxWidth: 1200, alignSelf: "center" }}>
+            <Slot />
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Phone / tablet: bottom tab bar (unchanged).
   return (
     <Tabs
       screenOptions={{

@@ -23,7 +23,9 @@ export default function Pro() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const isWeb = Platform.OS === "web";
   const available = purchasesAvailable();
+  const canSubscribe = available || isWeb;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,7 +47,21 @@ export default function Pro() {
     else Alert.alert("INVENTMENT", msg);
   }
 
+  // Web / desktop: pay via Stripe Checkout (redirect). Returns to /billing-return.
+  async function subscribeWeb() {
+    setBusy(true);
+    try {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const r = await api<{ url: string }>("/billing/checkout", { method: "POST", body: { origin_url: origin } });
+      if (r?.url && typeof window !== "undefined") window.location.href = r.url;
+    } catch (e: any) {
+      notify(`${t("purchaseFailed")}${e?.message ? `: ${e.message}` : ""}`);
+      setBusy(false);
+    }
+  }
+
   async function subscribe() {
+    if (isWeb) return subscribeWeb();
     if (!pkg) { notify(t("iapUnavailableSub")); return; }
     setBusy(true);
     try {
@@ -118,10 +134,12 @@ export default function Pro() {
 
             {loading ? (
               <ActivityIndicator color={C.brand} style={{ marginVertical: S.lg }} />
-            ) : available ? (
+            ) : canSubscribe ? (
               <>
                 <Btn testID="pro-subscribe" title={t("subscribeBtn")} icon="crown" loading={busy} onPress={subscribe} />
-                <Btn testID="pro-restore" title={t("restoreBtn")} variant="ghost" style={{ marginTop: S.sm }} onPress={restore} />
+                {available && !isWeb && (
+                  <Btn testID="pro-restore" title={t("restoreBtn")} variant="ghost" style={{ marginTop: S.sm }} onPress={restore} />
+                )}
               </>
             ) : (
               <Card style={{ borderColor: C.brand }}>

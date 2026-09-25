@@ -7,28 +7,30 @@ import MaterialCommunityIcons from "@react-native-vector-icons/material-design-i
 import * as Haptics from "expo-haptics";
 import { api } from "@/src/api";
 import { useColors, useT } from "@/src/appsettings";
+import { useResponsive } from "@/src/hooks/useResponsive";
 import { F, S, R, Palette } from "@/src/theme";
-import { Btn } from "@/src/components/ui";
+import { Btn, Field } from "@/src/components/ui";
 
 export default function Scan() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const C = useColors();
   const t = useT();
+  const { isDesktop } = useResponsive();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(true);
   const [result, setResult] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [manual, setManual] = useState("");
 
   useFocusEffect(useCallback(() => {
     setScanning(true); setResult(null);
     return () => setScanning(false);
   }, []));
 
-  async function onScan({ data }: { data: string }) {
-    if (!scanning || busy) return;
-    setScanning(false);
+  async function doLookup(data: string) {
+    if (busy || !data) return;
     setBusy(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     try {
@@ -42,6 +44,68 @@ export default function Scan() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onScan({ data }: { data: string }) {
+    if (!scanning || busy) return;
+    setScanning(false);
+    await doLookup(data);
+  }
+
+  function reset() { setResult(null); setScanning(true); setManual(""); }
+
+  const resultSheet = result ? (
+    <View testID="scan-result-sheet" style={[styles.sheet, { paddingBottom: insets.bottom + S.lg }]}>
+      <View style={styles.sheetHandle} />
+      <Text style={styles.barcodeTxt}>{t("barcode")}: {result.barcode}</Text>
+      {result.type === "existing" ? (
+        <>
+          <Text style={styles.sheetTitle}>{result.product.name}</Text>
+          <Text style={styles.sheetSub}>{t("inStock")}: {result.product.quantity}</Text>
+          <Btn testID="receive-stock-btn" title={t("receiveUpdate")} icon="arrow-down-bold-circle"
+            onPress={() => { router.push(`/product/${result.product.id}`); reset(); }} />
+          <Pressable testID="scan-again" onPress={() => reset()} style={styles.again}>
+            <Text style={styles.againTxt}>{t("scanAgain")}</Text>
+          </Pressable>
+        </>
+      ) : (
+        <>
+          <Text style={styles.sheetTitle}>{result.lookup?.found ? result.lookup.name : t("newProduct")}</Text>
+          <Text style={styles.sheetSub}>{result.lookup?.found ? t("foundReview") : t("notInDb")}</Text>
+          <Btn testID="add-scanned-btn" title={t("addThisProduct")} icon="plus"
+            onPress={() => {
+              router.push({ pathname: "/product/new", params: {
+                barcode: result.barcode,
+                name: result.lookup?.name || "",
+                brand: result.lookup?.brand || "",
+                image: result.lookup?.image || "",
+              }});
+              reset();
+            }} />
+          <Pressable testID="scan-again-2" onPress={() => reset()} style={styles.again}>
+            <Text style={styles.againTxt}>{t("scanAgain")}</Text>
+          </Pressable>
+        </>
+      )}
+    </View>
+  ) : null;
+
+  // Desktop web: no live camera — offer manual barcode entry.
+  if (isDesktop) {
+    return (
+      <View style={[styles.center, { paddingTop: insets.top + S["2xl"], justifyContent: "flex-start" }]}>
+        <MaterialCommunityIcons name="barcode-scan" size={56} color={C.brand} />
+        <Text style={styles.manualTitle}>{t("scanBarcode")}</Text>
+        <Text style={styles.permTxt}>{t("manualEntryHint")}</Text>
+        <View style={{ alignSelf: "center", width: "100%", maxWidth: 520, marginTop: S.lg }}>
+          <Field label={t("enterBarcode")} testID="manual-barcode" value={manual} onChangeText={setManual}
+            autoCapitalize="none" onSubmitEditing={() => doLookup(manual.trim())} placeholder="0000000000000" />
+          <Btn testID="manual-lookup" title={t("lookupBtn")} icon="magnify" loading={busy}
+            onPress={() => doLookup(manual.trim())} />
+        </View>
+        {resultSheet}
+      </View>
+    );
   }
 
   if (!permission) return <View style={{ flex: 1, backgroundColor: C.surface }} />;
@@ -73,47 +137,14 @@ export default function Scan() {
         <View style={{ flex: 1 }} />
       </View>
 
-      {result && (
-        <View testID="scan-result-sheet" style={[styles.sheet, { paddingBottom: insets.bottom + S.lg }]}>
-          <View style={styles.sheetHandle} />
-          <Text style={styles.barcodeTxt}>{t("barcode")}: {result.barcode}</Text>
-          {result.type === "existing" ? (
-            <>
-              <Text style={styles.sheetTitle}>{result.product.name}</Text>
-              <Text style={styles.sheetSub}>{t("inStock")}: {result.product.quantity}</Text>
-              <Btn testID="receive-stock-btn" title={t("receiveUpdate")} icon="arrow-down-bold-circle"
-                onPress={() => { router.push(`/product/${result.product.id}`); setResult(null); setScanning(true); }} />
-              <Pressable testID="scan-again" onPress={() => { setResult(null); setScanning(true); }} style={styles.again}>
-                <Text style={styles.againTxt}>{t("scanAgain")}</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <Text style={styles.sheetTitle}>{result.lookup?.found ? result.lookup.name : t("newProduct")}</Text>
-              <Text style={styles.sheetSub}>{result.lookup?.found ? t("foundReview") : t("notInDb")}</Text>
-              <Btn testID="add-scanned-btn" title={t("addThisProduct")} icon="plus"
-                onPress={() => {
-                  router.push({ pathname: "/product/new", params: {
-                    barcode: result.barcode,
-                    name: result.lookup?.name || "",
-                    brand: result.lookup?.brand || "",
-                    image: result.lookup?.image || "",
-                  }});
-                  setResult(null); setScanning(true);
-                }} />
-              <Pressable testID="scan-again-2" onPress={() => { setResult(null); setScanning(true); }} style={styles.again}>
-                <Text style={styles.againTxt}>{t("scanAgain")}</Text>
-              </Pressable>
-            </>
-          )}
-        </View>
-      )}
+      {resultSheet}
     </View>
   );
 }
 
 const makeStyles = (C: Palette) => StyleSheet.create({
   center: { flex: 1, backgroundColor: C.surface, alignItems: "center", justifyContent: "center", padding: S.xl },
+  manualTitle: { color: C.onSurface, fontFamily: F.display, fontSize: 22, letterSpacing: 1, marginTop: S.md },
   permTxt: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 15, textAlign: "center", marginTop: S.md },
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center" },
   topBar: { alignItems: "center", paddingBottom: S.xl },
