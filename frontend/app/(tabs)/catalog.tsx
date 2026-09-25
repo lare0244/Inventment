@@ -58,7 +58,8 @@ export default function Catalog() {
   const q = search.trim().toLowerCase();
   const filtered = products.filter((p) =>
     (!activeCat || p.category_id === activeCat) &&
-    (!q || p.name?.toLowerCase().includes(q) || catName(p.category_id).toLowerCase().includes(q))
+    (!q || p.name?.toLowerCase().includes(q) || catName(p.category_id).toLowerCase().includes(q) ||
+      p.sku?.toLowerCase().includes(q) || p.barcode?.toLowerCase().includes(q) || p.location?.toLowerCase().includes(q))
   ).sort((a, b) => {
     if (sortMode === "name") return (a.name || "").localeCompare(b.name || "");
     if (sortMode === "stock") return (a.quantity || 0) - (b.quantity || 0);
@@ -205,6 +206,12 @@ export default function Catalog() {
                   )}
                 </View>
                 <Text style={styles.pSku}>{item.sku || item.barcode || t("noSku")} · {money(item.price, currency)}{item.measure_value != null && item.measure_unit ? ` · ${item.measure_value} ${item.measure_unit}` : ""}</Text>
+                {!!item.location && (
+                  <View style={styles.locRow}>
+                    <MaterialCommunityIcons name="map-marker-outline" size={12} color={C.onSurfaceTertiary} />
+                    <Text style={styles.locTxt} numberOfLines={1}>{item.location}</Text>
+                  </View>
+                )}
               </View>
               <View style={styles.qtyWrap}>
                 <StatusDot color={stockColor(item.quantity, item.low_stock_threshold, C)} />
@@ -256,6 +263,8 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   lowBadge: { flexDirection: "row", alignItems: "center", gap: 2, paddingHorizontal: 6, paddingVertical: 2, borderRadius: R.sm, borderWidth: 1, borderColor: C.warning, backgroundColor: C.isDark ? "rgba(255,234,0,0.08)" : "rgba(230,149,0,0.12)" },
   lowBadgeTxt: { fontFamily: F.textBold, fontSize: 9, letterSpacing: 0.5 },
   pSku: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
+  locRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 3 },
+  locTxt: { color: C.onSurfaceTertiary, fontFamily: F.textBold, fontSize: 11 },
   qtyWrap: { alignItems: "center", gap: 2, marginRight: S.xs },
   qty: { color: C.onSurface, fontFamily: F.display, fontSize: 18 },
   catHeader: { flexDirection: "row", alignItems: "center", gap: S.sm, marginTop: S.md, marginBottom: S.sm },

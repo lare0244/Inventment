@@ -197,6 +197,11 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Count by location: products gained an optional `location` (Bin/Shelf) field (ProductIn + editor field); stocktake items carry it, show it on rows, and it's a sort option so counters can walk the warehouse in order.
 - Verified: product location persists; assign 403 for non-master, assign/unassign works for master (resolves name); web shows Flagged-only filter + Bin/Shelf sort chip + flagged banner. i18n added to all 9 languages. Test company created for the assign test was dissolved and data restored.
 
+## Completed (2026-06-29) — Location on Catalog
+- Catalog rows now show the product's Bin/Shelf location (map-marker line) when set.
+- Catalog search now matches name, category, SKU, barcode, and location — so typing a bin (e.g. "A-12") filters to products stored there.
+- Verified on web: location shows on the row and searching by location filters correctly. Test data restored.
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker  <!-- DONE above -->
 
