@@ -28,6 +28,8 @@ export default function StocktakeDetail() {
   const [loading, setLoading] = useState(true);
   const [finishing, setFinishing] = useState(false);
   const [sort, setSort] = useState<SortKey>("name");
+  const [search, setSearch] = useState("");
+  const [finishOpen, setFinishOpen] = useState(false);
   const [camPerm, requestCamPerm] = useCameraPermissions();
   const [scanOpen, setScanOpen] = useState(false);
   const [countItem, setCountItem] = useState<{ pid: string; name: string; system: number } | null>(null);
@@ -49,7 +51,12 @@ export default function StocktakeDetail() {
   const open = st && st.status !== "completed";
 
   const sortedItems = useMemo(() => {
-    const items = [...(st?.items || [])];
+    let items = [...(st?.items || [])];
+    const q = search.trim().toLowerCase();
+    if (q) items = items.filter((it) =>
+      String(it.name || "").toLowerCase().includes(q) ||
+      String(it.barcode || "").toLowerCase().includes(q) ||
+      String(it.sku || "").toLowerCase().includes(q));
     items.sort((a, b) => {
       if (sort === "qty") return Number(counts[b.product_id] ?? b.counted_qty) - Number(counts[a.product_id] ?? a.counted_qty);
       if (sort === "article") return String(a.sku || "").localeCompare(String(b.sku || ""));
@@ -57,7 +64,7 @@ export default function StocktakeDetail() {
       return String(a.name || "").localeCompare(String(b.name || ""));
     });
     return items;
-  }, [st, sort, counts]);
+  }, [st, sort, counts, search]);
 
   async function saveOne(pid: string, raw: string) {
     const n = Math.max(0, parseInt(raw, 10) || 0);
@@ -94,13 +101,13 @@ export default function StocktakeDetail() {
   }
 
   function doFinish() {
-    const run = async () => {
-      setFinishing(true);
-      try { await api(`/stocktakes/${id}/complete`, { method: "POST" }); await load(); } catch {} finally { setFinishing(false); }
-    };
-    const msg = t("confirmFinishStocktake");
-    if (Platform.OS === "web" && typeof window !== "undefined") { if (window.confirm(msg)) run(); return; }
-    Alert.alert(t("finishStocktake"), msg, [{ text: t("cancel"), style: "cancel" }, { text: t("finishStocktake"), onPress: run }]);
+    setFinishOpen(true);
+  }
+
+  async function confirmFinish() {
+    setFinishing(true);
+    try { await api(`/stocktakes/${id}/complete`, { method: "POST" }); setFinishOpen(false); await load(); }
+    catch {} finally { setFinishing(false); }
   }
 
   async function exportPdf() {
@@ -135,6 +142,7 @@ export default function StocktakeDetail() {
   const total = (st?.items || []).length;
   const doneCount = (st?.items || []).filter((i: any) => i.counted_done).length;
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
+  const changedItems = (st?.items || []).filter((i: any) => Number(i.counted_qty) !== Number(i.system_qty));
 
   return (
     <View style={{ flex: 1, backgroundColor: C.surface }}>
@@ -177,6 +185,9 @@ export default function StocktakeDetail() {
           {open && (
             <Btn testID="std-scan" title={t("scanToCount")} icon="barcode-scan" variant="secondary" onPress={openScanner} style={{ marginBottom: S.md }} />
           )}
+
+          <TextInput testID="std-search" value={search} onChangeText={setSearch}
+            placeholder={t("searchProducts")} placeholderTextColor={C.onSurfaceTertiary} style={styles.searchInput} />
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortRow}>
             {sortOpts.map((o) => (
@@ -260,6 +271,34 @@ export default function StocktakeDetail() {
         </View>
       </Modal>
 
+      <Modal visible={finishOpen} transparent animationType="fade" onRequestClose={() => setFinishOpen(false)}>
+        <View style={styles.modalBg}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t("reviewChanges")}</Text>
+            <Text style={styles.demandTxt}>{changedItems.length} {t("willUpdate")} · {total - changedItems.length} {t("unchanged")}</Text>
+            <ScrollView style={{ maxHeight: 320 }}>
+              {changedItems.length === 0 ? (
+                <Text style={styles.itemMeta}>{t("noVariance")}</Text>
+              ) : changedItems.map((it: any) => {
+                const d = Number(it.counted_qty) - Number(it.system_qty);
+                return (
+                  <View key={it.product_id} style={styles.previewRow}>
+                    <Text style={styles.previewName} numberOfLines={1}>{it.name}</Text>
+                    <Text style={styles.previewNums}>{it.system_qty} → <Text style={{ color: C.onSurface }}>{it.counted_qty}</Text>
+                      <Text style={{ color: d > 0 ? C.success : C.error }}>  ({d > 0 ? "+" : ""}{d})</Text>
+                    </Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+            <Btn testID="std-finish-confirm" title={t("confirmAndFinish")} icon="check-circle-outline" loading={finishing} onPress={confirmFinish} style={{ marginTop: S.md }} />
+            <Pressable onPress={() => setFinishOpen(false)} style={{ alignItems: "center", paddingVertical: S.md }}>
+              <Text style={{ color: C.onSurfaceTertiary, fontFamily: F.textBold }}>{t("cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={!!zoomImg} transparent animationType="fade" onRequestClose={() => setZoomImg(null)}>
         <Pressable testID="std-zoom-close" onPress={() => setZoomImg(null)} style={styles.zoomBg}>
           {zoomImg && <ProductImage path={zoomImg} style={styles.zoomImg} contentFit="contain" />}
@@ -278,6 +317,10 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   badge: { borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: 2 },
   badgeTxt: { color: "#fff", fontFamily: F.textBold, fontSize: 10, letterSpacing: 0.5 },
   sortRow: { gap: S.sm, paddingBottom: S.md },
+  searchInput: { backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border, borderRadius: R.md, paddingHorizontal: S.md, height: 46, color: C.onSurface, fontFamily: F.text, fontSize: 15, marginBottom: S.md },
+  previewRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: S.md, paddingVertical: S.sm, borderBottomWidth: 1, borderBottomColor: C.divider },
+  previewName: { flex: 1, color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 14 },
+  previewNums: { color: C.onSurfaceTertiary, fontFamily: F.textBold, fontSize: 14 },
   sortChip: { height: 32, paddingHorizontal: S.md, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", backgroundColor: C.surfaceSecondary },
   sortChipActive: { backgroundColor: C.brand, borderColor: C.brand },
   sortTxt: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 12 },

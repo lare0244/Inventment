@@ -180,6 +180,11 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Variance report PDF: "Variance report" button builds a PDF listing only products whose counted qty differs from the system qty (alerts "No discrepancies" if none). Product photos are intentionally NOT included in PDFs.
 - Verified: backend counted_done curl-tested; web progress increment (0/5 -> 2/5) + variance button + thumbnails verified via screenshot.
 
+## Completed (2026-06-29) — Stocktake count UX
+- Search in count: a search box on the stocktake detail filters products live by name, barcode, or article no (SKU).
+- Finish preview (adjust-only finish): "Finish stocktake" now opens a "Review changes" modal listing every product whose counted qty differs from system (system → counted with +/- diff) plus an "X to update · Y unchanged" summary; "Confirm & finish" then applies the stocktake. Replaces the old one-line confirm.
+- Verified on web: search filters correctly; preview shows exact diffs (e.g. 2 to update · 3 unchanged) and Confirm completes the stocktake. Test data restored.
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker  <!-- DONE above -->
 

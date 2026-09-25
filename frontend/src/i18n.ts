@@ -148,6 +148,7 @@ const en: Dict = {
   photo: "Photo", takePhoto: "Take photo", choosePhoto: "Choose photo", removePhoto: "Remove photo",
   photoPermNeeded: "Allow camera/photos access in Settings.", openSettings: "Open settings", storageQuota: "Out of storage space.",
   progressLabel: "Progress", varianceReport: "Variance report", noVariance: "No discrepancies.",
+  reviewChanges: "Review changes", willUpdate: "to update", unchanged: "unchanged", confirmAndFinish: "Confirm & finish",
 };
 
 const sv: Dict = {
@@ -274,6 +275,7 @@ const sv: Dict = {
   photo: "Foto", takePhoto: "Ta foto", choosePhoto: "Välj foto", removePhoto: "Ta bort foto",
   photoPermNeeded: "Tillåt åtkomst till kamera/foton i Inställningar.", openSettings: "Öppna inställningar", storageQuota: "Inget lagringsutrymme kvar.",
   progressLabel: "Förlopp", varianceReport: "Avvikelserapport", noVariance: "Inga avvikelser.",
+  reviewChanges: "Granska ändringar", willUpdate: "uppdateras", unchanged: "oförändrade", confirmAndFinish: "Bekräfta och avsluta",
 };
 
 const da: Dict = {
@@ -371,6 +373,7 @@ const da: Dict = {
   photo: "Foto", takePhoto: "Tag foto", choosePhoto: "Vælg foto", removePhoto: "Fjern foto",
   photoPermNeeded: "Tillad adgang til kamera/fotos i Indstillinger.", openSettings: "Åbn indstillinger", storageQuota: "Ingen lagerplads tilbage.",
   progressLabel: "Fremdrift", varianceReport: "Afvigelsesrapport", noVariance: "Ingen afvigelser.",
+  reviewChanges: "Gennemgå ændringer", willUpdate: "opdateres", unchanged: "uændrede", confirmAndFinish: "Bekræft og afslut",
 };
 
 const nl: Dict = {
@@ -468,6 +471,7 @@ const nl: Dict = {
   photo: "Foto", takePhoto: "Foto maken", choosePhoto: "Foto kiezen", removePhoto: "Foto verwijderen",
   photoPermNeeded: "Geef toegang tot camera/foto's in Instellingen.", openSettings: "Instellingen openen", storageQuota: "Geen opslagruimte meer.",
   progressLabel: "Voortgang", varianceReport: "Verschillenrapport", noVariance: "Geen verschillen.",
+  reviewChanges: "Wijzigingen bekijken", willUpdate: "worden bijgewerkt", unchanged: "ongewijzigd", confirmAndFinish: "Bevestigen en afronden",
 };
 
 const fr: Dict = {
@@ -565,6 +569,7 @@ const fr: Dict = {
   photo: "Photo", takePhoto: "Prendre une photo", choosePhoto: "Choisir une photo", removePhoto: "Retirer la photo",
   photoPermNeeded: "Autorisez l'accès à l'appareil photo/photos dans les Réglages.", openSettings: "Ouvrir les réglages", storageQuota: "Espace de stockage plein.",
   progressLabel: "Progression", varianceReport: "Rapport d'écarts", noVariance: "Aucun écart.",
+  reviewChanges: "Vérifier les modifications", willUpdate: "à mettre à jour", unchanged: "inchangés", confirmAndFinish: "Confirmer et terminer",
 };
 
 const de: Dict = {
@@ -662,6 +667,7 @@ const de: Dict = {
   photo: "Foto", takePhoto: "Foto aufnehmen", choosePhoto: "Foto wählen", removePhoto: "Foto entfernen",
   photoPermNeeded: "Erlaube Kamera-/Fotozugriff in den Einstellungen.", openSettings: "Einstellungen öffnen", storageQuota: "Kein Speicherplatz mehr.",
   progressLabel: "Fortschritt", varianceReport: "Abweichungsbericht", noVariance: "Keine Abweichungen.",
+  reviewChanges: "Änderungen prüfen", willUpdate: "werden aktualisiert", unchanged: "unverändert", confirmAndFinish: "Bestätigen & abschließen",
 };
 
 const es: Dict = {
@@ -759,6 +765,7 @@ const es: Dict = {
   photo: "Foto", takePhoto: "Hacer foto", choosePhoto: "Elegir foto", removePhoto: "Quitar foto",
   photoPermNeeded: "Permite el acceso a cámara/fotos en Ajustes.", openSettings: "Abrir ajustes", storageQuota: "Sin espacio de almacenamiento.",
   progressLabel: "Progreso", varianceReport: "Informe de diferencias", noVariance: "Sin diferencias.",
+  reviewChanges: "Revisar cambios", willUpdate: "por actualizar", unchanged: "sin cambios", confirmAndFinish: "Confirmar y finalizar",
 };
 
 const it: Dict = {
@@ -856,6 +863,7 @@ const it: Dict = {
   photo: "Foto", takePhoto: "Scatta foto", choosePhoto: "Scegli foto", removePhoto: "Rimuovi foto",
   photoPermNeeded: "Consenti l'accesso a fotocamera/foto nelle Impostazioni.", openSettings: "Apri impostazioni", storageQuota: "Spazio di archiviazione esaurito.",
   progressLabel: "Avanzamento", varianceReport: "Report scostamenti", noVariance: "Nessuno scostamento.",
+  reviewChanges: "Rivedi modifiche", willUpdate: "da aggiornare", unchanged: "invariati", confirmAndFinish: "Conferma e termina",
 };
 
 const pl: Dict = {
@@ -953,6 +961,7 @@ const pl: Dict = {
   photo: "Zdjęcie", takePhoto: "Zrób zdjęcie", choosePhoto: "Wybierz zdjęcie", removePhoto: "Usuń zdjęcie",
   photoPermNeeded: "Zezwól na dostęp do aparatu/zdjęć w Ustawieniach.", openSettings: "Otwórz ustawienia", storageQuota: "Brak miejsca w pamięci.",
   progressLabel: "Postęp", varianceReport: "Raport rozbieżności", noVariance: "Brak rozbieżności.",
+  reviewChanges: "Przejrzyj zmiany", willUpdate: "do zmiany", unchanged: "bez zmian", confirmAndFinish: "Potwierdź i zakończ",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv, da, nl, fr, de, es, it, pl };
