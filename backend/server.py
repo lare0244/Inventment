@@ -223,6 +223,7 @@ class ProductIn(BaseModel):
     headline: Optional[str] = None
     description: Optional[str] = None
     notes: Optional[str] = None
+    location: Optional[str] = None
 
 
 class StockMovementIn(BaseModel):
@@ -1839,7 +1840,9 @@ async def create_stocktake(body: StockTakeCreate, user: dict = Depends(get_curre
             "product_id": p["id"], "name": p.get("name"),
             "sku": p.get("sku") or "", "barcode": p.get("barcode") or "",
             "image": p.get("image") or "",
+            "location": p.get("location") or "",
             "system_qty": sys_qty, "counted_qty": sys_qty, "counted_done": False, "needs_recount": False,
+            "assigned_to": None, "assigned_name": None,
         })
     num = await _gen_stocktake_number(user)
     date = body.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -1939,6 +1942,36 @@ async def complete_stocktake(sid: str, user: dict = Depends(get_current_user)):
 async def delete_stocktake(sid: str, user: dict = Depends(get_current_user)):
     await db.stocktakes.delete_one({"id": sid, "owner_id": {"$in": user["_scope"]}})
     return {"ok": True}
+
+
+class StockTakeAssign(BaseModel):
+    product_id: str
+    assigned_to: Optional[str] = None  # user id, or null/"" to unassign
+
+
+@api_router.post("/stocktakes/{sid}/assign")
+async def assign_stocktake_item(sid: str, body: StockTakeAssign, user: dict = Depends(get_current_user)):
+    if not user.get("is_company_master"):
+        raise HTTPException(status_code=403, detail="master_required")
+    s = await db.stocktakes.find_one({"id": sid, "owner_id": {"$in": user["_scope"]}})
+    if not s:
+        raise HTTPException(status_code=404, detail="Not found")
+    assigned_name = None
+    if body.assigned_to:
+        member = await db.users.find_one({"id": body.assigned_to, "company_id": user.get("company_id")})
+        if not member:
+            raise HTTPException(status_code=400, detail="member_not_found")
+        assigned_name = member.get("name") or member.get("email")
+    items = []
+    for it in (s.get("items") or []):
+        it = dict(it)
+        if it["product_id"] == body.product_id:
+            it["assigned_to"] = body.assigned_to or None
+            it["assigned_name"] = assigned_name
+        items.append(it)
+    await db.stocktakes.update_one({"id": sid, "owner_id": {"$in": user["_scope"]}},
+                                   {"$set": {"items": items, "updated_at": now_iso()}})
+    return clean({**s, "items": items})
 
 
 # ---------------- File upload / serving (product photos) ----------------

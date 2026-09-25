@@ -150,6 +150,7 @@ const en: Dict = {
   progressLabel: "Progress", varianceReport: "Variance report", noVariance: "No discrepancies.",
   reviewChanges: "Review changes", willUpdate: "to update", unchanged: "unchanged", confirmAndFinish: "Confirm & finish",
   setAllZero: "Set all to zero", confirmZero: "Set every product's count to 0?", flaggedForRecount: "flagged for recount",
+  binLocation: "Bin / Shelf", binLocationHint: "e.g. A-12", flaggedOnly: "Flagged only", assign: "Assign", assignRecount: "Assign recount", unassign: "Unassign",
 };
 
 const sv: Dict = {
@@ -278,6 +279,7 @@ const sv: Dict = {
   progressLabel: "Förlopp", varianceReport: "Avvikelserapport", noVariance: "Inga avvikelser.",
   reviewChanges: "Granska ändringar", willUpdate: "uppdateras", unchanged: "oförändrade", confirmAndFinish: "Bekräfta och avsluta",
   setAllZero: "Nollställ allt", confirmZero: "Sätt varje artikels räkning till 0?", flaggedForRecount: "markerade för omräkning",
+  binLocation: "Lagerplats", binLocationHint: "t.ex. A-12", flaggedOnly: "Endast märkta", assign: "Tilldela", assignRecount: "Tilldela omräkning", unassign: "Ta bort tilldelning",
 };
 
 const da: Dict = {
@@ -377,6 +379,7 @@ const da: Dict = {
   progressLabel: "Fremdrift", varianceReport: "Afvigelsesrapport", noVariance: "Ingen afvigelser.",
   reviewChanges: "Gennemgå ændringer", willUpdate: "opdateres", unchanged: "uændrede", confirmAndFinish: "Bekræft og afslut",
   setAllZero: "Sæt alt til 0", confirmZero: "Sæt hver vares optælling til 0?", flaggedForRecount: "markeret til genoptælling",
+  binLocation: "Placering", binLocationHint: "f.eks. A-12", flaggedOnly: "Kun markerede", assign: "Tildel", assignRecount: "Tildel genoptælling", unassign: "Fjern tildeling",
 };
 
 const nl: Dict = {
@@ -476,6 +479,7 @@ const nl: Dict = {
   progressLabel: "Voortgang", varianceReport: "Verschillenrapport", noVariance: "Geen verschillen.",
   reviewChanges: "Wijzigingen bekijken", willUpdate: "worden bijgewerkt", unchanged: "ongewijzigd", confirmAndFinish: "Bevestigen en afronden",
   setAllZero: "Alles op 0 zetten", confirmZero: "De telling van elk product op 0 zetten?", flaggedForRecount: "gemarkeerd om te hertellen",
+  binLocation: "Locatie", binLocationHint: "bijv. A-12", flaggedOnly: "Alleen gemarkeerd", assign: "Toewijzen", assignRecount: "Hertelling toewijzen", unassign: "Toewijzing verwijderen",
 };
 
 const fr: Dict = {
@@ -575,6 +579,7 @@ const fr: Dict = {
   progressLabel: "Progression", varianceReport: "Rapport d'écarts", noVariance: "Aucun écart.",
   reviewChanges: "Vérifier les modifications", willUpdate: "à mettre à jour", unchanged: "inchangés", confirmAndFinish: "Confirmer et terminer",
   setAllZero: "Tout mettre à 0", confirmZero: "Mettre à 0 le comptage de chaque produit ?", flaggedForRecount: "à recompter",
+  binLocation: "Emplacement", binLocationHint: "ex. A-12", flaggedOnly: "Signalés seulement", assign: "Attribuer", assignRecount: "Attribuer le recomptage", unassign: "Retirer l'attribution",
 };
 
 const de: Dict = {
@@ -674,6 +679,7 @@ const de: Dict = {
   progressLabel: "Fortschritt", varianceReport: "Abweichungsbericht", noVariance: "Keine Abweichungen.",
   reviewChanges: "Änderungen prüfen", willUpdate: "werden aktualisiert", unchanged: "unverändert", confirmAndFinish: "Bestätigen & abschließen",
   setAllZero: "Alles auf 0 setzen", confirmZero: "Zählung jedes Produkts auf 0 setzen?", flaggedForRecount: "zur Nachzählung markiert",
+  binLocation: "Lagerplatz", binLocationHint: "z. B. A-12", flaggedOnly: "Nur markierte", assign: "Zuweisen", assignRecount: "Nachzählung zuweisen", unassign: "Zuweisung entfernen",
 };
 
 const es: Dict = {
@@ -773,6 +779,7 @@ const es: Dict = {
   progressLabel: "Progreso", varianceReport: "Informe de diferencias", noVariance: "Sin diferencias.",
   reviewChanges: "Revisar cambios", willUpdate: "por actualizar", unchanged: "sin cambios", confirmAndFinish: "Confirmar y finalizar",
   setAllZero: "Poner todo a 0", confirmZero: "¿Poner a 0 el recuento de cada producto?", flaggedForRecount: "marcados para recontar",
+  binLocation: "Ubicación", binLocationHint: "p. ej. A-12", flaggedOnly: "Solo marcados", assign: "Asignar", assignRecount: "Asignar reconteo", unassign: "Quitar asignación",
 };
 
 const it: Dict = {
@@ -872,6 +879,7 @@ const it: Dict = {
   progressLabel: "Avanzamento", varianceReport: "Report scostamenti", noVariance: "Nessuno scostamento.",
   reviewChanges: "Rivedi modifiche", willUpdate: "da aggiornare", unchanged: "invariati", confirmAndFinish: "Conferma e termina",
   setAllZero: "Azzera tutto", confirmZero: "Impostare a 0 il conteggio di ogni prodotto?", flaggedForRecount: "da ricontrollare",
+  binLocation: "Ubicazione", binLocationHint: "es. A-12", flaggedOnly: "Solo segnati", assign: "Assegna", assignRecount: "Assegna ricontrollo", unassign: "Rimuovi assegnazione",
 };
 
 const pl: Dict = {
@@ -971,6 +979,7 @@ const pl: Dict = {
   progressLabel: "Postęp", varianceReport: "Raport rozbieżności", noVariance: "Brak rozbieżności.",
   reviewChanges: "Przejrzyj zmiany", willUpdate: "do zmiany", unchanged: "bez zmian", confirmAndFinish: "Potwierdź i zakończ",
   setAllZero: "Ustaw wszystko na 0", confirmZero: "Ustawić liczenie każdego produktu na 0?", flaggedForRecount: "oznaczone do ponownego liczenia",
+  binLocation: "Miejsce / półka", binLocationHint: "np. A-12", flaggedOnly: "Tylko oznaczone", assign: "Przypisz", assignRecount: "Przypisz ponowne liczenie", unassign: "Cofnij przypisanie",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv, da, nl, fr, de, es, it, pl };

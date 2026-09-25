@@ -21,6 +21,7 @@ export type ProductForm = {
   category_id: string | null; warehouse_id: string | null; supplier_id: string | null;
   purchase_date: string; best_before_date: string; notes: string;
   measure_value: string; measure_unit: string | null; headline: string; description: string;
+  location: string;
 };
 
 export function ProductEditor({
@@ -43,7 +44,7 @@ export function ProductEditor({
     name: "", barcode: "", sku: "", brand: "", image: "", price: "0", cost: "0",
     quantity: "0", low_stock_threshold: "5", category_id: null, warehouse_id: null,
     supplier_id: null, purchase_date: "", best_before_date: "", notes: "",
-    measure_value: "", measure_unit: null, headline: "", description: "", ...initial,
+    measure_value: "", measure_unit: null, headline: "", description: "", location: "", ...initial,
   } as ProductForm);
   const stock: Record<string, number> = (initial as any)?.stock || {};
   const [cats, setCats] = useState<any[]>([]);
@@ -114,7 +115,7 @@ export function ProductEditor({
         measure_value: form.measure_value ? parseFloat(form.measure_value) : null,
         measure_unit: form.measure_unit || null,
         headline: form.headline || null, description: form.description || null,
-        notes: form.notes || null,
+        notes: form.notes || null, location: form.location || null,
       });
       router.back();
     } catch (e: any) {
@@ -194,6 +195,7 @@ export function ProductEditor({
         </View>
         <Field label={t("purchaseDate")} testID="f-purchase" value={form.purchase_date} onChangeText={(v) => set("purchase_date", v)} placeholder="YYYY-MM-DD" />
         <Field label={t("bestBefore")} testID="f-bestbefore" value={form.best_before_date} onChangeText={(v) => set("best_before_date", v)} placeholder="YYYY-MM-DD" />
+        <Field label={t("binLocation")} testID="f-location" value={form.location} onChangeText={(v) => set("location", v)} placeholder={t("binLocationHint")} />
         <View style={styles.two}>
           <View style={styles.half}><Field label={t("measure")} testID="f-measure-value" value={form.measure_value} onChangeText={(v) => set("measure_value", v)} keyboardType="decimal-pad" placeholder="0" /></View>
           <View style={styles.half}>

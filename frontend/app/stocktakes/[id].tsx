@@ -13,7 +13,7 @@ import { Card, Btn } from "@/src/components/ui";
 import { ProductImage } from "@/src/components/ProductImage";
 import { buildStocktakePdf } from "@/src/utils/stocktakePdf";
 
-type SortKey = "name" | "qty" | "article" | "ean";
+type SortKey = "name" | "qty" | "article" | "ean" | "location";
 
 export default function StocktakeDetail() {
   const insets = useSafeAreaInsets();
@@ -29,6 +29,9 @@ export default function StocktakeDetail() {
   const [finishing, setFinishing] = useState(false);
   const [sort, setSort] = useState<SortKey>("name");
   const [search, setSearch] = useState("");
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [members, setMembers] = useState<any[]>([]);
+  const [assignItem, setAssignItem] = useState<any>(null);
   const [finishOpen, setFinishOpen] = useState(false);
   const [camPerm, requestCamPerm] = useCameraPermissions();
   const [scanOpen, setScanOpen] = useState(false);
@@ -46,7 +49,10 @@ export default function StocktakeDetail() {
       (s.items || []).forEach((it: any) => { m[it.product_id] = String(it.counted_qty); });
       setCounts(m);
     } catch {} finally { setLoading(false); }
-  }, [id]);
+    if (user?.is_company_master) {
+      try { const c = await api<any>("/company"); setMembers(c.members || []); } catch {}
+    }
+  }, [id, user?.is_company_master]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const open = st && st.status !== "completed";
@@ -57,15 +63,18 @@ export default function StocktakeDetail() {
     if (q) items = items.filter((it) =>
       String(it.name || "").toLowerCase().includes(q) ||
       String(it.barcode || "").toLowerCase().includes(q) ||
-      String(it.sku || "").toLowerCase().includes(q));
+      String(it.sku || "").toLowerCase().includes(q) ||
+      String(it.location || "").toLowerCase().includes(q));
+    if (flaggedOnly) items = items.filter((it) => it.needs_recount);
     items.sort((a, b) => {
       if (sort === "qty") return Number(counts[b.product_id] ?? b.counted_qty) - Number(counts[a.product_id] ?? a.counted_qty);
       if (sort === "article") return String(a.sku || "").localeCompare(String(b.sku || ""));
       if (sort === "ean") return String(a.barcode || "").localeCompare(String(b.barcode || ""));
+      if (sort === "location") return String(a.location || "").localeCompare(String(b.location || ""));
       return String(a.name || "").localeCompare(String(b.name || ""));
     });
     return items;
-  }, [st, sort, counts, search]);
+  }, [st, sort, counts, search, flaggedOnly]);
 
   async function saveOne(pid: string, raw: string) {
     const n = Math.max(0, parseInt(raw, 10) || 0);
@@ -104,6 +113,12 @@ export default function StocktakeDetail() {
     const val = !it.needs_recount;
     setSt((prev: any) => prev ? { ...prev, items: (prev.items || []).map((x: any) => x.product_id === it.product_id ? { ...x, needs_recount: val } : x) } : prev);
     try { await api(`/stocktakes/${id}`, { method: "PUT", body: { items: [{ product_id: it.product_id, needs_recount: val }] } }); } catch {}
+  }
+
+  async function assignTo(pid: string, memberId: string | null, name: string | null) {
+    setSt((prev: any) => prev ? { ...prev, items: (prev.items || []).map((x: any) => x.product_id === pid ? { ...x, assigned_to: memberId, assigned_name: name } : x) } : prev);
+    setAssignItem(null);
+    try { await api(`/stocktakes/${id}/assign`, { method: "POST", body: { product_id: pid, assigned_to: memberId } }); } catch {}
   }
 
   function setAllZero() {
@@ -154,8 +169,9 @@ export default function StocktakeDetail() {
 
   const sortOpts: { key: SortKey; label: string }[] = [
     { key: "name", label: t("productName") }, { key: "qty", label: t("sortByQty") },
-    { key: "article", label: t("articleNo") }, { key: "ean", label: t("ean") },
+    { key: "article", label: t("articleNo") }, { key: "ean", label: t("ean") }, { key: "location", label: t("binLocation") },
   ];
+  const isMaster = !!user?.is_company_master;
 
   const total = (st?.items || []).length;
   const doneCount = (st?.items || []).filter((i: any) => i.counted_done).length;
@@ -224,6 +240,11 @@ export default function StocktakeDetail() {
                 <Text style={[styles.sortTxt, sort === o.key && { color: C.onBrand }]}>{o.label}</Text>
               </Pressable>
             ))}
+            <Pressable testID="std-flagged-only" onPress={() => setFlaggedOnly((v) => !v)}
+              style={[styles.sortChip, flaggedOnly && styles.flaggedChipActive]}>
+              <MaterialCommunityIcons name="flag" size={13} color={flaggedOnly ? "#fff" : C.warning} />
+              <Text style={[styles.sortTxt, { marginLeft: 4 }, flaggedOnly && { color: "#fff" }]}>{t("flaggedOnly")}</Text>
+            </Pressable>
           </ScrollView>
 
           {sortedItems.length === 0 ? (
@@ -247,9 +268,17 @@ export default function StocktakeDetail() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.itemName} numberOfLines={1}>{it.name}</Text>
                     <Text style={styles.itemMeta} numberOfLines={1}>
-                      {t("articleNo")}: {it.sku || "-"}  ·  {t("ean")}: {it.barcode || "-"}
+                      {t("articleNo")}: {it.sku || "-"}  ·  {t("ean")}: {it.barcode || "-"}{it.location ? `  ·  ${t("binLocation")}: ${it.location}` : ""}
                     </Text>
                     <Text style={styles.itemSys}>{t("systemQty")}: {it.system_qty}{d !== 0 ? `   (${d > 0 ? "+" : ""}${d})` : ""}</Text>
+                    {(it.assigned_name || (isMaster && it.needs_recount)) && (
+                      <Pressable testID={`std-assign-${it.product_id}`} disabled={!isMaster} onPress={() => isMaster && setAssignItem(it)} hitSlop={6} style={styles.assignRow}>
+                        <MaterialCommunityIcons name="account-arrow-right-outline" size={13} color={it.assigned_name ? C.brand : C.onSurfaceTertiary} />
+                        <Text style={[styles.assignTxt, it.assigned_name && { color: C.brand }]}>
+                          {it.assigned_name ? it.assigned_name : t("assign")}
+                        </Text>
+                      </Pressable>
+                    )}
                   </View>
                   <View style={{ alignItems: "center", gap: 6 }}>
                     <TextInput testID={`std-count-${it.product_id}`} value={val} editable={open}
@@ -325,6 +354,36 @@ export default function StocktakeDetail() {
         </View>
       </Modal>
 
+      <Modal visible={!!assignItem} transparent animationType="fade" onRequestClose={() => setAssignItem(null)}>
+        <View style={styles.modalBg}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t("assignRecount")}</Text>
+            <Text style={styles.demandTxt} numberOfLines={1}>{assignItem?.name}</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              {members.map((mem) => {
+                const active = assignItem?.assigned_to === mem.id;
+                return (
+                  <Pressable key={mem.id} testID={`std-assign-opt-${mem.id}`} onPress={() => assignTo(assignItem.product_id, mem.id, mem.name)}
+                    style={[styles.assignOpt, active && { backgroundColor: C.brand }]}>
+                    <MaterialCommunityIcons name="account" size={18} color={active ? C.onBrand : C.onSurfaceSecondary} />
+                    <Text style={[styles.assignOptTxt, active && { color: C.onBrand }]} numberOfLines={1}>{mem.name}{mem.is_owner ? ` · ${t("roleOwner")}` : mem.is_master ? ` · ${t("roleMaster")}` : ""}</Text>
+                    {active && <MaterialCommunityIcons name="check" size={18} color={C.onBrand} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            {assignItem?.assigned_to && (
+              <Pressable testID="std-assign-clear" onPress={() => assignTo(assignItem.product_id, null, null)} style={{ alignItems: "center", paddingVertical: S.sm }}>
+                <Text style={{ color: C.error, fontFamily: F.textBold }}>{t("unassign")}</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={() => setAssignItem(null)} style={{ alignItems: "center", paddingVertical: S.md }}>
+              <Text style={{ color: C.onSurfaceTertiary, fontFamily: F.textBold }}>{t("cancel")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={!!zoomImg} transparent animationType="fade" onRequestClose={() => setZoomImg(null)}>
         <Pressable testID="std-zoom-close" onPress={() => setZoomImg(null)} style={styles.zoomBg}>
           {zoomImg && <ProductImage path={zoomImg} style={styles.zoomImg} contentFit="contain" />}
@@ -347,9 +406,14 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   previewRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: S.md, paddingVertical: S.sm, borderBottomWidth: 1, borderBottomColor: C.divider },
   previewName: { flex: 1, color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 14 },
   previewNums: { color: C.onSurfaceTertiary, fontFamily: F.textBold, fontSize: 14 },
-  sortChip: { height: 32, paddingHorizontal: S.md, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", backgroundColor: C.surfaceSecondary },
   sortChipActive: { backgroundColor: C.brand, borderColor: C.brand },
+  flaggedChipActive: { backgroundColor: C.warning, borderColor: C.warning },
+  sortChip: { flexDirection: "row", height: 32, paddingHorizontal: S.md, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", backgroundColor: C.surfaceSecondary },
   sortTxt: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 12 },
+  assignRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+  assignTxt: { color: C.onSurfaceTertiary, fontFamily: F.textBold, fontSize: 12 },
+  assignOpt: { flexDirection: "row", alignItems: "center", gap: S.sm, paddingHorizontal: S.md, paddingVertical: S.md, borderRadius: R.md, borderWidth: 1, borderColor: C.divider, marginBottom: S.sm },
+  assignOptTxt: { flex: 1, color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
   itemRow: { flexDirection: "row", alignItems: "center", gap: S.md, marginBottom: S.sm, paddingVertical: S.md },
   itemRowFlag: { borderColor: C.warning },
   itemRowHi: { borderColor: C.brand, borderWidth: 2, backgroundColor: C.isDark ? "rgba(255,87,34,0.10)" : "rgba(255,87,34,0.06)" },

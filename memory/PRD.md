@@ -191,6 +191,12 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Empty-to-zero: "Set all to zero" button sets every product's counted qty to 0 without marking them done (PUT mark_done=false) so you can count up from empty and progress stays accurate. Confirm dialog first.
 - Backend: StockTakeItemUpdate now optional counted_qty + needs_recount; StockTakeUpdate has mark_done flag. Curl-verified recount-only + zero-with-mark_done=false (counted 0, done false, recount preserved). Web-verified flag toggle, set-all-zero, and finish preview warning. i18n added to all 9 languages.
 
+## Completed (2026-06-29) — Stocktake filter / assign / location
+- Flagged filter: a "Flagged only" chip on the stocktake detail shows just the rows marked needs_recount.
+- Assign recount (master only): master users can tap a flagged row to assign it to a colleague (from company members via GET /company); assignee name shows on the row for everyone. New master-gated POST /api/stocktakes/{id}/assign (403 master_required otherwise; unassign via null). Non-masters don't see the assign control.
+- Count by location: products gained an optional `location` (Bin/Shelf) field (ProductIn + editor field); stocktake items carry it, show it on rows, and it's a sort option so counters can walk the warehouse in order.
+- Verified: product location persists; assign 403 for non-master, assign/unassign works for master (resolves name); web shows Flagged-only filter + Bin/Shelf sort chip + flagged banner. i18n added to all 9 languages. Test company created for the assign test was dissolved and data restored.
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker  <!-- DONE above -->
 
