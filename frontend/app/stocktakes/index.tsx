@@ -80,6 +80,9 @@ export default function StocktakesList() {
           ) : (
             list.map((s) => {
               const done = s.status === "completed";
+              const stTotal = (s.items || []).length;
+              const stDone = (s.items || []).filter((i: any) => i.counted_done).length;
+              const stPct = stTotal ? Math.round((stDone / stTotal) * 100) : 0;
               return (
                 <Pressable key={s.id} testID={`st-row-${s.id}`} onPress={() => router.push(`/stocktakes/${s.id}`)}>
                   <Card style={styles.row}>
@@ -91,7 +94,10 @@ export default function StocktakesList() {
                         </View>
                       </View>
                       <Text style={styles.rowSub}>{s.date}  ·  {s.warehouse_name}</Text>
-                      <Text style={styles.rowSub2}>{(s.items || []).length} {t("itemsCounted")}</Text>
+                      <Text style={styles.rowSub2}>{stDone} / {stTotal} {t("itemsCounted")}</Text>
+                      {!done && (
+                        <View style={styles.miniTrack}><View style={[styles.miniFill, { width: `${stPct}%` }]} /></View>
+                      )}
                     </View>
                     <Pressable testID={`st-pdf-${s.id}`} onPress={() => exportPdf(s)} hitSlop={10} style={styles.pdfBtn}>
                       <MaterialCommunityIcons name="file-pdf-box" size={24} color={C.brand} />
@@ -136,6 +142,8 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   rowNum: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
   rowSub: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 13, marginTop: 3 },
   rowSub2: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
+  miniTrack: { height: 6, borderRadius: 3, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, overflow: "hidden", marginTop: 6 },
+  miniFill: { height: "100%", backgroundColor: C.brand },
   badge: { borderRadius: R.sm, paddingHorizontal: S.sm, paddingVertical: 2 },
   badgeTxt: { color: "#fff", fontFamily: F.textBold, fontSize: 10, letterSpacing: 0.5 },
   pdfBtn: { padding: 4 },

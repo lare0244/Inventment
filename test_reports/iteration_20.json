@@ -1,0 +1,36 @@
+{
+  "summary": "Full regression of the new Product Photos feature. Backend: 11/11 pytest passed (POST /api/upload auth-required + returns storage-scoped path; GET /api/files/{path} works with ?token= and Authorization Bearer; 401 when no/bad token; 403 for both a fresh unrelated user AND the requested bob@test.com case; product image persists across POST/GET/PUT/GET; stocktake items carry an 'image' field for products that have one). Frontend web (390x844): warehouse@test.com login -> /product/new shows Take photo (photo-camera) and Choose photo (photo-gallery); Take photo tap does NOT crash on web (falls back to the image picker's file chooser via expo-image-picker); Choose photo -> file chooser -> upload of a small local PNG -> tokenized preview thumbnail renders in the 90x90 photo box AND the 'Remove photo' (photo-remove) affordance appears. Saved the product with name TEST_photo_UI_prod; back on Catalog the new product-row-<id> rendered a real <img> whose src includes /api/files/... (thumbnail confirmed). Stocktake detail (/stocktakes/<id>): created via API then loaded in browser - exactly 1 <img> pointing at /api/files/ was rendered for the product with an image, other rows show the placeholder icon as expected. No React Native red screen, no console errors related to the feature (a single benign 401 on an image request was observed during navigation, likely from a stale prefetch before token was resolved by ProductImage's useEffect - the visible thumbnails all rendered successfully).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_product_photos.py",
+    "/app/test_reports/pytest/pytest_product_photos.xml"
+  ],
+  "action_items": [
+    "No blocking action items. Optional nit: ProductImage.tsx briefly returns null until getToken() resolves, and then sets uri=fileUri(path, token). On the very first paint of a screen with many thumbnails, expo-image can also emit a transient 401 in the browser network log if a native Image is created before the state update lands (observed once during Catalog load). Cosmetic only - thumbnails still render correctly. Consider passing the token as an Authorization header via expo-image's headers option to avoid the query-string token appearing in referrer/logs, but current implementation is fully functional."
+  ],
+  "critical_code_review_comments": [
+    "server.py /api/upload correctly gates on get_current_user, enforces 10MB cap, whitelists image extensions (falls back to .jpg for unknowns) and stores under STORAGE_APP/uploads/<user_id>/<uuid>.ext - path is not user-controllable and the owner segment is used later for scope checks.",
+    "server.py /api/files/{path:path} accepts token via ?token= OR Authorization: Bearer, validates JWT, expands company scope, and enforces owner_seg-in-scope (403 otherwise). 401 vs 403 vs 404 codes are all correct per spec.",
+    "Storage key retry loop (401 -> re-init once) is present in both storage_put and storage_get - good.",
+    "ProductImage.tsx is a clean 22-line component using expo-image with contentFit=cover and a token-appended URI; correctly handles http:// pass-through and unmount race via a mounted flag.",
+    "api.ts uploadImage() handles web (fetch->blob->FormData) and native (uri/name/type object) correctly.",
+    "ProductEditor.tsx wires pickImage(fromCamera) to expo-image-picker with proper permission handling (Alert on native, window.alert on web) and displays a preview + Remove affordance once form.image is set.",
+    "Catalog.tsx product row conditionally renders ProductImage vs a placeholder icon depending on item.image - good.",
+    "server.py is ~2030 lines - still growing. Not blocking but the earlier suggestion to split into feature routers is becoming more relevant."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_product_photos.py (new)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% of web-testable flows (native camera hardware N/A on web per instructions)"},
+  "seed_data_creation": "All test data created during backend/frontend runs was cleaned up. Backend pytest fixtures delete their TEST_* products/warehouses/stocktakes on teardown. UI walk-through created 1 product (TEST_photo_UI_prod) and 1 stocktake+product (TEST_ST_UI_photo) - both deleted via API after verification.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Product Photos feature is fully verified end-to-end (backend + web frontend). Regression suite lives at /app/backend/tests/test_product_photos.py and covers: /api/upload auth, path shape, non-image ext fallback; /api/files serving via header and query token; 401 no/bad token; 403 cross-scope both via a fresh isolated user AND bob@test.com (the bob variant self-skips if bob and warehouse are currently in the same company from prior test runs); product image POST->GET->PUT->GET persistence; stocktake items carry 'image' when the product has one. For UI, use expect_file_chooser to feed the 'Choose photo' button - the Take photo button on web just opens the same picker/file chooser and does not crash.",
+  "rca_of_issue": "N/A - no defects found."
+}

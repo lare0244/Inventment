@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView } fr
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
-import { Image } from "expo-image";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { useColors, useT } from "@/src/appsettings";
@@ -11,6 +10,7 @@ import { money } from "@/src/currency";
 import { useResponsive } from "@/src/hooks/useResponsive";
 import { F, S, R, stockColor, Palette } from "@/src/theme";
 import { StatusDot, Dropdown } from "@/src/components/ui";
+import { ProductImage } from "@/src/components/ProductImage";
 
 export default function Catalog() {
   const insets = useSafeAreaInsets();
@@ -188,7 +188,7 @@ export default function Catalog() {
               style={[styles.card, gridCols > 1 && { flex: 1 }]}
             >
               {item.image ? (
-                <Image source={{ uri: item.image }} style={styles.thumb} contentFit="cover" />
+                <ProductImage path={item.image} style={styles.thumb} />
               ) : (
                 <View style={[styles.thumb, styles.thumbPh]}>
                   <MaterialCommunityIcons name="cube-outline" size={24} color={C.onSurfaceTertiary} />

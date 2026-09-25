@@ -167,7 +167,21 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Backend: /api/stocktakes CRUD + /{id}/complete; auto number INV<yymm><seq>; owner/company scoped. i18n added to all 9 languages.
 - Verified: backend 11/11 pytest + web frontend flow (testing agent iteration_19). NOTE: live camera barcode scan is device-only (not testable in Expo Go/web).
 
+## Completed (2026-06-29) — Product Photos (Object Storage)
+- Product editor: snap (camera) or upload (gallery) a product photo via expo-image-picker with contextual permission handling (Open Settings on denial). Photo preview + Remove.
+- Images stored in Emergent Object Storage: POST /api/upload -> path inventment/uploads/{user}/{uuid}; product.image holds the path (legacy OFF http image URLs still pass through). GET /api/files/{path} serves bytes, auth via Bearer header or ?token= (for web <img>), owner-scope enforced (401/403).
+- Thumbnails now show in the Catalog list, the product editor, and the Stocktake detail rows (backend adds image to stocktake items) so items are easy to recognise while counting.
+- ProductImage component resolves the JWT once and renders a tokenized URL (works web + native). i18n added to all 9 languages; app.json got NSPhotoLibraryUsageDescription + expo-image-picker plugin.
+- Verified: backend 11/11 pytest (upload/serve/401/403/persist) + web upload->preview->catalog thumbnail e2e (testing agent iteration_20). NOTE: 'Take photo' camera is device-only (not in Expo Go/web).
+
+## Completed (2026-06-29) — Stocktake enhancements
+- Count progress: stocktake items now track `counted_done` (set true on PUT/scan). Detail screen shows a PROGRESS bar (X / Y) that updates live as counts are entered (saved on input blur); the stocktakes list shows a mini progress bar per open count.
+- Tap-to-enlarge: tapping a product thumbnail in a stocktake opens a full-screen image viewer (ProductImage now supports contentFit).
+- Variance report PDF: "Variance report" button builds a PDF listing only products whose counted qty differs from the system qty (alerts "No discrepancies" if none). Product photos are intentionally NOT included in PDFs.
+- Verified: backend counted_done curl-tested; web progress increment (0/5 -> 2/5) + variance button + thumbnails verified via screenshot.
+
 ## Next Tasks
-- Add product image capture via expo-camera/image-picker
+- Add product image capture via expo-camera/image-picker  <!-- DONE above -->
+
 - Native App Store / Google Play PRO subscriptions (requires native build to QA)
 - Android store config in app.json (package, versionCode, splash/icon)

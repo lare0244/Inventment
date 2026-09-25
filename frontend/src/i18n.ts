@@ -145,6 +145,9 @@ const en: Dict = {
   sortByQty: "Quantity", sortByArticle: "Article no.", sortByEan: "EAN", articleNo: "Article no.", ean: "EAN",
   scanToCount: "Scan to count", notInStocktake: "That product is not in this stocktake.",
   noItemsWarehouse: "No products in this warehouse.", itemsCounted: "items", diff: "Diff",
+  photo: "Photo", takePhoto: "Take photo", choosePhoto: "Choose photo", removePhoto: "Remove photo",
+  photoPermNeeded: "Allow camera/photos access in Settings.", openSettings: "Open settings", storageQuota: "Out of storage space.",
+  progressLabel: "Progress", varianceReport: "Variance report", noVariance: "No discrepancies.",
 };
 
 const sv: Dict = {
@@ -268,6 +271,9 @@ const sv: Dict = {
   sortByQty: "Antal", sortByArticle: "Artikelnr", sortByEan: "EAN", articleNo: "Artikelnr", ean: "EAN",
   scanToCount: "Skanna för att räkna", notInStocktake: "Den artikeln finns inte i denna inventering.",
   noItemsWarehouse: "Inga artiklar på denna lagerplats.", itemsCounted: "artiklar", diff: "Diff",
+  photo: "Foto", takePhoto: "Ta foto", choosePhoto: "Välj foto", removePhoto: "Ta bort foto",
+  photoPermNeeded: "Tillåt åtkomst till kamera/foton i Inställningar.", openSettings: "Öppna inställningar", storageQuota: "Inget lagringsutrymme kvar.",
+  progressLabel: "Förlopp", varianceReport: "Avvikelserapport", noVariance: "Inga avvikelser.",
 };
 
 const da: Dict = {
@@ -362,6 +368,9 @@ const da: Dict = {
   sortByQty: "Antal", sortByArticle: "Varenr.", sortByEan: "EAN", articleNo: "Varenr.", ean: "EAN",
   scanToCount: "Scan for at tælle", notInStocktake: "Den vare er ikke i denne optælling.",
   noItemsWarehouse: "Ingen varer på dette lager.", itemsCounted: "varer", diff: "Diff.",
+  photo: "Foto", takePhoto: "Tag foto", choosePhoto: "Vælg foto", removePhoto: "Fjern foto",
+  photoPermNeeded: "Tillad adgang til kamera/fotos i Indstillinger.", openSettings: "Åbn indstillinger", storageQuota: "Ingen lagerplads tilbage.",
+  progressLabel: "Fremdrift", varianceReport: "Afvigelsesrapport", noVariance: "Ingen afvigelser.",
 };
 
 const nl: Dict = {
@@ -456,6 +465,9 @@ const nl: Dict = {
   sortByQty: "Aantal", sortByArticle: "Artikelnr.", sortByEan: "EAN", articleNo: "Artikelnr.", ean: "EAN",
   scanToCount: "Scannen om te tellen", notInStocktake: "Dat product zit niet in deze telling.",
   noItemsWarehouse: "Geen producten in dit magazijn.", itemsCounted: "artikelen", diff: "Versch.",
+  photo: "Foto", takePhoto: "Foto maken", choosePhoto: "Foto kiezen", removePhoto: "Foto verwijderen",
+  photoPermNeeded: "Geef toegang tot camera/foto's in Instellingen.", openSettings: "Instellingen openen", storageQuota: "Geen opslagruimte meer.",
+  progressLabel: "Voortgang", varianceReport: "Verschillenrapport", noVariance: "Geen verschillen.",
 };
 
 const fr: Dict = {
@@ -550,6 +562,9 @@ const fr: Dict = {
   sortByQty: "Quantité", sortByArticle: "Réf. article", sortByEan: "EAN", articleNo: "Réf. article", ean: "EAN",
   scanToCount: "Scanner pour compter", notInStocktake: "Ce produit n'est pas dans cet inventaire.",
   noItemsWarehouse: "Aucun produit dans cet entrepôt.", itemsCounted: "articles", diff: "Écart",
+  photo: "Photo", takePhoto: "Prendre une photo", choosePhoto: "Choisir une photo", removePhoto: "Retirer la photo",
+  photoPermNeeded: "Autorisez l'accès à l'appareil photo/photos dans les Réglages.", openSettings: "Ouvrir les réglages", storageQuota: "Espace de stockage plein.",
+  progressLabel: "Progression", varianceReport: "Rapport d'écarts", noVariance: "Aucun écart.",
 };
 
 const de: Dict = {
@@ -644,6 +659,9 @@ const de: Dict = {
   sortByQty: "Menge", sortByArticle: "Artikelnr.", sortByEan: "EAN", articleNo: "Artikelnr.", ean: "EAN",
   scanToCount: "Zum Zählen scannen", notInStocktake: "Dieses Produkt ist nicht in dieser Inventur.",
   noItemsWarehouse: "Keine Produkte in diesem Lager.", itemsCounted: "Artikel", diff: "Diff.",
+  photo: "Foto", takePhoto: "Foto aufnehmen", choosePhoto: "Foto wählen", removePhoto: "Foto entfernen",
+  photoPermNeeded: "Erlaube Kamera-/Fotozugriff in den Einstellungen.", openSettings: "Einstellungen öffnen", storageQuota: "Kein Speicherplatz mehr.",
+  progressLabel: "Fortschritt", varianceReport: "Abweichungsbericht", noVariance: "Keine Abweichungen.",
 };
 
 const es: Dict = {
@@ -738,6 +756,9 @@ const es: Dict = {
   sortByQty: "Cantidad", sortByArticle: "N.º de artículo", sortByEan: "EAN", articleNo: "N.º de artículo", ean: "EAN",
   scanToCount: "Escanear para contar", notInStocktake: "Ese producto no está en este inventario.",
   noItemsWarehouse: "No hay productos en este almacén.", itemsCounted: "artículos", diff: "Dif.",
+  photo: "Foto", takePhoto: "Hacer foto", choosePhoto: "Elegir foto", removePhoto: "Quitar foto",
+  photoPermNeeded: "Permite el acceso a cámara/fotos en Ajustes.", openSettings: "Abrir ajustes", storageQuota: "Sin espacio de almacenamiento.",
+  progressLabel: "Progreso", varianceReport: "Informe de diferencias", noVariance: "Sin diferencias.",
 };
 
 const it: Dict = {
@@ -832,6 +853,9 @@ const it: Dict = {
   sortByQty: "Quantità", sortByArticle: "Cod. articolo", sortByEan: "EAN", articleNo: "Cod. articolo", ean: "EAN",
   scanToCount: "Scansiona per contare", notInStocktake: "Quel prodotto non è in questo inventario.",
   noItemsWarehouse: "Nessun prodotto in questo magazzino.", itemsCounted: "articoli", diff: "Diff.",
+  photo: "Foto", takePhoto: "Scatta foto", choosePhoto: "Scegli foto", removePhoto: "Rimuovi foto",
+  photoPermNeeded: "Consenti l'accesso a fotocamera/foto nelle Impostazioni.", openSettings: "Apri impostazioni", storageQuota: "Spazio di archiviazione esaurito.",
+  progressLabel: "Avanzamento", varianceReport: "Report scostamenti", noVariance: "Nessuno scostamento.",
 };
 
 const pl: Dict = {
@@ -926,6 +950,9 @@ const pl: Dict = {
   sortByQty: "Ilość", sortByArticle: "Nr artykułu", sortByEan: "EAN", articleNo: "Nr artykułu", ean: "EAN",
   scanToCount: "Skanuj, aby policzyć", notInStocktake: "Tego produktu nie ma w tej inwentaryzacji.",
   noItemsWarehouse: "Brak produktów w tym magazynie.", itemsCounted: "artykułów", diff: "Różn.",
+  photo: "Zdjęcie", takePhoto: "Zrób zdjęcie", choosePhoto: "Wybierz zdjęcie", removePhoto: "Usuń zdjęcie",
+  photoPermNeeded: "Zezwól na dostęp do aparatu/zdjęć w Ustawieniach.", openSettings: "Otwórz ustawienia", storageQuota: "Brak miejsca w pamięci.",
+  progressLabel: "Postęp", varianceReport: "Raport rozbieżności", noVariance: "Brak rozbieżności.",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv, da, nl, fr, de, es, it, pl };

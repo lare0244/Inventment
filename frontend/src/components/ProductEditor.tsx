@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable, ActivityIndicator, Linking, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
-import { api } from "@/src/api";
+import * as ImagePicker from "expo-image-picker";
+import { api, uploadImage } from "@/src/api";
 import { useColors, useT } from "@/src/appsettings";
 import { currencySymbol } from "@/src/currency";
 import { useAuth } from "@/src/auth";
 import { F, S, R, Palette } from "@/src/theme";
 import { Field, Btn, Dropdown } from "@/src/components/ui";
+import { ProductImage } from "@/src/components/ProductImage";
 import { useUpgradePrompt } from "@/src/components/UpgradePrompt";
 
 const MEASURE_UNITS = ["ml", "litre", "g", "kilo", "mm", "meter"];
@@ -49,6 +51,7 @@ export function ProductEditor({
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -66,6 +69,36 @@ export function ProductEditor({
   // when warehouse changes, reflect that warehouse's stock in the quantity field
   const selectWarehouse = (wid: string | null) =>
     setForm((f) => ({ ...f, warehouse_id: wid, quantity: wid && wid in stock ? String(stock[wid]) : "0" }));
+
+  function permDenied() {
+    const openIt = () => Linking.openSettings();
+    if (Platform.OS === "web" && typeof window !== "undefined") { window.alert(t("photoPermNeeded")); return; }
+    Alert.alert(t("photoPermNeeded"), "", [{ text: t("cancel"), style: "cancel" }, { text: t("openSettings"), onPress: openIt }]);
+  }
+
+  async function pickImage(fromCamera: boolean) {
+    try {
+      let res;
+      if (fromCamera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) { permDenied(); return; }
+        res = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.6, allowsEditing: true });
+      } else {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) { permDenied(); return; }
+        res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.6, allowsEditing: true });
+      }
+      if (res.canceled || !res.assets?.length) return;
+      const asset = res.assets[0];
+      setUploading(true);
+      const path = await uploadImage(asset.uri, asset.fileName || "photo.jpg");
+      set("image", path);
+    } catch (e: any) {
+      setErr(e?.message === "storage_quota" ? t("storageQuota") : (e?.message || t("saveFailed")));
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function save() {
     if (!form.name.trim()) { setErr(t("nameRequired")); return; }
@@ -122,6 +155,28 @@ export function ProductEditor({
       </View>
 
       <ScrollView contentContainerStyle={{ padding: S.lg, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+        <View style={styles.photoRow}>
+          <View style={styles.photoBox}>
+            {uploading ? (
+              <ActivityIndicator color={C.brand} />
+            ) : form.image ? (
+              <ProductImage path={form.image} style={styles.photoImg} />
+            ) : (
+              <MaterialCommunityIcons name="image-outline" size={34} color={C.onSurfaceTertiary} />
+            )}
+          </View>
+          <View style={{ flex: 1, gap: S.sm }}>
+            <View style={{ flexDirection: "row", gap: S.sm }}>
+              <View style={{ flex: 1 }}><Btn testID="photo-camera" title={t("takePhoto")} icon="camera-outline" variant="secondary" onPress={() => pickImage(true)} /></View>
+              <View style={{ flex: 1 }}><Btn testID="photo-gallery" title={t("choosePhoto")} icon="image-multiple-outline" variant="secondary" onPress={() => pickImage(false)} /></View>
+            </View>
+            {!!form.image && (
+              <Pressable testID="photo-remove" onPress={() => set("image", "")} hitSlop={8} style={{ alignSelf: "flex-start" }}>
+                <Text style={styles.removePhoto}>{t("removePhoto")}</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
         <Field label={t("productName")} testID="f-name" value={form.name} onChangeText={(v) => set("name", v)} placeholder="e.g. Steel Bolts M8" />
         <Field label={t("headline")} testID="f-headline" value={form.headline} onChangeText={(v) => set("headline", v)} placeholder={t("headlineHint")} />
         <Field label={t("description")} testID="f-description" value={form.description} onChangeText={(v) => set("description", v)} placeholder={t("descriptionHint")} multiline />
@@ -167,6 +222,10 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   title: { flex: 1, color: C.onSurface, fontFamily: F.display, fontSize: 22, marginHorizontal: S.sm },
   two: { flexDirection: "row", gap: S.md },
   half: { flex: 1 },
+  photoRow: { flexDirection: "row", gap: S.md, marginBottom: S.lg, alignItems: "center" },
+  photoBox: { width: 90, height: 90, borderRadius: R.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.surfaceSecondary, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  photoImg: { width: 90, height: 90 },
+  removePhoto: { color: C.error, fontFamily: F.textBold, fontSize: 13 },
   label: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 13, marginBottom: S.sm, textTransform: "uppercase", letterSpacing: 0.5 },
   chip: { height: 36, paddingHorizontal: S.lg, borderRadius: R.pill, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: C.surfaceSecondary },
   chipActive: { backgroundColor: C.brand, borderColor: C.brand },

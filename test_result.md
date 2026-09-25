@@ -307,3 +307,26 @@ frontend:
 agent_communication:
   - agent: "main"
     message: "Test login warehouse@test.com/test123 (PRO). NEW feature only. BACKEND: full /api/stocktakes lifecycle - POST {warehouse_id,date} returns items with system_qty=counted_qty prefilled per-warehouse; PUT {items:[{product_id,counted_qty}]} updates only counted; POST {id}/complete sets product.stock[warehouse]=counted (verify via GET /api/products/{id}), records adjust movements, marks completed; PUT after complete must 400 (stocktake_completed); DELETE works; scoping by owner/company. FRONTEND (web): Dashboard 'Stocktaking' button opens the list; 'New stocktake' modal picks a warehouse + date and creates; detail shows product rows with editable counted inputs and sort chips (name/qty/article/ean); editing a count and blurring persists it; 'Finish stocktake' completes and locks inputs; PDF button doesn't crash. NOTE: 'Scan to count' uses the device camera - validate the button/modal opens without crash on web but do NOT fail the suite on lack of hardware scan."
+
+## Test Cycle 7 (Product Photos via Object Storage)
+backend:
+  - task: "Image upload + authenticated serving (Emergent Object Storage)"
+    file: "/app/backend/server.py"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "POST /api/upload (multipart file, auth) stores image at inventment/uploads/{user_id}/{uuid}.{ext} via Object Storage, returns {path}. GET /api/files/{path} serves bytes; auth via Authorization header OR ?token= (for web <img>), verifies the owner segment is in the requester's company scope (403 otherwise), 401 without token. Product.image now stores the storage path (http URLs from OFF barcode lookup still pass through). Stocktake items now include image. Curl-verified upload+serve+401."
+frontend:
+  - task: "Product photo picker (camera/gallery) + thumbnails in catalog & stocktake"
+    file: "/app/frontend/src/components/ProductEditor.tsx, /app/frontend/src/components/ProductImage.tsx, /app/frontend/src/api.ts, /app/frontend/app/(tabs)/catalog.tsx, /app/frontend/app/stocktakes/[id].tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "ProductEditor top has a photo preview + 'Take photo' (photo-camera) / 'Choose photo' (photo-gallery) / 'Remove photo' (photo-remove) using expo-image-picker with permission handling (Open Settings on denial). uploadImage() in api.ts posts multipart (web=blob, native={uri,name,type}); returns storage path saved as product.image. ProductImage component resolves the JWT once and renders expo-image via ${BACKEND}/api/files/{path}?token= (works web+native). Catalog rows and stocktake rows show the thumbnail. i18n added to all 9 langs; app.json got NSPhotoLibraryUsageDescription + expo-image-picker plugin. Verified on WEB end-to-end: Choose photo -> upload -> preview renders (tokenized URL)."
+agent_communication:
+  - agent: "main"
+    message: "Test login warehouse@test.com/test123 (PRO). NEW feature: product photos. BACKEND: POST /api/upload with a small image (multipart 'file') returns {path}; GET /api/files/{path}?token=<jwt> returns the image bytes (200, image/*); missing token -> 401; a path whose owner segment is not in the caller's scope -> 403. FRONTEND (web): open /product/new, the photo section shows Take photo / Choose photo; 'Choose photo' opens a file chooser, after selecting an image the preview thumbnail renders and 'Remove photo' appears; fill a product name and Save -> product persists with image; the Catalog list shows the thumbnail for that product. Stocktake detail rows show a small product thumbnail when the product has an image. NOTE: 'Take photo' uses the device camera (native only) - on web just confirm no crash; do NOT fail for lack of a hardware camera. Main agent already curl-verified the backend and screenshot-verified the web upload+preview."

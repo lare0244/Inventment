@@ -1,4 +1,5 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, BackgroundTasks, Query, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, BackgroundTasks, Query, Request, UploadFile, File
+from fastapi.responses import Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
@@ -28,6 +29,51 @@ JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
+
+# ---------------- Object Storage (Emergent managed) ----------------
+STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
+STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
+STORAGE_APP = "inventment"
+_storage_key = None
+
+
+async def init_storage():
+    global _storage_key
+    if _storage_key:
+        return _storage_key
+    async with httpx.AsyncClient(timeout=30) as c:
+        r = await c.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_LLM_KEY})
+        r.raise_for_status()
+        _storage_key = r.json()["storage_key"]
+    return _storage_key
+
+
+async def storage_put(path: str, data: bytes, content_type: str):
+    global _storage_key
+    key = await init_storage()
+    async with httpx.AsyncClient(timeout=120) as c:
+        r = await c.put(f"{STORAGE_URL}/objects/{path}",
+                        headers={"X-Storage-Key": key, "Content-Type": content_type}, content=data)
+        if r.status_code == 503:
+            _storage_key = None
+            key = await init_storage()
+            r = await c.put(f"{STORAGE_URL}/objects/{path}",
+                            headers={"X-Storage-Key": key, "Content-Type": content_type}, content=data)
+        r.raise_for_status()
+        return r.json()
+
+
+async def storage_get(path: str):
+    global _storage_key
+    key = await init_storage()
+    async with httpx.AsyncClient(timeout=60) as c:
+        r = await c.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key})
+        if r.status_code == 503:
+            _storage_key = None
+            key = await init_storage()
+            r = await c.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key})
+        r.raise_for_status()
+        return r.content, r.headers.get("Content-Type", "application/octet-stream")
 
 # Social auth config
 EMERGENT_SESSION_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
@@ -1790,7 +1836,8 @@ async def create_stocktake(body: StockTakeCreate, user: dict = Depends(get_curre
         items.append({
             "product_id": p["id"], "name": p.get("name"),
             "sku": p.get("sku") or "", "barcode": p.get("barcode") or "",
-            "system_qty": sys_qty, "counted_qty": sys_qty,
+            "image": p.get("image") or "",
+            "system_qty": sys_qty, "counted_qty": sys_qty, "counted_done": False,
         })
     num = await _gen_stocktake_number(user)
     date = body.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -1830,6 +1877,7 @@ async def update_stocktake(sid: str, body: StockTakeUpdate, user: dict = Depends
         it = dict(it)
         if it["product_id"] in counts:
             it["counted_qty"] = max(0, counts[it["product_id"]])
+            it["counted_done"] = True
         items.append(it)
     upd = {"items": items, "updated_at": now_iso()}
     if body.date:
@@ -1884,6 +1932,64 @@ async def complete_stocktake(sid: str, user: dict = Depends(get_current_user)):
 async def delete_stocktake(sid: str, user: dict = Depends(get_current_user)):
     await db.stocktakes.delete_one({"id": sid, "owner_id": {"$in": user["_scope"]}})
     return {"ok": True}
+
+
+# ---------------- File upload / serving (product photos) ----------------
+_IMG_EXT = {"jpg", "jpeg", "png", "webp", "heic", "heif", "gif"}
+
+
+@api_router.post("/upload")
+async def upload_file(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="file_too_large")
+    ext = (file.filename or "photo.jpg").rsplit(".", 1)[-1].lower()
+    if ext not in _IMG_EXT:
+        ext = "jpg"
+    path = f"{STORAGE_APP}/uploads/{user['id']}/{uuid.uuid4()}.{ext}"
+    try:
+        await storage_put(path, data, file.content_type or "image/jpeg")
+    except httpx.HTTPStatusError as e:
+        code = e.response.status_code if e.response is not None else 0
+        if code == 402:
+            raise HTTPException(status_code=402, detail="storage_quota")
+        raise HTTPException(status_code=502, detail="upload_failed")
+    except Exception:
+        raise HTTPException(status_code=502, detail="upload_failed")
+    return {"path": path}
+
+
+@api_router.get("/files/{path:path}")
+async def get_file(path: str, request: Request, token: Optional[str] = None):
+    tok = token
+    if not tok:
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            tok = auth[7:]
+    if not tok:
+        raise HTTPException(status_code=401, detail="auth_required")
+    try:
+        payload = jwt.decode(tok, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        uid = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="bad_token")
+    user = await db.users.find_one({"id": uid})
+    if not user:
+        raise HTTPException(status_code=401, detail="bad_token")
+    cid = user.get("company_id")
+    if cid:
+        scope = [m["id"] for m in await db.users.find({"company_id": cid}).to_list(100)] or [uid]
+    else:
+        scope = [uid]
+    parts = path.split("/")
+    owner_seg = parts[-2] if len(parts) >= 2 else None
+    if owner_seg and owner_seg not in scope:
+        raise HTTPException(status_code=403, detail="forbidden")
+    try:
+        content, ctype = await storage_get(path)
+    except Exception:
+        raise HTTPException(status_code=404, detail="not_found")
+    return Response(content=content, media_type=ctype, headers={"Cache-Control": "public, max-age=86400"})
 
 
 

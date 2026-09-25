@@ -10,6 +10,7 @@ import { useAuth } from "@/src/auth";
 import { useColors, useT } from "@/src/appsettings";
 import { F, S, R, Palette } from "@/src/theme";
 import { Card, Btn } from "@/src/components/ui";
+import { ProductImage } from "@/src/components/ProductImage";
 import { buildStocktakePdf } from "@/src/utils/stocktakePdf";
 
 type SortKey = "name" | "qty" | "article" | "ean";
@@ -31,6 +32,7 @@ export default function StocktakeDetail() {
   const [scanOpen, setScanOpen] = useState(false);
   const [countItem, setCountItem] = useState<{ pid: string; name: string; system: number } | null>(null);
   const [countVal, setCountVal] = useState("");
+  const [zoomImg, setZoomImg] = useState<string | null>(null);
   const scanLock = useRef(false);
 
   const load = useCallback(async () => {
@@ -60,6 +62,7 @@ export default function StocktakeDetail() {
   async function saveOne(pid: string, raw: string) {
     const n = Math.max(0, parseInt(raw, 10) || 0);
     setCounts((c) => ({ ...c, [pid]: String(n) }));
+    setSt((prev: any) => prev ? { ...prev, items: (prev.items || []).map((it: any) => it.product_id === pid ? { ...it, counted_qty: n, counted_done: true } : it) } : prev);
     try { await api(`/stocktakes/${id}`, { method: "PUT", body: { items: [{ product_id: pid, counted_qty: n }] } }); } catch {}
   }
 
@@ -109,10 +112,29 @@ export default function StocktakeDetail() {
     });
   }
 
+  async function exportVariance() {
+    if (!st) return;
+    const varItems = (st.items || []).filter((it: any) => Number(it.counted_qty) !== Number(it.system_qty));
+    if (varItems.length === 0) {
+      const msg = t("noVariance");
+      if (Platform.OS === "web" && typeof window !== "undefined") window.alert(msg); else Alert.alert(msg, "");
+      return;
+    }
+    await buildStocktakePdf(st, user?.company, {
+      title: t("stocktaking"), number: t("orderNumber"), warehouse: t("warehouse"), date: t("stocktakeDate"),
+      status: t("status"), productName: t("productName"), articleNo: t("articleNo"), ean: t("ean"),
+      system: t("systemQty"), counted: t("countedQty"), diff: t("diff"),
+    }, { variance: true, titleOverride: t("varianceReport") });
+  }
+
   const sortOpts: { key: SortKey; label: string }[] = [
     { key: "name", label: t("productName") }, { key: "qty", label: t("sortByQty") },
     { key: "article", label: t("articleNo") }, { key: "ean", label: t("ean") },
   ];
+
+  const total = (st?.items || []).length;
+  const doneCount = (st?.items || []).filter((i: any) => i.counted_done).length;
+  const pct = total ? Math.round((doneCount / total) * 100) : 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.surface }}>
@@ -143,6 +165,15 @@ export default function StocktakeDetail() {
             <Text style={styles.metaSub}>{t("stocktakeDate")}: {st.date}</Text>
           </Card>
 
+          <Card style={{ marginBottom: S.md }}>
+            <View style={styles.progHead}>
+              <Text style={styles.progLbl}>{t("progressLabel")}</Text>
+              <Text style={styles.progVal}>{doneCount} / {total}</Text>
+            </View>
+            <View style={styles.progTrack}><View style={[styles.progFill, { width: `${pct}%` }]} /></View>
+            <Btn testID="std-variance" title={t("varianceReport")} icon="file-alert-outline" variant="secondary" onPress={exportVariance} style={{ marginTop: S.md }} />
+          </Card>
+
           {open && (
             <Btn testID="std-scan" title={t("scanToCount")} icon="barcode-scan" variant="secondary" onPress={openScanner} style={{ marginBottom: S.md }} />
           )}
@@ -164,6 +195,15 @@ export default function StocktakeDetail() {
               const d = (parseInt(val, 10) || 0) - Number(it.system_qty);
               return (
                 <Card key={it.product_id} style={styles.itemRow}>
+                  {it.image ? (
+                    <Pressable testID={`std-thumb-${it.product_id}`} onPress={() => setZoomImg(it.image)}>
+                      <ProductImage path={it.image} style={styles.thumb} />
+                    </Pressable>
+                  ) : (
+                    <View style={[styles.thumb, styles.thumbPh]}>
+                      <MaterialCommunityIcons name="cube-outline" size={20} color={C.onSurfaceTertiary} />
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.itemName} numberOfLines={1}>{it.name}</Text>
                     <Text style={styles.itemMeta} numberOfLines={1}>
@@ -173,7 +213,7 @@ export default function StocktakeDetail() {
                   </View>
                   <TextInput testID={`std-count-${it.product_id}`} value={val} editable={open}
                     onChangeText={(x) => setCounts((c) => ({ ...c, [it.product_id]: x }))}
-                    onEndEditing={(e) => saveOne(it.product_id, e.nativeEvent.text)}
+                    onBlur={() => saveOne(it.product_id, counts[it.product_id] ?? String(it.counted_qty))}
                     keyboardType="number-pad" placeholderTextColor={C.onSurfaceTertiary}
                     style={[styles.countInput, !open && { opacity: 0.6 }]} />
                 </Card>
@@ -219,6 +259,12 @@ export default function StocktakeDetail() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={!!zoomImg} transparent animationType="fade" onRequestClose={() => setZoomImg(null)}>
+        <Pressable testID="std-zoom-close" onPress={() => setZoomImg(null)} style={styles.zoomBg}>
+          {zoomImg && <ProductImage path={zoomImg} style={styles.zoomImg} contentFit="contain" />}
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -236,6 +282,15 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   sortChipActive: { backgroundColor: C.brand, borderColor: C.brand },
   sortTxt: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 12 },
   itemRow: { flexDirection: "row", alignItems: "center", gap: S.md, marginBottom: S.sm, paddingVertical: S.md },
+  thumb: { width: 44, height: 44, borderRadius: R.sm },
+  thumbPh: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" },
+  progHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: S.sm },
+  progLbl: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 12, letterSpacing: 0.5, textTransform: "uppercase" },
+  progVal: { color: C.onSurface, fontFamily: F.textBold, fontSize: 14 },
+  progTrack: { height: 8, borderRadius: 4, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, overflow: "hidden" },
+  progFill: { height: "100%", backgroundColor: C.brand },
+  zoomBg: { flex: 1, backgroundColor: "rgba(0,0,0,0.9)", alignItems: "center", justifyContent: "center", padding: S.lg },
+  zoomImg: { width: "100%", height: "80%" },
   itemName: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
   itemMeta: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 3 },
   itemSys: { color: C.onSurfaceSecondary, fontFamily: F.text, fontSize: 12, marginTop: 3 },

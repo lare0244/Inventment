@@ -14,6 +14,7 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Scan product barcodes to manage stock",
+        "NSPhotoLibraryUsageDescription": "Add product photos to recognise items",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -35,6 +36,13 @@
     "plugins": [
       "expo-router",
       "expo-camera",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Add product photos to recognise items",
+          "cameraPermission": "Take product photos to recognise items"
+        }
+      ],
       "expo-apple-authentication",
       "expo-dev-client",
       [
