@@ -1,0 +1,35 @@
+{
+  "summary": "Full regression of the new Stocktakes (Inventering) feature. Backend: 11/11 pytest tests passed (create/list/get/update/complete/delete, warehouse validation, negative clamping, per-warehouse stock update after complete, movements recorded, double-complete guard, PUT-after-complete guard, cross-user scoping, auth). Frontend: mobile viewport (390x844) walked through Dashboard 'Stocktaking' button -> stocktakes list -> New stocktake modal (warehouse dropdown + date + Create) -> detail screen with 4 sort chips, editable count inputs (blur persists via PUT), std-scan opens camera modal without crash, std-pdf and st-pdf-<id> clicked without crashing the app, std-finish button present. No React Native red screen, no console errors. Product stock was mutated by complete() test but then restored via PUT to preserve original quantities.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_stocktakes.py",
+    "/app/test_reports/pytest/pytest_stocktakes.xml"
+  ],
+  "action_items": [
+    "None - feature is functioning end-to-end as specified. Optional: on web, expo-print's printToFileAsync throws (unsupported); the current code awaits it inside try/catch chains at the caller (buttons wrapped in try/catch) so no crash occurs, but you may want to show a user-friendly 'PDF export not supported on web' toast."
+  ],
+  "critical_code_review_comments": [
+    "server.py stocktake number generator uses _so_counter_key (shared with sales orders) with a separate collection st_counters + period key, which is fine and produces unique INV<yymm><seq> numbers.",
+    "PUT /api/stocktakes/{id} correctly clamps negative counted_qty to 0 and preserves system_qty/name/sku/barcode on existing items.",
+    "Complete endpoint properly recomputes total = sum(stock.values()) and inserts 'adjust' movements only when prev != counted; snapshot recorded.",
+    "Scoping via {'owner_id': {'$in': user['_scope']}} is consistent across all 5 endpoints -> unrelated user correctly gets 404.",
+    "Frontend /stocktakes/[id].tsx uses expo-camera (correct, expo-barcode-scanner is deprecated) - GOOD.",
+    "All interactive elements have proper testIDs and use Pressable/TouchableOpacity/TextInput RN components.",
+    "server.py is ~1925 lines - consider splitting into feature routers for maintainability (not blocking)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_stocktakes.py (new)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% of testable web flows (barcode hardware scan not testable on web per instructions)"},
+  "seed_data_creation": "Test warehouse TEST_ST_WH_* and 3 TEST_ST_P_* products created via fixtures and deleted at teardown. UI test additionally created 1 stocktake for warehouse@test.com (id 584595ad-c931-46d8-b481-22608e4f90c7, date 2026-01-22) which was NOT completed nor deleted - it is left in 'open' status and does not mutate any product stock.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Stocktakes feature fully verified (backend + web frontend). Backend tests live at /app/backend/tests/test_stocktakes.py - reuse as regression. Scan-to-count (std-scan) camera flow only opens the modal on web; actual barcode identification requires a native build. One leftover 'open' stocktake exists under warehouse@test.com from the UI walk-through; safe to leave (does not affect product stock).",
+  "rca_of_issue": "N/A - no defects found."
+}

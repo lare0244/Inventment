@@ -47,7 +47,7 @@ const en: Dict = {
   draftEmailSupplier: "Draft Email to Supplier", deliverTo: "DELIVER TO", poEmail: "Purchase Order Email",
   to: "To", subject: "Subject", noSupplierEmail: "(no supplier email)",
   copyEmail: "Copy Email Text", copied: "Copied ✓", markAsSent: "Mark as Sent", close: "Close",
-  items: "item(s)", statusSent: "SENT", statusDraft: "DRAFT",
+  items: "item(s)", statusSent: "SENT", statusDraft: "DRAFT", statusDelivered: "DELIVERED", statusCancelled: "CANCELLED", markDelivered: "Mark as delivered", cancelOrder: "Cancel order", editItems: "Edit items", selectWarehouse: "Select destination warehouse", deliveredTo: "Delivered to", confirmDeliver: "Mark this order as delivered? All items will be added to the selected warehouse stock.", confirmCancel: "Cancel this order? This can't be undone.", orderTotal: "Order total", itemsLabel: "Items",
   // settings
   currency: "Currency", appearance: "Appearance", dark: "Dark", light: "Light",
   language: "Language", english: "English", swedish: "Swedish",
@@ -136,6 +136,15 @@ const en: Dict = {
   verifyingPayment: "Verifying payment…", done: "Done", proRequired: "PRO required",
   limitFreeHint: "You've reached your Free plan limit. Upgrade to PRO to add more.",
   upgradeViaStore: "Upgrade via App Store", storeUpgradeHint: "PRO will be available as an in-app purchase once the app is published to the App Store / Play Store.",
+  // stocktaking (inventering)
+  stocktaking: "Stocktaking", newStocktake: "New stocktake", noStocktakes: "No stocktakes yet",
+  createStocktake: "Start stocktake", chooseWarehouse: "Choose warehouse", stocktakeDate: "Date",
+  systemQty: "System", countedQty: "Counted", countedAmount: "Counted amount",
+  finishStocktake: "Finish stocktake", confirmFinishStocktake: "Update all products to the counted quantities? This can't be undone.",
+  stocktakeDone: "Stocktake completed", stOpen: "Open", stCompleted: "Completed",
+  sortByQty: "Quantity", sortByArticle: "Article no.", sortByEan: "EAN", articleNo: "Article no.", ean: "EAN",
+  scanToCount: "Scan to count", notInStocktake: "That product is not in this stocktake.",
+  noItemsWarehouse: "No products in this warehouse.", itemsCounted: "items", diff: "Diff",
 };
 
 const sv: Dict = {
@@ -165,7 +174,7 @@ const sv: Dict = {
   draftEmailSupplier: "Skapa mail till leverantör", deliverTo: "LEVERERA TILL", poEmail: "Inköpsordermail",
   to: "Till", subject: "Ämne", noSupplierEmail: "(ingen leverantörsmail)",
   copyEmail: "Kopiera mailtext", copied: "Kopierat ✓", markAsSent: "Markera som skickad", close: "Stäng",
-  items: "artikel(ar)", statusSent: "SKICKAD", statusDraft: "UTKAST",
+  items: "artikel(ar)", statusSent: "SKICKAD", statusDraft: "UTKAST", statusDelivered: "LEVERERAD", statusCancelled: "AVBRUTEN", markDelivered: "Markera som levererad", cancelOrder: "Avbryt order", editItems: "Redigera artiklar", selectWarehouse: "Välj mottagande lager", deliveredTo: "Levererad till", confirmDeliver: "Markera denna order som levererad? Alla artiklar läggs till i valt lager.", confirmCancel: "Avbryta denna order? Detta kan inte ångras.", orderTotal: "Ordertotal", itemsLabel: "Artiklar",
   currency: "Valuta", appearance: "Utseende", dark: "Mörkt", light: "Ljust",
   language: "Språk", english: "Engelska", swedish: "Svenska",
   warehouses: "Lager", categories: "Kategorier", suppliers: "Leverantörer", signOut: "Logga ut",
@@ -250,6 +259,15 @@ const sv: Dict = {
   verifyingPayment: "Verifierar betalning…", done: "Klar", proRequired: "PRO krävs",
   limitFreeHint: "Du har nått gränsen för Gratisplanen. Uppgradera till PRO för att lägga till fler.",
   upgradeViaStore: "Uppgradera via App Store", storeUpgradeHint: "PRO blir tillgängligt som ett köp i appen när appen publicerats till App Store / Play Store.",
+  // stocktaking (inventering)
+  stocktaking: "Inventering", newStocktake: "Ny inventering", noStocktakes: "Inga inventeringar än",
+  createStocktake: "Starta inventering", chooseWarehouse: "Välj lagerplats", stocktakeDate: "Datum",
+  systemQty: "System", countedQty: "Räknat", countedAmount: "Inräknat antal",
+  finishStocktake: "Avsluta inventering", confirmFinishStocktake: "Uppdatera alla artiklar enligt inräknat antal? Detta kan inte ångras.",
+  stocktakeDone: "Inventering avslutad", stOpen: "Öppen", stCompleted: "Avslutad",
+  sortByQty: "Antal", sortByArticle: "Artikelnr", sortByEan: "EAN", articleNo: "Artikelnr", ean: "EAN",
+  scanToCount: "Skanna för att räkna", notInStocktake: "Den artikeln finns inte i denna inventering.",
+  noItemsWarehouse: "Inga artiklar på denna lagerplats.", itemsCounted: "artiklar", diff: "Diff",
 };
 
 const da: Dict = {
@@ -279,7 +297,7 @@ const da: Dict = {
   draftEmailSupplier: "Opret mail til leverandør", deliverTo: "LEVERES TIL", poEmail: "Indkøbsordre-mail",
   to: "Til", subject: "Emne", noSupplierEmail: "(ingen leverandørmail)",
   copyEmail: "Kopiér mailtekst", copied: "Kopieret ✓", markAsSent: "Markér som sendt", close: "Luk",
-  items: "vare(r)", statusSent: "SENDT", statusDraft: "KLADDE",
+  items: "vare(r)", statusSent: "SENDT", statusDraft: "KLADDE", statusDelivered: "LEVERET", statusCancelled: "ANNULLERET", markDelivered: "Markér som leveret", cancelOrder: "Annullér ordre", editItems: "Redigér varer", selectWarehouse: "Vælg modtagende lager", deliveredTo: "Leveret til", confirmDeliver: "Markér denne ordre som leveret? Alle varer lægges til det valgte lager.", confirmCancel: "Annullér denne ordre? Dette kan ikke fortrydes.", orderTotal: "Ordretotal", itemsLabel: "Varer",
   currency: "Valuta", appearance: "Udseende", dark: "Mørk", light: "Lys",
   language: "Sprog", english: "Engelsk", swedish: "Svensk",
   warehouses: "Lagre", categories: "Kategorier", suppliers: "Leverandører", signOut: "Log ud",
@@ -335,6 +353,15 @@ const da: Dict = {
   verifyingPayment: "Bekræfter betaling…", done: "Færdig", proRequired: "PRO kræves",
   limitFreeHint: "Du har nået din gratis grænse. Opgradér til PRO for at tilføje flere.",
   upgradeViaStore: "Opgradér via App Store", storeUpgradeHint: "PRO bliver tilgængelig som et køb i appen, når appen udgives i App Store / Play Store.",
+  // stocktaking (inventering)
+  stocktaking: "Optælling", newStocktake: "Ny optælling", noStocktakes: "Ingen optælling endnu",
+  createStocktake: "Start optælling", chooseWarehouse: "Vælg lager", stocktakeDate: "Dato",
+  systemQty: "System", countedQty: "Talt", countedAmount: "Talt antal",
+  finishStocktake: "Afslut optælling", confirmFinishStocktake: "Opdatér alle varer til de talte antal? Dette kan ikke fortrydes.",
+  stocktakeDone: "Optælling afsluttet", stOpen: "Åben", stCompleted: "Afsluttet",
+  sortByQty: "Antal", sortByArticle: "Varenr.", sortByEan: "EAN", articleNo: "Varenr.", ean: "EAN",
+  scanToCount: "Scan for at tælle", notInStocktake: "Den vare er ikke i denne optælling.",
+  noItemsWarehouse: "Ingen varer på dette lager.", itemsCounted: "varer", diff: "Diff.",
 };
 
 const nl: Dict = {
@@ -364,7 +391,7 @@ const nl: Dict = {
   draftEmailSupplier: "E-mail aan leverancier opstellen", deliverTo: "LEVEREN AAN", poEmail: "Inkooporder-e-mail",
   to: "Aan", subject: "Onderwerp", noSupplierEmail: "(geen leverancier-e-mail)",
   copyEmail: "E-mailtekst kopiëren", copied: "Gekopieerd ✓", markAsSent: "Markeren als verzonden", close: "Sluiten",
-  items: "artikel(en)", statusSent: "VERZONDEN", statusDraft: "CONCEPT",
+  items: "artikel(en)", statusSent: "VERZONDEN", statusDraft: "CONCEPT", statusDelivered: "GELEVERD", statusCancelled: "GEANNULEERD", markDelivered: "Markeer als geleverd", cancelOrder: "Bestelling annuleren", editItems: "Artikelen bewerken", selectWarehouse: "Kies ontvangend magazijn", deliveredTo: "Geleverd aan", confirmDeliver: "Deze bestelling als geleverd markeren? Alle artikelen worden aan de gekozen magazijnvoorraad toegevoegd.", confirmCancel: "Deze bestelling annuleren? Dit kan niet ongedaan worden gemaakt.", orderTotal: "Besteltotaal", itemsLabel: "Artikelen",
   currency: "Valuta", appearance: "Weergave", dark: "Donker", light: "Licht",
   language: "Taal", english: "Engels", swedish: "Zweeds",
   warehouses: "Magazijnen", categories: "Categorieën", suppliers: "Leveranciers", signOut: "Uitloggen",
@@ -420,6 +447,15 @@ const nl: Dict = {
   verifyingPayment: "Betaling verifiëren…", done: "Klaar", proRequired: "PRO vereist",
   limitFreeHint: "Je hebt je gratis limiet bereikt. Upgrade naar PRO om er meer toe te voegen.",
   upgradeViaStore: "Upgraden via App Store", storeUpgradeHint: "PRO wordt beschikbaar als in-app-aankoop zodra de app in de App Store / Play Store is gepubliceerd.",
+  // stocktaking (inventering)
+  stocktaking: "Voorraadtelling", newStocktake: "Nieuwe telling", noStocktakes: "Nog geen tellingen",
+  createStocktake: "Telling starten", chooseWarehouse: "Kies magazijn", stocktakeDate: "Datum",
+  systemQty: "Systeem", countedQty: "Geteld", countedAmount: "Geteld aantal",
+  finishStocktake: "Telling afronden", confirmFinishStocktake: "Alle producten bijwerken naar de getelde aantallen? Dit kan niet ongedaan worden gemaakt.",
+  stocktakeDone: "Telling voltooid", stOpen: "Open", stCompleted: "Voltooid",
+  sortByQty: "Aantal", sortByArticle: "Artikelnr.", sortByEan: "EAN", articleNo: "Artikelnr.", ean: "EAN",
+  scanToCount: "Scannen om te tellen", notInStocktake: "Dat product zit niet in deze telling.",
+  noItemsWarehouse: "Geen producten in dit magazijn.", itemsCounted: "artikelen", diff: "Versch.",
 };
 
 const fr: Dict = {
@@ -449,7 +485,7 @@ const fr: Dict = {
   draftEmailSupplier: "Rédiger un e-mail au fournisseur", deliverTo: "LIVRER À", poEmail: "E-mail de bon de commande",
   to: "À", subject: "Objet", noSupplierEmail: "(pas d'e-mail fournisseur)",
   copyEmail: "Copier le texte de l'e-mail", copied: "Copié ✓", markAsSent: "Marquer comme envoyé", close: "Fermer",
-  items: "article(s)", statusSent: "ENVOYÉ", statusDraft: "BROUILLON",
+  items: "article(s)", statusSent: "ENVOYÉ", statusDraft: "BROUILLON", statusDelivered: "LIVRÉE", statusCancelled: "ANNULÉE", markDelivered: "Marquer comme livrée", cancelOrder: "Annuler la commande", editItems: "Modifier les articles", selectWarehouse: "Choisir l'entrepôt de destination", deliveredTo: "Livrée à", confirmDeliver: "Marquer cette commande comme livrée ? Tous les articles seront ajoutés au stock de l'entrepôt choisi.", confirmCancel: "Annuler cette commande ? Cette action est irréversible.", orderTotal: "Total commande", itemsLabel: "Articles",
   currency: "Devise", appearance: "Apparence", dark: "Sombre", light: "Clair",
   language: "Langue", english: "Anglais", swedish: "Suédois",
   warehouses: "Entrepôts", categories: "Catégories", suppliers: "Fournisseurs", signOut: "Se déconnecter",
@@ -505,6 +541,15 @@ const fr: Dict = {
   verifyingPayment: "Vérification du paiement…", done: "Terminé", proRequired: "PRO requis",
   limitFreeHint: "Vous avez atteint la limite du forfait gratuit. Passez à PRO pour en ajouter plus.",
   upgradeViaStore: "Mettre à niveau via l'App Store", storeUpgradeHint: "PRO sera disponible en achat intégré une fois l'application publiée sur l'App Store / Play Store.",
+  // stocktaking (inventering)
+  stocktaking: "Inventaire", newStocktake: "Nouvel inventaire", noStocktakes: "Aucun inventaire",
+  createStocktake: "Démarrer l'inventaire", chooseWarehouse: "Choisir l'entrepôt", stocktakeDate: "Date",
+  systemQty: "Système", countedQty: "Compté", countedAmount: "Quantité comptée",
+  finishStocktake: "Terminer l'inventaire", confirmFinishStocktake: "Mettre à jour tous les produits selon les quantités comptées ? Action irréversible.",
+  stocktakeDone: "Inventaire terminé", stOpen: "Ouvert", stCompleted: "Terminé",
+  sortByQty: "Quantité", sortByArticle: "Réf. article", sortByEan: "EAN", articleNo: "Réf. article", ean: "EAN",
+  scanToCount: "Scanner pour compter", notInStocktake: "Ce produit n'est pas dans cet inventaire.",
+  noItemsWarehouse: "Aucun produit dans cet entrepôt.", itemsCounted: "articles", diff: "Écart",
 };
 
 const de: Dict = {
@@ -534,7 +579,7 @@ const de: Dict = {
   draftEmailSupplier: "E-Mail an Lieferant erstellen", deliverTo: "LIEFERN AN", poEmail: "Bestell-E-Mail",
   to: "An", subject: "Betreff", noSupplierEmail: "(keine Lieferanten-E-Mail)",
   copyEmail: "E-Mail-Text kopieren", copied: "Kopiert ✓", markAsSent: "Als gesendet markieren", close: "Schließen",
-  items: "Artikel", statusSent: "GESENDET", statusDraft: "ENTWURF",
+  items: "Artikel", statusSent: "GESENDET", statusDraft: "ENTWURF", statusDelivered: "GELIEFERT", statusCancelled: "STORNIERT", markDelivered: "Als geliefert markieren", cancelOrder: "Bestellung stornieren", editItems: "Artikel bearbeiten", selectWarehouse: "Ziel-Lager wählen", deliveredTo: "Geliefert an", confirmDeliver: "Diese Bestellung als geliefert markieren? Alle Artikel werden dem gewählten Lagerbestand hinzugefügt.", confirmCancel: "Diese Bestellung stornieren? Das kann nicht rückgängig gemacht werden.", orderTotal: "Bestellsumme", itemsLabel: "Artikel",
   currency: "Währung", appearance: "Darstellung", dark: "Dunkel", light: "Hell",
   language: "Sprache", english: "Englisch", swedish: "Schwedisch",
   warehouses: "Lager", categories: "Kategorien", suppliers: "Lieferanten", signOut: "Abmelden",
@@ -590,6 +635,15 @@ const de: Dict = {
   verifyingPayment: "Zahlung wird überprüft…", done: "Fertig", proRequired: "PRO erforderlich",
   limitFreeHint: "Du hast dein Gratis-Limit erreicht. Upgrade auf PRO, um mehr hinzuzufügen.",
   upgradeViaStore: "Über App Store upgraden", storeUpgradeHint: "PRO wird als In-App-Kauf verfügbar sein, sobald die App im App Store / Play Store veröffentlicht ist.",
+  // stocktaking (inventering)
+  stocktaking: "Inventur", newStocktake: "Neue Inventur", noStocktakes: "Noch keine Inventuren",
+  createStocktake: "Inventur starten", chooseWarehouse: "Lager wählen", stocktakeDate: "Datum",
+  systemQty: "System", countedQty: "Gezählt", countedAmount: "Gezählte Menge",
+  finishStocktake: "Inventur abschließen", confirmFinishStocktake: "Alle Produkte auf die gezählten Mengen aktualisieren? Kann nicht rückgängig gemacht werden.",
+  stocktakeDone: "Inventur abgeschlossen", stOpen: "Offen", stCompleted: "Abgeschlossen",
+  sortByQty: "Menge", sortByArticle: "Artikelnr.", sortByEan: "EAN", articleNo: "Artikelnr.", ean: "EAN",
+  scanToCount: "Zum Zählen scannen", notInStocktake: "Dieses Produkt ist nicht in dieser Inventur.",
+  noItemsWarehouse: "Keine Produkte in diesem Lager.", itemsCounted: "Artikel", diff: "Diff.",
 };
 
 const es: Dict = {
@@ -619,7 +673,7 @@ const es: Dict = {
   draftEmailSupplier: "Redactar correo al proveedor", deliverTo: "ENTREGAR A", poEmail: "Correo de orden de compra",
   to: "Para", subject: "Asunto", noSupplierEmail: "(sin correo del proveedor)",
   copyEmail: "Copiar texto del correo", copied: "Copiado ✓", markAsSent: "Marcar como enviado", close: "Cerrar",
-  items: "artículo(s)", statusSent: "ENVIADO", statusDraft: "BORRADOR",
+  items: "artículo(s)", statusSent: "ENVIADO", statusDraft: "BORRADOR", statusDelivered: "ENTREGADO", statusCancelled: "CANCELADO", markDelivered: "Marcar como entregado", cancelOrder: "Cancelar pedido", editItems: "Editar artículos", selectWarehouse: "Elegir almacén de destino", deliveredTo: "Entregado a", confirmDeliver: "¿Marcar este pedido como entregado? Todos los artículos se añadirán al stock del almacén elegido.", confirmCancel: "¿Cancelar este pedido? No se puede deshacer.", orderTotal: "Total del pedido", itemsLabel: "Artículos",
   currency: "Moneda", appearance: "Apariencia", dark: "Oscuro", light: "Claro",
   language: "Idioma", english: "Inglés", swedish: "Sueco",
   warehouses: "Almacenes", categories: "Categorías", suppliers: "Proveedores", signOut: "Cerrar sesión",
@@ -675,6 +729,15 @@ const es: Dict = {
   verifyingPayment: "Verificando el pago…", done: "Listo", proRequired: "Se requiere PRO",
   limitFreeHint: "Has alcanzado el límite del plan gratuito. Pasa a PRO para añadir más.",
   upgradeViaStore: "Mejorar vía App Store", storeUpgradeHint: "PRO estará disponible como compra dentro de la app una vez publicada en App Store / Play Store.",
+  // stocktaking (inventering)
+  stocktaking: "Inventario", newStocktake: "Nuevo inventario", noStocktakes: "Aún no hay inventarios",
+  createStocktake: "Iniciar inventario", chooseWarehouse: "Elegir almacén", stocktakeDate: "Fecha",
+  systemQty: "Sistema", countedQty: "Contado", countedAmount: "Cantidad contada",
+  finishStocktake: "Finalizar inventario", confirmFinishStocktake: "¿Actualizar todos los productos a las cantidades contadas? No se puede deshacer.",
+  stocktakeDone: "Inventario finalizado", stOpen: "Abierto", stCompleted: "Finalizado",
+  sortByQty: "Cantidad", sortByArticle: "N.º de artículo", sortByEan: "EAN", articleNo: "N.º de artículo", ean: "EAN",
+  scanToCount: "Escanear para contar", notInStocktake: "Ese producto no está en este inventario.",
+  noItemsWarehouse: "No hay productos en este almacén.", itemsCounted: "artículos", diff: "Dif.",
 };
 
 const it: Dict = {
@@ -704,7 +767,7 @@ const it: Dict = {
   draftEmailSupplier: "Scrivi e-mail al fornitore", deliverTo: "CONSEGNA A", poEmail: "E-mail ordine d'acquisto",
   to: "A", subject: "Oggetto", noSupplierEmail: "(nessuna e-mail fornitore)",
   copyEmail: "Copia testo e-mail", copied: "Copiato ✓", markAsSent: "Segna come inviato", close: "Chiudi",
-  items: "articolo/i", statusSent: "INVIATO", statusDraft: "BOZZA",
+  items: "articolo/i", statusSent: "INVIATO", statusDraft: "BOZZA", statusDelivered: "CONSEGNATO", statusCancelled: "ANNULLATO", markDelivered: "Segna come consegnato", cancelOrder: "Annulla ordine", editItems: "Modifica articoli", selectWarehouse: "Scegli magazzino di destinazione", deliveredTo: "Consegnato a", confirmDeliver: "Segnare questo ordine come consegnato? Tutti gli articoli verranno aggiunti alla giacenza del magazzino scelto.", confirmCancel: "Annullare questo ordine? Operazione irreversibile.", orderTotal: "Totale ordine", itemsLabel: "Articoli",
   currency: "Valuta", appearance: "Aspetto", dark: "Scuro", light: "Chiaro",
   language: "Lingua", english: "Inglese", swedish: "Svedese",
   warehouses: "Magazzini", categories: "Categorie", suppliers: "Fornitori", signOut: "Esci",
@@ -760,6 +823,15 @@ const it: Dict = {
   verifyingPayment: "Verifica del pagamento…", done: "Fatto", proRequired: "Richiesto PRO",
   limitFreeHint: "Hai raggiunto il limite del piano gratuito. Passa a PRO per aggiungerne altri.",
   upgradeViaStore: "Aggiorna tramite App Store", storeUpgradeHint: "PRO sarà disponibile come acquisto in-app una volta pubblicata l'app su App Store / Play Store.",
+  // stocktaking (inventering)
+  stocktaking: "Inventario", newStocktake: "Nuovo inventario", noStocktakes: "Nessun inventario",
+  createStocktake: "Avvia inventario", chooseWarehouse: "Scegli magazzino", stocktakeDate: "Data",
+  systemQty: "Sistema", countedQty: "Contato", countedAmount: "Quantità contata",
+  finishStocktake: "Termina inventario", confirmFinishStocktake: "Aggiornare tutti i prodotti alle quantità contate? Operazione irreversibile.",
+  stocktakeDone: "Inventario completato", stOpen: "Aperto", stCompleted: "Completato",
+  sortByQty: "Quantità", sortByArticle: "Cod. articolo", sortByEan: "EAN", articleNo: "Cod. articolo", ean: "EAN",
+  scanToCount: "Scansiona per contare", notInStocktake: "Quel prodotto non è in questo inventario.",
+  noItemsWarehouse: "Nessun prodotto in questo magazzino.", itemsCounted: "articoli", diff: "Diff.",
 };
 
 const pl: Dict = {
@@ -789,7 +861,7 @@ const pl: Dict = {
   draftEmailSupplier: "Utwórz e-mail do dostawcy", deliverTo: "DOSTAWA DO", poEmail: "E-mail zamówienia zakupu",
   to: "Do", subject: "Temat", noSupplierEmail: "(brak e-maila dostawcy)",
   copyEmail: "Kopiuj treść e-maila", copied: "Skopiowano ✓", markAsSent: "Oznacz jako wysłane", close: "Zamknij",
-  items: "pozycja(e)", statusSent: "WYSŁANE", statusDraft: "SZKIC",
+  items: "pozycja(e)", statusSent: "WYSŁANE", statusDraft: "SZKIC", statusDelivered: "DOSTARCZONE", statusCancelled: "ANULOWANE", markDelivered: "Oznacz jako dostarczone", cancelOrder: "Anuluj zamówienie", editItems: "Edytuj pozycje", selectWarehouse: "Wybierz magazyn docelowy", deliveredTo: "Dostarczono do", confirmDeliver: "Oznaczyć to zamówienie jako dostarczone? Wszystkie pozycje zostaną dodane do stanu wybranego magazynu.", confirmCancel: "Anulować to zamówienie? Tej operacji nie można cofnąć.", orderTotal: "Suma zamówienia", itemsLabel: "Pozycje",
   currency: "Waluta", appearance: "Wygląd", dark: "Ciemny", light: "Jasny",
   language: "Język", english: "Angielski", swedish: "Szwedzki",
   warehouses: "Magazyny", categories: "Kategorie", suppliers: "Dostawcy", signOut: "Wyloguj",
@@ -845,6 +917,15 @@ const pl: Dict = {
   verifyingPayment: "Weryfikacja płatności…", done: "Gotowe", proRequired: "Wymagane PRO",
   limitFreeHint: "Osiągnięto limit planu darmowego. Przejdź na PRO, aby dodać więcej.",
   upgradeViaStore: "Ulepsz przez App Store", storeUpgradeHint: "PRO będzie dostępne jako zakup w aplikacji po opublikowaniu jej w App Store / Play Store.",
+  // stocktaking (inventering)
+  stocktaking: "Inwentaryzacja", newStocktake: "Nowa inwentaryzacja", noStocktakes: "Brak inwentaryzacji",
+  createStocktake: "Rozpocznij inwentaryzację", chooseWarehouse: "Wybierz magazyn", stocktakeDate: "Data",
+  systemQty: "System", countedQty: "Policzono", countedAmount: "Policzona ilość",
+  finishStocktake: "Zakończ inwentaryzację", confirmFinishStocktake: "Zaktualizować wszystkie produkty do policzonych ilości? Nie można cofnąć.",
+  stocktakeDone: "Inwentaryzacja zakończona", stOpen: "Otwarta", stCompleted: "Zakończona",
+  sortByQty: "Ilość", sortByArticle: "Nr artykułu", sortByEan: "EAN", articleNo: "Nr artykułu", ean: "EAN",
+  scanToCount: "Skanuj, aby policzyć", notInStocktake: "Tego produktu nie ma w tej inwentaryzacji.",
+  noItemsWarehouse: "Brak produktów w tym magazynie.", itemsCounted: "artykułów", diff: "Różn.",
 };
 
 export const TRANSLATIONS: Record<Lang, Dict> = { en, sv, da, nl, fr, de, es, it, pl };

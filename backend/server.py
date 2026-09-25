@@ -1077,6 +1077,10 @@ class POUpdate(BaseModel):
     items: List[POItemIn]
 
 
+class POReceive(BaseModel):
+    warehouse_id: Optional[str] = None
+
+
 def _suggest_qty(p: dict) -> int:
     qty = product_total(p)
     threshold = int(p.get("low_stock_threshold", 5))
@@ -1159,6 +1163,8 @@ async def update_purchase_order(po_id: str, body: POUpdate, user: dict = Depends
     po = await db.purchase_orders.find_one({"id": po_id, "owner_id": {"$in": user["_scope"]}})
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
+    if po.get("status") in ("delivered", "cancelled"):
+        raise HTTPException(status_code=400, detail="Cannot edit a " + po["status"] + " order")
     supplier = await db.suppliers.find_one({"id": po.get("supplier_id"), "owner_id": {"$in": user["_scope"]}}) if po.get("supplier_id") else None
     warehouse = await db.warehouses.find_one({"id": po.get("warehouse_id"), "owner_id": {"$in": user["_scope"]}}) if po.get("warehouse_id") else None
     qty_map = {it.product_id: it.qty for it in body.items if it.qty > 0}
@@ -1176,6 +1182,68 @@ async def mark_po_sent(po_id: str, user: dict = Depends(get_current_user)):
         {"$set": {"status": "sent", "sent_at": now_iso()}})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Purchase order not found")
+    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": {"$in": user["_scope"]}})
+    return clean(po)
+
+
+@api_router.get("/purchase-orders/{po_id}")
+async def get_purchase_order(po_id: str, user: dict = Depends(get_current_user)):
+    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": {"$in": user["_scope"]}})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    return clean(po)
+
+
+@api_router.put("/purchase-orders/{po_id}/received")
+async def receive_purchase_order(po_id: str, body: POReceive, user: dict = Depends(get_current_user)):
+    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": {"$in": user["_scope"]}})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    if po.get("status") in ("delivered", "cancelled"):
+        raise HTTPException(status_code=400, detail="Order already " + po["status"])
+    wid = body.warehouse_id or po.get("warehouse_id")
+    if not wid:
+        raise HTTPException(status_code=400, detail="warehouse_required")
+    wh = await db.warehouses.find_one({"id": wid, "owner_id": {"$in": user["_scope"]}})
+    if not wh:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
+    for it in po.get("items", []):
+        product = await db.products.find_one({"id": it["product_id"], "owner_id": {"$in": user["_scope"]}})
+        if not product:
+            continue
+        qty = int(it.get("qty", 0))
+        if qty <= 0:
+            continue
+        stock = dict(product.get("stock") or {})
+        prev = int(stock.get(wid, 0))
+        stock[wid] = prev + qty
+        total = sum(int(v) for v in stock.values())
+        await db.products.update_one({"id": product["id"], "owner_id": {"$in": user["_scope"]}},
+                                     {"$set": {"stock": stock, "quantity": total, "updated_at": now_iso()}})
+        mv = {"id": str(uuid.uuid4()), "owner_id": user["id"], "product_id": product["id"],
+              "product_name": product.get("name"), "type": "receive", "quantity": qty,
+              "warehouse_id": wid, "warehouse_name": wh.get("name"), "prev_qty": prev,
+              "resulting_qty": stock[wid], "resulting_total": total,
+              "note": f"PO {po.get('id', '')[:8]} delivered", "created_at": now_iso()}
+        await db.movements.insert_one(dict(mv))
+    await db.purchase_orders.update_one(
+        {"id": po_id, "owner_id": {"$in": user["_scope"]}},
+        {"$set": {"status": "delivered", "delivered_at": now_iso(), "warehouse_id": wid, "warehouse_name": wh.get("name")}})
+    await record_snapshot(user["id"])
+    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": {"$in": user["_scope"]}})
+    return clean(po)
+
+
+@api_router.put("/purchase-orders/{po_id}/cancelled")
+async def cancel_purchase_order(po_id: str, user: dict = Depends(get_current_user)):
+    po = await db.purchase_orders.find_one({"id": po_id, "owner_id": {"$in": user["_scope"]}})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    if po.get("status") == "delivered":
+        raise HTTPException(status_code=400, detail="Cannot cancel a delivered order")
+    await db.purchase_orders.update_one(
+        {"id": po_id, "owner_id": {"$in": user["_scope"]}},
+        {"$set": {"status": "cancelled", "cancelled_at": now_iso()}})
     po = await db.purchase_orders.find_one({"id": po_id, "owner_id": {"$in": user["_scope"]}})
     return clean(po)
 
@@ -1676,6 +1744,147 @@ async def set_sales_order_status(oid: str, body: SOStatusUpdate, user: dict = De
 async def delete_sales_order(oid: str, user: dict = Depends(get_current_user)):
     await db.sales_orders.delete_one({"id": oid, "owner_id": {"$in": user["_scope"]}})
     return {"ok": True}
+
+
+# ---------------- Stocktakes (Inventering) ----------------
+class StockTakeCreate(BaseModel):
+    warehouse_id: str
+    date: Optional[str] = None
+
+
+class StockTakeItemUpdate(BaseModel):
+    product_id: str
+    counted_qty: int = 0
+
+
+class StockTakeUpdate(BaseModel):
+    date: Optional[str] = None
+    items: List[StockTakeItemUpdate] = []
+
+
+async def _gen_stocktake_number(user: dict) -> str:
+    now = datetime.now(timezone.utc)
+    period = now.strftime("%y%m")
+    doc = await db.st_counters.find_one_and_update(
+        {"key": _so_counter_key(user), "period": period},
+        {"$inc": {"seq": 1}},
+        upsert=True, return_document=ReturnDocument.AFTER)
+    n = int(doc["seq"])
+    return f"INV{period}{n:04d}"
+
+
+@api_router.post("/stocktakes")
+async def create_stocktake(body: StockTakeCreate, user: dict = Depends(get_current_user)):
+    wh = await db.warehouses.find_one({"id": body.warehouse_id, "owner_id": {"$in": user["_scope"]}})
+    if not wh:
+        raise HTTPException(status_code=400, detail="warehouse_required")
+    wid = body.warehouse_id
+    products = await db.products.find({
+        "owner_id": {"$in": user["_scope"]},
+        "$or": [{f"stock.{wid}": {"$exists": True}}, {"warehouse_id": wid}],
+    }).sort("name", 1).to_list(5000)
+    items = []
+    for p in products:
+        stock = p.get("stock") or {}
+        sys_qty = int(stock.get(wid, 0)) if stock else int(p.get("quantity", 0))
+        items.append({
+            "product_id": p["id"], "name": p.get("name"),
+            "sku": p.get("sku") or "", "barcode": p.get("barcode") or "",
+            "system_qty": sys_qty, "counted_qty": sys_qty,
+        })
+    num = await _gen_stocktake_number(user)
+    date = body.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    doc = {"id": str(uuid.uuid4()), "owner_id": user["id"], "number": num,
+           "warehouse_id": wid, "warehouse_name": wh.get("name"),
+           "date": date, "status": "open", "items": items,
+           "created_at": now_iso(), "updated_at": now_iso()}
+    await db.stocktakes.insert_one(dict(doc))
+    return clean(dict(doc))
+
+
+@api_router.get("/stocktakes")
+async def list_stocktakes(user: dict = Depends(get_current_user)):
+    items = await db.stocktakes.find({"owner_id": {"$in": user["_scope"]}}).to_list(2000)
+    items.sort(key=lambda s: (s.get("date", ""), s.get("created_at", "")), reverse=True)
+    return [clean(i) for i in items]
+
+
+@api_router.get("/stocktakes/{sid}")
+async def get_stocktake(sid: str, user: dict = Depends(get_current_user)):
+    s = await db.stocktakes.find_one({"id": sid, "owner_id": {"$in": user["_scope"]}})
+    if not s:
+        raise HTTPException(status_code=404, detail="Not found")
+    return clean(s)
+
+
+@api_router.put("/stocktakes/{sid}")
+async def update_stocktake(sid: str, body: StockTakeUpdate, user: dict = Depends(get_current_user)):
+    s = await db.stocktakes.find_one({"id": sid, "owner_id": {"$in": user["_scope"]}})
+    if not s:
+        raise HTTPException(status_code=404, detail="Not found")
+    if s.get("status") == "completed":
+        raise HTTPException(status_code=400, detail="stocktake_completed")
+    counts = {i.product_id: int(i.counted_qty) for i in body.items}
+    items = []
+    for it in (s.get("items") or []):
+        it = dict(it)
+        if it["product_id"] in counts:
+            it["counted_qty"] = max(0, counts[it["product_id"]])
+        items.append(it)
+    upd = {"items": items, "updated_at": now_iso()}
+    if body.date:
+        upd["date"] = body.date
+    await db.stocktakes.update_one({"id": sid, "owner_id": {"$in": user["_scope"]}}, {"$set": upd})
+    return clean({**s, **upd})
+
+
+@api_router.post("/stocktakes/{sid}/complete")
+async def complete_stocktake(sid: str, user: dict = Depends(get_current_user)):
+    s = await db.stocktakes.find_one({"id": sid, "owner_id": {"$in": user["_scope"]}})
+    if not s:
+        raise HTTPException(status_code=404, detail="Not found")
+    if s.get("status") == "completed":
+        raise HTTPException(status_code=400, detail="stocktake_completed")
+    wid = s.get("warehouse_id")
+    wh = await db.warehouses.find_one({"id": wid, "owner_id": {"$in": user["_scope"]}})
+    wh_name = wh.get("name") if wh else None
+    adjusted = 0
+    for it in (s.get("items") or []):
+        pid = it.get("product_id")
+        counted = int(it.get("counted_qty", 0))
+        product = await db.products.find_one({"id": pid, "owner_id": {"$in": user["_scope"]}})
+        if not product:
+            continue
+        stock = dict(product.get("stock") or {})
+        prev = int(stock.get(wid, 0)) if wid else product_total(product)
+        if prev == counted:
+            continue
+        if wid:
+            stock[wid] = counted
+            total = sum(int(v) for v in stock.values())
+        else:
+            total = counted
+        await db.products.update_one({"id": pid, "owner_id": {"$in": user["_scope"]}},
+                                     {"$set": {"stock": stock, "quantity": total, "updated_at": now_iso()}})
+        mv = {"id": str(uuid.uuid4()), "owner_id": user["id"], "product_id": pid,
+              "product_name": product.get("name"), "type": "adjust", "quantity": counted,
+              "warehouse_id": wid, "warehouse_name": wh_name,
+              "prev_qty": prev, "resulting_qty": counted, "resulting_total": total,
+              "note": f"Stocktake {s.get('number')}", "created_at": now_iso()}
+        await db.movements.insert_one(dict(mv))
+        adjusted += 1
+    await db.stocktakes.update_one({"id": sid, "owner_id": {"$in": user["_scope"]}},
+                                   {"$set": {"status": "completed", "completed_at": now_iso(), "updated_at": now_iso()}})
+    await record_snapshot(user["id"])
+    s = await db.stocktakes.find_one({"id": sid, "owner_id": {"$in": user["_scope"]}})
+    return {"ok": True, "adjusted": adjusted, "stocktake": clean(s)}
+
+
+@api_router.delete("/stocktakes/{sid}")
+async def delete_stocktake(sid: str, user: dict = Depends(get_current_user)):
+    await db.stocktakes.delete_one({"id": sid, "owner_id": {"$in": user["_scope"]}})
+    return {"ok": True}
+
 
 
 app.include_router(api_router)

@@ -121,10 +121,6 @@ export default function Orders() {
     ]);
   }
 
-  function openEditPo(po: any) {
-    setEditPo(po);
-    setPoItems((po.items || []).map((i: any) => ({ ...i })));
-  }
   const setItemQty = (idx: number, n: number) =>
     setPoItems((arr) => arr.map((it, i) => (i === idx ? { ...it, qty: Math.max(0, n) } : it)));
   async function savePoItems() {
@@ -202,21 +198,27 @@ export default function Orders() {
           ) : (
             <View style={isDesktop ? styles.grid : undefined}>
             {orders.map((po: any) => (
-              <Pressable key={po.id} testID={`po-card-${po.id}`} onPress={() => po.status !== "sent" && openEditPo(po)} style={isDesktop ? styles.gridItem : undefined}>
+              <Pressable key={po.id} testID={`po-card-${po.id}`} onPress={() => router.push(`/purchase-order/${po.id}`)} style={isDesktop ? styles.gridItem : undefined}>
                 <Card style={styles.poRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rName}>{po.supplier_name || t("supplier")} · {po.items?.length || 0} {t("items")}</Text>
                     <Text style={styles.rMeta}>{(po.created_at || "").slice(0, 10)} · {money(po.total, currency)}{po.warehouse_name ? ` · ${po.warehouse_name}` : ""}</Text>
                   </View>
-                  {po.status !== "sent" && <MaterialCommunityIcons name="pencil-outline" size={18} color={C.info} style={{ marginRight: S.sm }} />}
-                  {po.status !== "sent" && (
-                    <Pressable testID={`po-delete-${po.id}`} hitSlop={8} onPress={() => deletePo(po)} style={{ marginRight: S.sm }}>
+                  {po.status === "draft" && (
+                    <Pressable testID={`po-delete-${po.id}`} hitSlop={8} onPress={(e: any) => { e?.stopPropagation?.(); deletePo(po); }} style={{ marginRight: S.sm }}>
                       <MaterialCommunityIcons name="trash-can-outline" size={18} color={C.error} />
                     </Pressable>
                   )}
-                  <View style={[styles.badge, { borderColor: po.status === "sent" ? C.success : C.warning }]}>
-                    <Text style={[styles.badgeTxt, { color: po.status === "sent" ? C.success : C.warning }]}>{po.status === "sent" ? t("statusSent") : t("statusDraft")}</Text>
-                  </View>
+                  {(() => {
+                    const clr = po.status === "delivered" ? C.success : po.status === "cancelled" ? C.error : po.status === "sent" ? C.info : C.warning;
+                    const lbl = po.status === "delivered" ? t("statusDelivered") : po.status === "cancelled" ? t("statusCancelled") : po.status === "sent" ? t("statusSent") : t("statusDraft");
+                    return (
+                      <View style={[styles.badge, { borderColor: clr }]}>
+                        <Text style={[styles.badgeTxt, { color: clr }]}>{lbl}</Text>
+                      </View>
+                    );
+                  })()}
+                  <MaterialCommunityIcons name="chevron-right" size={20} color={C.onSurfaceTertiary} style={{ marginLeft: S.sm }} />
                 </Card>
               </Pressable>
             ))}

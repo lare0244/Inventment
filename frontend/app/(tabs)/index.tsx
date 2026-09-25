@@ -98,6 +98,12 @@ export default function Dashboard() {
             ))}
           </View>
 
+          <Pressable testID="stocktaking-btn" onPress={() => router.push("/stocktakes")} style={styles.actionBtn}>
+            <MaterialCommunityIcons name="clipboard-list-outline" size={20} color={C.onBrand} />
+            <Text style={styles.actionTxt}>{t("stocktaking")}</Text>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={C.onBrand} />
+          </Pressable>
+
           <Text style={styles.section}>{t("lowStockAlerts")}</Text>
           {data.low_stock_items.length === 0 ? (
             <Card><Text style={styles.empty}>{t("allHealthy")}</Text></Card>
@@ -163,6 +169,8 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   warnBtn: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6, backgroundColor: C.brand, paddingHorizontal: S.md, paddingVertical: 8, borderRadius: R.md, marginTop: S.sm },
   warnBtnTxt: { color: C.onBrand, fontFamily: F.textBold, fontSize: 13 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: S.md },
+  actionBtn: { flexDirection: "row", alignItems: "center", gap: S.sm, backgroundColor: C.brand, borderRadius: R.md, paddingHorizontal: S.lg, height: 54, marginTop: S.lg },
+  actionTxt: { flex: 1, color: C.onBrand, fontFamily: F.textBold, fontSize: 16 },
   statCard: { width: "47.5%", gap: S.xs },
   statCardDesktop: { width: "23%" },
   statVal: { color: C.onSurface, fontFamily: F.display, fontSize: 28 },

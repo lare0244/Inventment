@@ -284,3 +284,26 @@ frontend:
 agent_communication:
   - agent: "main"
     message: "Test login warehouse@test.com/test123 (PRO). BACKEND (primary): SOItem.picked persists - create order item (picked defaults 0), PUT with picked=N, GET returns N; ensure picked survives status changes too. FRONTEND: open a Saved sales order detail and confirm the 'Scan to pick' button (so-scan-pick) renders alongside 'Print picking list', and each item row shows 'Picked: 0/<qty>'. Tapping so-scan-pick should open the camera scanner overlay (scan-pick-close visible) WITHOUT crashing; on web, camera may be unavailable - just confirm no crash and the close button works. The end-to-end barcode scan -> pick popup is a device-only camera feature; do not fail the suite if a hardware scan cannot be simulated - validate the backend picked persistence and that the UI elements render."
+
+## Test Cycle 6 (Stocktaking / Inventering)
+backend:
+  - task: "Stocktakes CRUD + complete (per-warehouse inventory reconciliation)"
+    file: "/app/backend/server.py"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "New /api/stocktakes endpoints: POST create (loads all products at warehouse, prefills counted=system per-warehouse qty, auto number INV<yymm><seq>), GET list (date desc), GET {id}, PUT {id} (save counted per item; blocked if completed), POST {id}/complete (sets product.stock[wid]=counted, records 'adjust' movement, snapshot), DELETE {id}. Curl-verified full flow incl product stock update + cleanup."
+frontend:
+  - task: "Inventering screens (list + detail with count/sort/scan/finish/PDF) + Dashboard button"
+    file: "/app/frontend/app/stocktakes/index.tsx, /app/frontend/app/stocktakes/[id].tsx, /app/frontend/app/(tabs)/index.tsx"
+    implemented: true
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Dashboard 'Stocktaking' button (stocktaking-btn) -> /stocktakes list. New stocktake modal: choose warehouse (st-wh-dd) + date (st-date) -> creates and opens detail. Detail: sort chips (name/qty/article/ean), per-item counted inputs (std-count-<pid>, save on blur via PUT), 'Scan to count' camera modal (device only), 'Finish stocktake' (std-finish) completes, PDF export (std-pdf). i18n added to all 9 languages. Verified render + nav via screenshot."
+agent_communication:
+  - agent: "main"
+    message: "Test login warehouse@test.com/test123 (PRO). NEW feature only. BACKEND: full /api/stocktakes lifecycle - POST {warehouse_id,date} returns items with system_qty=counted_qty prefilled per-warehouse; PUT {items:[{product_id,counted_qty}]} updates only counted; POST {id}/complete sets product.stock[warehouse]=counted (verify via GET /api/products/{id}), records adjust movements, marks completed; PUT after complete must 400 (stocktake_completed); DELETE works; scoping by owner/company. FRONTEND (web): Dashboard 'Stocktaking' button opens the list; 'New stocktake' modal picks a warehouse + date and creates; detail shows product rows with editable counted inputs and sort chips (name/qty/article/ean); editing a count and blurring persists it; 'Finish stocktake' completes and locks inputs; PDF button doesn't crash. NOTE: 'Scan to count' uses the device camera - validate the button/modal opens without crash on web but do NOT fail the suite on lack of hardware scan."

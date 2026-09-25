@@ -160,6 +160,13 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - "Scan to pick" moved into the order detail just above the product lines (below the ship-from warehouse selector).
 - Sales Orders tab now shows the order content inline (status graph, search, status filters) — the separate "Orders" navigation button was removed. The list shows the 10 most recent orders with a "Show more" button that reveals 25 more at a time; pagination resets when status/search/sort changes. (Send-to-supplier remains only under Purchase Orders.) Verified by testing agent (iteration_15).
 
+## Completed (2026-06-29) — Stocktaking (Inventering)
+- Dashboard "Stocktaking" button opens a new Stocktakes area (/stocktakes). List shows previous stocktakes sorted by date desc with status badge, item count, and per-row PDF export.
+- New stocktake: choose warehouse + date -> loads all products at that warehouse with the current per-warehouse qty prefilled as the counted amount.
+- Detail: sort by name / quantity / article no (SKU) / EAN (barcode); per-item counted input persists on blur (PUT). "Scan to count" (device camera) matches a scanned barcode to a line and opens a count popup. "Finish stocktake" completes -> sets each product's stock[warehouse]=counted, records 'adjust' movements, marks completed & locks inputs. PDF export of the stocktake (company info + logo + system/counted/diff table).
+- Backend: /api/stocktakes CRUD + /{id}/complete; auto number INV<yymm><seq>; owner/company scoped. i18n added to all 9 languages.
+- Verified: backend 11/11 pytest + web frontend flow (testing agent iteration_19). NOTE: live camera barcode scan is device-only (not testable in Expo Go/web).
+
 ## Next Tasks
 - Add product image capture via expo-camera/image-picker
 - Native App Store / Google Play PRO subscriptions (requires native build to QA)
