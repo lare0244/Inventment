@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, Pressable, ActivityIndicator, TextInput,
   TextInputProps, ViewStyle, ScrollView, Modal,
 } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
 import * as Haptics from "expo-haptics";
 import { F, S, R } from "@/src/theme";
 import { useColors } from "@/src/appsettings";

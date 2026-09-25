@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
 import { View, Text, StyleSheet, Modal, Pressable } from "react-native";
 import { useRouter } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
 import { useColors, useT } from "@/src/appsettings";
 import { F, S, R, Palette } from "@/src/theme";
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, Platform, StyleSheet, Pressable, ActivityIndicator } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { useAuth } from "@/src/auth";
 import { useColors, useT } from "@/src/appsettings";

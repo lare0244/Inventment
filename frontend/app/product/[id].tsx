@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, Pressable, Modal, TextInput, ScrollView } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
 import * as Haptics from "expo-haptics";
 import { api } from "@/src/api";
 import { storage } from "@/src/utils/storage";

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TextInput, Pressable, Modal, ScrollView, FlatList } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
 import { useColors, useT } from "@/src/appsettings";
 import { F, S, R, Palette } from "@/src/theme";
 import { Card } from "@/src/components/ui";

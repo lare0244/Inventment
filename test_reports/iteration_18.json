@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only regression check after Expo SDK 54->57 upgrade (RN 0.81->0.86, React 19.1->19.2) and vector icon migration from @expo/vector-icons to @react-native-vector-icons/material-design-icons. Tested on mobile viewport (390x844) against the public Expo web preview. Results: (1) Metro bundle succeeds (1536 modules, 8.1s), no red-screen runtime errors, zero page errors, zero console errors/warnings related to RN 0.86 or fonts. (2) Login with warehouse@test.com / test123 succeeds and lands on Dashboard (URL /). (3) All 5 bottom tabs render with correct MaterialDesignIcons glyphs and navigate correctly: Dashboard (grid), Catalog (box), Scan (barcode), Orders (clipboard), Settings (gear). (4) Dashboard: welcome header, warehouse chips (All/Main/Gothenburg DC), stat cards with cash/cube/package/warning icons, low-stock section, and Recent Activity feed all render. Stock value A$300, 246 units, 5 products, 0 low-stock — data loads without errors. (5) Catalog: list renders once 'All warehouses' is picked (shows 5 products with box icons and green dots). Search field with search icon works. All four sort chips visible and toggle: A-Z (rendered as 'A–Z' en-dash), By stock, Category, Price. Category sort shows category header row 'UNCATEGORIZED 5'. (6) + button (data-testid=\"catalog-add-product\") opens ProductEditor 'New Product' screen with back-arrow icon, all form fields (name, headline, description, barcode, SKU, price, cost, qty, low stock at, purchase date, best before date) and 'Save Changes' with save icon. (7) Scan tab opens without crashing on web — shows 'Camera access needed' fallback with camera-off icon and 'Grant Camera Access' button (native-only feature, per instructions). (8) Orders tab: header 'PURCHASE ORDERS' with segmented 'Purchase Orders / Sales Orders' toggle, loading spinner renders. (9) Settings: PRO plan card (green border, active), Appearance (Dark/Light toggle — verified light switches and back to dark), Language dropdown (English), Currency dropdown (AUD — Australian Dollars), Company section, Orders section — all render with left-hand icons. Icon rendering: exhaustively verified — no blank/tofu glyphs anywhere. useIconFonts() preloads MaterialDesignIcons.ttf correctly (src/hooks/use-icon-fonts.ts). No deprecated packages detected (expo-camera used, not expo-barcode-scanner; no expo-av; no expo-background-fetch).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "use-icon-fonts.ts correctly registers font family 'MaterialDesignIcons' matching the library's postScriptName — glyphs render on first frame.",
+    "app.json plugins list includes '@react-native-vector-icons/material-design-icons' — required for native builds to bundle the .ttf.",
+    "newArchEnabled/edgeToEdgeEnabled removed from app.json as noted — SDK 57 defaults apply, no adverse effect observed on web."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (7/7 flows verified: login, tab nav+icons, catalog list+search+sort+category-header, product editor open, dashboard stats, scan fallback, settings render+theme toggle)"},
+  "seed_data_creation": "None. No products/orders created; ProductEditor was opened and dismissed without saving.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "SDK 54->57 upgrade is regression-free on web preview. Icons all render, no red screens, no font-family mismatches. Native-only flows (real camera scan, RevenueCat native purchase, Apple Sign-in) remain untestable on web — verify via EAS build. If future tests need a physical scan or in-app purchase, request a native build.",
+  "rca_of_issue": "N/A — no regressions found."
+}

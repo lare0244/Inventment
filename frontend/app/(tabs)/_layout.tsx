@@ -1,6 +1,6 @@
 import React from "react";
 import { Tabs, Redirect } from "expo-router";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
 import { Platform } from "react-native";
 import { F } from "@/src/theme";
 import { useColors, useT } from "@/src/appsettings";
