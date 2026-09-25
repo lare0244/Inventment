@@ -8,6 +8,7 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { useColors, useT, useApp } from "@/src/appsettings";
 import { money } from "@/src/currency";
+import { useResponsive } from "@/src/hooks/useResponsive";
 import { F, S, R, Palette } from "@/src/theme";
 import { Card, Btn } from "@/src/components/ui";
 import { SalesOrdersPanel } from "@/src/components/SalesOrdersPanel";
@@ -16,6 +17,7 @@ export default function Orders() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { currency, user } = useAuth();
+  const { isDesktop } = useResponsive();
   const { lang } = useApp();
   const C = useColors();
   const t = useT();
@@ -179,15 +181,17 @@ export default function Orders() {
               <Text style={styles.emptySub}>{t("aboveThresholds")}</Text>
             </View>
           ) : (
-            data.suggestions.map((s: any) => (
-              <Card key={s.product_id} style={styles.row}>
+            <View style={isDesktop ? styles.grid : undefined}>
+            {data.suggestions.map((s: any) => (
+              <Card key={s.product_id} style={[styles.row, isDesktop && styles.gridItem]}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rName}>{s.name}</Text>
                   <Text style={styles.rMeta}>{t("have")} {s.current_qty} · {t("order")} {s.suggested_qty} · {s.supplier_name || t("noSupplier")}</Text>
                 </View>
                 <Text style={styles.rCost}>{money(s.estimated_cost, currency)}</Text>
               </Card>
-            ))
+            ))}
+            </View>
           )}
 
           <Btn testID="auto-po-btn" title={t("autoCreatePOs")} icon="clipboard-list-outline" variant="secondary" loading={autoLoading} onPress={autoCreatePOs} style={{ marginTop: S.lg }} />
@@ -196,8 +200,9 @@ export default function Orders() {
           {orders.length === 0 ? (
             <Card><Text style={styles.empty}>{t("noPos")}</Text></Card>
           ) : (
-            orders.map((po: any) => (
-              <Pressable key={po.id} testID={`po-card-${po.id}`} onPress={() => po.status !== "sent" && openEditPo(po)}>
+            <View style={isDesktop ? styles.grid : undefined}>
+            {orders.map((po: any) => (
+              <Pressable key={po.id} testID={`po-card-${po.id}`} onPress={() => po.status !== "sent" && openEditPo(po)} style={isDesktop ? styles.gridItem : undefined}>
                 <Card style={styles.poRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rName}>{po.supplier_name || t("supplier")} · {po.items?.length || 0} {t("items")}</Text>
@@ -214,7 +219,8 @@ export default function Orders() {
                   </View>
                 </Card>
               </Pressable>
-            ))
+            ))}
+            </View>
           )}
         </ScrollView>
       )}
@@ -310,6 +316,8 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   section: { color: C.onSurfaceSecondary, fontFamily: F.textBold, fontSize: 13, letterSpacing: 1 },
   totalCost: { color: C.success, fontFamily: F.display, fontSize: 18 },
   row: { flexDirection: "row", alignItems: "center", marginBottom: S.sm },
+  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  gridItem: { width: "49%" },
   rName: { color: C.onSurface, fontFamily: F.textBold, fontSize: 15 },
   rMeta: { color: C.onSurfaceTertiary, fontFamily: F.text, fontSize: 12, marginTop: 2 },
   rCost: { color: C.brand, fontFamily: F.display, fontSize: 18 },

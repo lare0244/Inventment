@@ -8,6 +8,7 @@ import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { useColors, useT } from "@/src/appsettings";
 import { money } from "@/src/currency";
+import { useResponsive } from "@/src/hooks/useResponsive";
 import { F, S, R, stockColor, Palette } from "@/src/theme";
 import { StatusDot, Dropdown } from "@/src/components/ui";
 
@@ -15,6 +16,7 @@ export default function Catalog() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { currency } = useAuth();
+  const { isDesktop, width } = useResponsive();
   const C = useColors();
   const t = useT();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -85,6 +87,10 @@ export default function Catalog() {
     return out;
   }, [filtered, sortMode, cats, t]);
 
+  // Multi-column grid on desktop (single column while grouping by category so
+  // full-width category headers stay intact).
+  const gridCols = isDesktop && sortMode !== "category" ? (width >= 1300 ? 3 : 2) : 1;
+
   return (
     <View style={{ flex: 1, backgroundColor: C.surface }}>
       <View style={[styles.header, { paddingTop: insets.top + S.md }]}>
@@ -151,6 +157,9 @@ export default function Catalog() {
 
       <FlatList
         data={listData}
+        key={`cols-${gridCols}`}
+        numColumns={gridCols}
+        columnWrapperStyle={gridCols > 1 ? { gap: S.sm } : undefined}
         keyExtractor={(i) => i.id}
         contentContainerStyle={{ padding: S.lg, paddingBottom: 40 }}
         ListEmptyComponent={
@@ -176,7 +185,7 @@ export default function Catalog() {
             <Pressable
               testID={`product-row-${item.id}`}
               onPress={() => router.push(`/product/${item.id}`)}
-              style={styles.card}
+              style={[styles.card, gridCols > 1 && { flex: 1 }]}
             >
               {item.image ? (
                 <Image source={{ uri: item.image }} style={styles.thumb} contentFit="cover" />
