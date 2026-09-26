@@ -347,3 +347,21 @@ frontend:
 agent_communication:
   - agent: "main"
     message: "Test login warehouse@test.com/test123. NEW large feature. BACKEND: (1) product is_production_unit+bom persist on POST/PUT /products; (2) /api/production-orders full lifecycle - create draft {warehouse_id,items:[{product_id,quantity,batch_number,best_before_date}]}, PUT edits draft, POST /{id}/complete adds finished (+) and deducts BOM parts (qty*produced, -) in the SAME warehouse, records movements, returns warnings[] for parts going negative (allowed), marks completed; DELETE; company-scoped. (3) POST /transfers already existed - used by Stock Movement. FRONTEND (web): Tools tab (toolbox) is a hub with 5 rows (testIDs tool-sales/purchase/production/stocktake/movement); Sales/Purchase open /orders-manage?tab=; Stock Movement (/stock-movement) transfers stock and lists recent transfers; Production Orders (/production-orders) create->detail, add production-unit products, set qty/batch/best-before, Complete; Product editor has 'Production unit' toggle (testID f-production-unit) revealing a BOM parts list (bom-add). NOTE: only products with is_production_unit=true appear in the production ProductPicker. Please regression test backend endpoints and the web flows. Barcode/camera is device-only - N/A here."
+
+## Test Cycle 9 (Web fallbacks + Account deletion — publish readiness)
+backend:
+  - task: "DELETE /api/account (account + all owned data deletion, dissolves company if owner)"
+    file: "/app/backend/server.py"
+    implemented: true
+    working: true
+    comment: "DELETE /api/account deletes user's warehouses/categories/suppliers/products/movements/purchase_orders/sales_orders/stocktakes/production_orders/stock_snapshots (owner_id==user id), so_counters keyed by user id, dissolves company if user is owner, then deletes the user. Curl-verified: throwaway user deleted, subsequent /auth/me and /auth/login both 401."
+frontend:
+  - task: "Web fallbacks for camera features + Settings Delete Account"
+    file: "/app/frontend/src/components/BarcodeScannerModal.tsx, app/(tabs)/scan.tsx, app/stocktakes/[id].tsx, app/sales-order/[id].tsx, src/components/ProductEditor.tsx, app/(tabs)/settings.tsx, src/auth.tsx"
+    implemented: true
+    working: "NA"
+    needs_retesting: true
+    comment: "New shared BarcodeScannerModal: native=CameraView, web=manual barcode entry (testIDs scanner-manual, scanner-manual-submit, scanner-close) resolving to same onScan. Used by stocktakes scan-to-count (std-scan) and sales-order scan-to-pick (so-scan-pick). Scan tab now shows manual entry on ALL web widths (was desktop-only). ProductEditor hides 'Take photo' (photo-camera) on web and pickImage forces gallery on web; 'Choose photo' (photo-gallery) works via file input. Settings has Delete Account (delete-account-btn) with confirm -> deleteAccount() -> clears token -> login. Screenshot-verified: scan-tab manual entry at 390px web, editor gallery-only on web."
+agent_communication:
+  - agent: "main"
+    message: "Test login warehouse@test.com/test123 (PRO). Focus WEB (browser) fallbacks. (1) Scan tab: shows manual barcode entry field (manual-barcode) + Look up (manual-lookup) on web, typing an existing product barcode resolves. (2) Open a stocktake (/stocktakes -> new or existing), click Scan to count (std-scan): on web a manual-entry modal (scanner-manual + scanner-manual-submit) appears instead of camera; entering a barcode that matches a row highlights/scrolls to it, non-match shows notInStocktake alert. (3) Sales order saved detail, Scan to pick (so-scan-pick): same web manual modal (scanner-manual); matching barcode opens pick qty popup. (4) Product editor on web shows only Choose photo (no photo-camera), gallery upload works. (5) Settings -> Delete Account (delete-account-btn): confirm dialog, deletes account and returns to login (use a THROWAWAY registered user, NOT warehouse@test.com). Camera hardware is device-only; do not fail for lack of camera on web."

@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
-import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
@@ -12,6 +11,7 @@ import { useAuth } from "@/src/auth";
 import { useColors, useT } from "@/src/appsettings";
 import { F, S, R, Palette } from "@/src/theme";
 import { Card, Btn } from "@/src/components/ui";
+import { BarcodeScannerModal } from "@/src/components/BarcodeScannerModal";
 import { SalesOrderEditor, SOValue } from "@/src/components/SalesOrderEditor";
 import { LOGO_DATA_URI } from "@/src/logoBase64";
 
@@ -35,7 +35,6 @@ export default function SalesOrderDetail() {
   const [saving, setSaving] = useState(false);
   const [returnModal, setReturnModal] = useState(false);
   const [returnWh, setReturnWh] = useState<string | null>(null);
-  const [camPerm, requestCamPerm] = useCameraPermissions();
   const [scanOpen, setScanOpen] = useState(false);
   const [pickItem, setPickItem] = useState<{ idx: number; name: string; demanded: number } | null>(null);
   const [pickQty, setPickQty] = useState("");
@@ -63,11 +62,10 @@ export default function SalesOrderDetail() {
   }
 
   async function openScanner() {
-    if (!camPerm?.granted) { const r = await requestCamPerm(); if (!r.granted) return; }
     setScanOpen(true);
   }
 
-  function onScan({ data }: { data: string }) {
+  function onScan(data: string) {
     if (!value || !scanOpen) return;
     setScanOpen(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -238,22 +236,7 @@ export default function SalesOrderDetail() {
         </View>
       </Modal>
 
-      <Modal visible={scanOpen} animationType="slide" onRequestClose={() => setScanOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: "#000" }}>
-          {scanOpen && (
-            <CameraView style={StyleSheet.absoluteFill} facing="back"
-              barcodeScannerSettings={{ barcodeTypes: ["qr", "upc_a", "upc_e", "ean13", "ean8", "code128", "code39"] }}
-              onBarcodeScanned={onScan} />
-          )}
-          <View style={[styles.scanTop, { paddingTop: insets.top + S.md }]}>
-            <Text style={styles.scanTitle}>{t("scanToPick")}</Text>
-            <Pressable testID="scan-pick-close" onPress={() => setScanOpen(false)} hitSlop={12} style={styles.scanClose}>
-              <MaterialCommunityIcons name="close" size={26} color="#fff" />
-            </Pressable>
-          </View>
-          <View style={styles.scanFrameWrap}><View style={styles.scanFrame} /></View>
-        </View>
-      </Modal>
+      <BarcodeScannerModal visible={scanOpen} title={t("scanToPick")} onScan={onScan} onClose={() => setScanOpen(false)} />
 
       <Modal visible={!!pickItem} transparent animationType="fade" onRequestClose={() => setPickItem(null)}>
         <View style={styles.modalBg}>

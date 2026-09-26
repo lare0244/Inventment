@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Modal
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons";
-import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { api } from "@/src/api";
 import { useAuth } from "@/src/auth";
@@ -11,6 +10,7 @@ import { useColors, useT } from "@/src/appsettings";
 import { F, S, R, Palette } from "@/src/theme";
 import { Card, Btn } from "@/src/components/ui";
 import { ProductImage } from "@/src/components/ProductImage";
+import { BarcodeScannerModal } from "@/src/components/BarcodeScannerModal";
 import { buildStocktakePdf } from "@/src/utils/stocktakePdf";
 
 type SortKey = "name" | "qty" | "article" | "ean" | "location";
@@ -33,7 +33,6 @@ export default function StocktakeDetail() {
   const [members, setMembers] = useState<any[]>([]);
   const [assignItem, setAssignItem] = useState<any>(null);
   const [finishOpen, setFinishOpen] = useState(false);
-  const [camPerm, requestCamPerm] = useCameraPermissions();
   const [scanOpen, setScanOpen] = useState(false);
   const [zoomImg, setZoomImg] = useState<string | null>(null);
   const [highlightPid, setHighlightPid] = useState<string | null>(null);
@@ -84,12 +83,11 @@ export default function StocktakeDetail() {
   }
 
   async function openScanner() {
-    if (!camPerm?.granted) { const r = await requestCamPerm(); if (!r.granted) return; }
     scanLock.current = false;
     setScanOpen(true);
   }
 
-  function onScan({ data }: { data: string }) {
+  function onScan(data: string) {
     if (scanLock.current || !st) return;
     scanLock.current = true;
     setScanOpen(false);
@@ -303,22 +301,7 @@ export default function StocktakeDetail() {
         </ScrollView>
       )}
 
-      <Modal visible={scanOpen} animationType="slide" onRequestClose={() => setScanOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: "#000" }}>
-          {scanOpen && (
-            <CameraView style={StyleSheet.absoluteFill} facing="back"
-              barcodeScannerSettings={{ barcodeTypes: ["qr", "upc_a", "upc_e", "ean13", "ean8", "code128", "code39"] }}
-              onBarcodeScanned={onScan} />
-          )}
-          <View style={[styles.scanTop, { paddingTop: insets.top + S.md }]}>
-            <Text style={styles.scanTitle}>{t("scanToCount")}</Text>
-            <Pressable testID="std-scan-close" onPress={() => setScanOpen(false)} hitSlop={12} style={styles.scanClose}>
-              <MaterialCommunityIcons name="close" size={26} color="#fff" />
-            </Pressable>
-          </View>
-          <View style={styles.scanFrameWrap}><View style={styles.scanFrame} /></View>
-        </View>
-      </Modal>
+      <BarcodeScannerModal visible={scanOpen} title={t("scanToCount")} onScan={onScan} onClose={() => setScanOpen(false)} />
 
       <Modal visible={finishOpen} transparent animationType="fade" onRequestClose={() => setFinishOpen(false)}>
         <View style={styles.modalBg}>

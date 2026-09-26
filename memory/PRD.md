@@ -219,6 +219,13 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - Quoted METRO_CACHE_ROOT in frontend/.env (env-parsing safety).
 - Note: react-native-purchases 10.7.1 has NO Expo config plugin (autolinks); adding one to app.json breaks the dev server — left out. RevenueCat SDK keys still empty placeholders pending user setup.
 
+## Completed (2026-06 — Web-browser fallbacks for public web launch)
+- New shared `src/components/BarcodeScannerModal.tsx`: native renders the live camera scanner (expo-camera, handles its own permission), web renders a manual barcode-entry field (scanner-manual/scanner-manual-submit) resolving to the same onScan(data) handler. Used by stocktakes "Scan to count" and sales-order "Scan to pick" (both previously mounted CameraView unconditionally, which is unreliable in browsers).
+- Scan tab now shows manual barcode entry on ALL web widths (was desktop-width only), so mobile-width browser users get a usable flow instead of a raw camera attempt.
+- ProductEditor: on web the "Take photo" (camera) button is hidden and pickImage() forces the gallery/file-input path (expo-image-picker has no web camera capture); "Choose photo" upload works in the browser.
+- Verified: testing agent — backend 6/6 (test_web_fallbacks.py) + all web flows (scan lookup, stocktake/sales-order manual scan modals, gallery-only photo editor, account deletion via UI). No issues.
+
+
 - Native App Store / Google Play PRO subscriptions (requires native build to QA)
 
 - Android store config in app.json (package, versionCode, splash/icon)

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -90,8 +90,8 @@ export default function Scan() {
     </View>
   ) : null;
 
-  // Desktop web: no live camera — offer manual barcode entry.
-  if (isDesktop) {
+  // Web (any width): live camera is unreliable in browsers — offer manual barcode entry.
+  if (isDesktop || Platform.OS === "web") {
     return (
       <View style={[styles.center, { paddingTop: insets.top + S["2xl"], justifyContent: "flex-start" }]}>
         <MaterialCommunityIcons name="barcode-scan" size={56} color={C.brand} />

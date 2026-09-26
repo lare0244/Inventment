@@ -98,7 +98,7 @@ export function ProductEditor({
   async function pickImage(fromCamera: boolean) {
     try {
       let res;
-      if (fromCamera) {
+      if (fromCamera && Platform.OS !== "web") {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) { permDenied(); return; }
         res = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.6, allowsEditing: true });
@@ -197,7 +197,9 @@ export function ProductEditor({
           </View>
           <View style={{ flex: 1, gap: S.sm }}>
             <View style={{ flexDirection: "row", gap: S.sm }}>
-              <View style={{ flex: 1 }}><Btn testID="photo-camera" title={t("takePhoto")} icon="camera-outline" variant="secondary" onPress={() => pickImage(true)} /></View>
+              {Platform.OS !== "web" && (
+                <View style={{ flex: 1 }}><Btn testID="photo-camera" title={t("takePhoto")} icon="camera-outline" variant="secondary" onPress={() => pickImage(true)} /></View>
+              )}
               <View style={{ flex: 1 }}><Btn testID="photo-gallery" title={t("choosePhoto")} icon="image-multiple-outline" variant="secondary" onPress={() => pickImage(false)} /></View>
             </View>
             {!!form.image && (

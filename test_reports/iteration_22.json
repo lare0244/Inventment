@@ -1,0 +1,33 @@
+{
+  "summary": "Web-fallback launch regression — ALL 6 flows PASS end-to-end at 390x844 mobile web viewport. Backend pytest 6/6 (test_web_fallbacks.py): login/auth/me OK; /products/by-barcode/{code} returns 200 with matching product and 404 for unknown; /barcode-lookup/{code} external lookup returns 200 with {found: bool}; DELETE /api/account with a freshly registered throwaway user returns {ok:true, deleted:true}, the previous JWT stops working (401 on /auth/me), and re-login with the same email/password returns 401 — cascading deletion of owned warehouses/products verified via API before delete. DELETE /api/account with no auth correctly returns 403. Frontend web (warehouse@test.com/test123): (1) Scan tab at /scan (bottom nav) shows manual-barcode Field + manual-lookup Btn only, NO camera prompt; typing an existing product's barcode returns the scan-result-sheet with product name + in-stock qty + Receive/Update Stock Btn. (2) /stocktakes -> st-new-btn -> st-create opens the detail; std-scan opens the BarcodeScannerModal web fallback (scanner-manual + scanner-manual-submit + scanner-close). A non-matching barcode shows the exact 'That product is not in this stocktake.' web alert; a matching barcode (BC1d786716cb) closes the modal and highlights/scrolls to the TEST_PICK_2025de row (orange border) — no crash, no camera. (3) /sales-order/{id} of a SAVED order (created via API with 3 units of the same product) — so-scan-pick opens scanner-manual, a matching barcode opens the pick-qty popup (pick-qty-input + pick-save with 'Demanded: 3' and value 3 prefilled). (4) /product/new on web shows ONLY photo-gallery ('Choose photo') — photo-camera is NOT rendered on web (Platform.OS==='web' branch). File-chooser upload of a tiny PNG succeeds: photo-remove button appears and a preview <img> is rendered (upload -> /api/upload returns a path saved to form.image). (5) Register a throwaway user (reg-name/reg-email/reg-password/reg-submit -> auto-signs in and lands on '/'), navigate to /settings, tap delete-account-btn (window.confirm auto-accepted on web): app returns to /login screen, and re-login with the same credentials fails with the visible error 'Incorrect email or password'. (6) Regression: /login works, dashboard renders (dash-wh-*, stat-*, view-all-movements), /catalog renders (add-product-btn + product rows), /orders (Tools hub) renders. NO Expo/React Native deprecated packages, red screens, or crashes observed. NO camera permission prompt on any web path.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_web_fallbacks.py",
+    "/app/test_reports/pytest/pytest_web_fallbacks.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BarcodeScannerModal.tsx: clean Platform.OS==='web' branch renders manual entry with scanner-manual / scanner-manual-submit / scanner-close testIDs; camera path only runs on native. Manual submit trims + resets state before dispatching onScan(data). Good.",
+    "app/(tabs)/scan.tsx: web branch (isDesktop || Platform.OS==='web') swaps CameraView for Field manual-barcode + Btn manual-lookup and reuses the same doLookup(data) code path — no duplication, consistent scan-result-sheet.",
+    "ProductEditor.tsx L200-203: photo-camera button correctly gated on Platform.OS !== 'web'; photo-gallery is always shown. pickImage() also short-circuits to launchImageLibraryAsync on web when fromCamera=true. Good.",
+    "settings.tsx confirmDeleteAccount / onDeleteAccount split cleanly by Platform.OS (window.confirm on web, Alert.alert on native). Uses the shared auth.deleteAccount() which calls DELETE /api/account with the bearer token.",
+    "server.py DELETE /api/account (L1527-1545) cascades correctly: dissolves company if owner, delete_many across warehouses/categories/suppliers/products/movements/purchase_orders/sales_orders/stocktakes/production_orders/stock_snapshots owned by uid, clears so_counters, then deletes the user. Returns {ok, deleted}. Old JWT auto-invalidated because get_current_user re-fetches user by id and returns 401 when missing.",
+    "Consistency note (NON-BLOCKING): server.py L1539 lists collections in a tuple; consider also pruning transfers/movements that reference the deleted user via warehouse_id ownership implicitly (currently movements are owner_id-scoped, so covered). No action needed."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_web_fallbacks.py (new)",
+    "/app/test_reports/pytest/pytest_web_fallbacks.xml (new)"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (6/6 flows)"},
+  "seed_data_creation": "During UI testing: (a) created product TEST_scan_flow (id a3c40320..., barcode BC_SCAN_FLOW_1) via API for the Scan-tab lookup — DELETED after run. (b) created a stocktake (id fc2a1a95...) via UI in Main Warehouse — DELETED after run. (c) created a saved sales order 2609A000005 (id c9358ef8...) via API with 3 units of TEST_PICK_2025de for the scan-to-pick test — DELETED after run. (d) throwaway user test_throwaway_27847433@test.com was created and deleted by the delete-account flow itself. No residual data remains on warehouse@test.com.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Web-fallback testIDs: Scan tab web -> manual-barcode Field, manual-lookup Btn, scan-result-sheet. Shared BarcodeScannerModal web branch -> scanner-manual TextInput, scanner-manual-submit Btn, scanner-close Pressable. Screens that consume it: Stocktakes detail (std-scan) and Sales order detail (so-scan-pick). ProductEditor: photo-camera only rendered on Platform.OS !== 'web'; photo-gallery always rendered; photo-remove after image is set. Settings delete flow: delete-account-btn -> window.confirm on web / Alert.alert on native -> auth.deleteAccount() -> DELETE /api/account -> signOut. Auth testIDs: login-email, login-password, login-submit, go-register, reg-name, reg-email, reg-password, reg-submit, go-login. New pytest suite: /app/backend/tests/test_web_fallbacks.py (TestHealthLogin, TestBarcodeLookup, TestDeleteAccount).",
+  "rca_of_issue": "N/A — no defects found."
+}
