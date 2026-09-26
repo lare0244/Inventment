@@ -51,6 +51,7 @@ export default function Login() {
           <Text style={styles.muted}>{t("noAccount")}</Text>
           <Link href="/(auth)/register" style={styles.link} testID="go-register">{t("createOne")}</Link>
         </View>
+        <Link href="/privacy" style={styles.privacy} testID="login-privacy">{t("privacyPolicy")}</Link>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -65,4 +66,5 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "center", marginTop: S.xl },
   muted: { color: C.onSurfaceTertiary, fontFamily: F.text },
   link: { color: C.brand, fontFamily: F.textBold },
+  privacy: { color: C.onSurfaceTertiary, fontFamily: F.textBold, fontSize: 12, textAlign: "center", marginTop: S.xl },
 });

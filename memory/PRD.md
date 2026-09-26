@@ -225,6 +225,12 @@ Stock management app: scan product barcodes with phone; edit product info, price
 - ProductEditor: on web the "Take photo" (camera) button is hidden and pickImage() forces the gallery/file-input path (expo-image-picker has no web camera capture); "Choose photo" upload works in the browser.
 - Verified: testing agent — backend 6/6 (test_web_fallbacks.py) + all web flows (scan lookup, stocktake/sales-order manual scan modals, gallery-only photo editor, account deletion via UI). No issues.
 
+## Completed (2026-06 — Privacy Policy)
+- New standalone screen `app/privacy.tsx` (route /privacy): full English privacy policy (12 sections) with data controller "INVENTMENT", contact warehouse@test.com (placeholder — user will change), covering data collected, barcode/AI, photos/camera, sharing, retention/deletion (references in-app Delete Account), security, user rights, children, changes, contact. Back button via router.back().
+- "Privacy Policy" link added to Settings (privacy-link), Login (login-privacy) and Sign-up (register-privacy) screens. i18n key `privacyPolicy` added to all 9 languages (title + link translated; body kept English per user choice).
+- Verified on web: link opens the policy screen and content renders. Lint clean.
+
+
 
 - Native App Store / Google Play PRO subscriptions (requires native build to QA)
 

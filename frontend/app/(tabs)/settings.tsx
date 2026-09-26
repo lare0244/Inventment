@@ -274,6 +274,10 @@ export default function Settings() {
         <Section kind="categories" title={t("categories")} icon="shape-outline" items={categories} />
         <Section kind="suppliers" title={t("suppliers")} icon="truck-outline" items={suppliers} sub="email" />
         <Btn testID="logout-btn" title={t("signOut")} variant="ghost" icon="logout" onPress={signOut} />
+        <Pressable testID="privacy-link" onPress={() => router.push("/privacy")} style={styles.privacyRow}>
+          <MaterialCommunityIcons name="shield-lock-outline" size={16} color={C.onSurfaceTertiary} />
+          <Text style={styles.privacyTxt}>{t("privacyPolicy")}</Text>
+        </Pressable>
         <Pressable testID="delete-account-btn" onPress={onDeleteAccount} style={styles.deleteAccountRow}>
           <MaterialCommunityIcons name="delete-forever-outline" size={18} color={C.error} />
           <Text style={styles.deleteAccountTxt}>{t("deleteAccount")}</Text>
@@ -356,4 +360,6 @@ const makeStyles = (C: Palette) => StyleSheet.create({
   input: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: R.md, paddingHorizontal: S.md, height: 50, color: C.onSurface, fontFamily: F.text, fontSize: 15, marginBottom: S.md },
   deleteAccountRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, paddingVertical: S.md, marginTop: S.xs },
   deleteAccountTxt: { color: C.error, fontFamily: F.textBold, fontSize: 14 },
+  privacyRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: S.sm, paddingVertical: S.md, marginTop: S.md },
+  privacyTxt: { color: C.onSurfaceTertiary, fontFamily: F.textBold, fontSize: 13 },
 });
